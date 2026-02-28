@@ -97,7 +97,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: { type: String, enum: ["student", "admin"], default: "student" },
     name: String,
-    studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student" },
+    studentId: String, // Mudado de ObjectId para String
   },
   { timestamps: true },
 );
@@ -226,7 +226,7 @@ app.post("/api/classes", authenticateToken, async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email }).populate("studentId");
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(401).json({ error: "Credenciais inválidas" });
@@ -248,11 +248,11 @@ app.post("/api/auth/login", async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
+        id: user._id.toString(),
         email: user.email,
         role: user.role,
         name: user.name,
-        studentId: user.studentId,
+        studentId: user.studentId, // Agora é string no schema
       },
     });
   } catch (error) {
@@ -279,15 +279,27 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
+// Rota para limpar e reinicializar o banco
+app.post("/api/setup/reset", async (req, res) => {
+  try {
+    // Limpar todas as coleções
+    await User.deleteMany({});
+    await Student.deleteMany({});
+    await Attendance.deleteMany({});
+    await Class.deleteMany({});
+
+    res.json({
+      message:
+        "Banco de dados limpo com sucesso! Use /api/setup/init para criar dados iniciais.",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Rota para criar dados iniciais (usar apenas uma vez)
 app.post("/api/setup/init", async (req, res) => {
   try {
-    // Verificar se já existem usuários
-    const existingUsers = await User.countDocuments();
-    if (existingUsers > 0) {
-      return res.status(400).json({ error: "Dados já inicializados" });
-    }
-
     // Criar alunos de teste
     const students = [
       {
@@ -351,28 +363,28 @@ app.post("/api/setup/init", async (req, res) => {
         password: await bcrypt.hash("aluno123", 10),
         role: "student",
         name: "João Silva",
-        studentId: createdStudents[0]._id,
+        studentId: createdStudents[0]._id.toString(),
       },
       {
         email: "maria@example.com",
         password: await bcrypt.hash("aluno123", 10),
         role: "student",
         name: "Maria Santos",
-        studentId: createdStudents[1]._id,
+        studentId: createdStudents[1]._id.toString(),
       },
       {
         email: "carlos@example.com",
         password: await bcrypt.hash("aluno123", 10),
         role: "student",
         name: "Carlos Oliveira",
-        studentId: createdStudents[2]._id,
+        studentId: createdStudents[2]._id.toString(),
       },
       {
         email: "pedro@example.com",
         password: await bcrypt.hash("aluno123", 10),
         role: "student",
         name: "Pedro Costa",
-        studentId: createdStudents[3]._id,
+        studentId: createdStudents[3]._id.toString(),
       },
     ];
 

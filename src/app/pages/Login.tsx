@@ -37,11 +37,6 @@ export function LoginPage() {
       });
   };
 
-  const quickLogin = (em: string, pw: string) => {
-    setEmail(em);
-    setPassword(pw);
-  };
-
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4"
@@ -160,50 +155,6 @@ export function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Access */}
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-3">
-              Usuários de teste
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                onClick={() => quickLogin("admin@graciebarra.com", "admin123")}
-                className="text-sm py-3 px-4 bg-[#003087] hover:bg-blue-900 text-white rounded-xl transition-colors font-bold flex items-center justify-between"
-              >
-                <span>👨‍🏫 Professor Admin</span>
-                <span className="text-xs text-blue-200">admin</span>
-              </button>
-              <button
-                onClick={() => quickLogin("joao@example.com", "aluno123")}
-                className="text-sm py-3 px-4 border-2 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-between"
-              >
-                <span>🥋 João Silva</span>
-                <span className="text-xs text-gray-500">Branca 1°</span>
-              </button>
-              <button
-                onClick={() => quickLogin("maria@example.com", "aluno123")}
-                className="text-sm py-3 px-4 border-2 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-between"
-              >
-                <span>🥋 Maria Santos</span>
-                <span className="text-xs text-gray-500">Azul 2°</span>
-              </button>
-              <button
-                onClick={() => quickLogin("carlos@example.com", "aluno123")}
-                className="text-sm py-3 px-4 border-2 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-between"
-              >
-                <span>🥋 Carlos Oliveira</span>
-                <span className="text-xs text-gray-500">Roxa</span>
-              </button>
-              <button
-                onClick={() => quickLogin("pedro@example.com", "aluno123")}
-                className="text-sm py-3 px-4 border-2 border-green-200 text-green-700 hover:bg-green-50 rounded-xl transition-colors font-medium flex items-center justify-between"
-              >
-                <span>👦 Pedro Costa (GBK)</span>
-                <span className="text-xs text-green-600">Cinza 3°</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         <p className="text-center text-red-200/50 text-xs mt-6">
