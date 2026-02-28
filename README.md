@@ -1,6 +1,6 @@
 # 🥋 GB Attendance - Sistema de Presença Gracie Barra
 
-Sistema de gerenciamento de presença para academias Gracie Barra.
+Sistema de gerenciamento de presença para academias Gracie Barra com backend MongoDB e aplicativo mobile nativo.
 
 ## 📋 Pré-requisitos
 
@@ -8,6 +8,7 @@ Antes de começar, você precisa ter instalado:
 
 - [Node.js](https://nodejs.org/) (versão 18 ou superior)
 - [Git](https://git-scm.com/)
+- Conta no [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (gratuita)
 
 ## 🚀 Como Rodar o Projeto
 
@@ -16,23 +17,26 @@ Antes de começar, você precisa ter instalado:
 Abra o PowerShell na pasta do projeto e execute:
 
 ```powershell
-# Instalar dependências do frontend
 npm install
-
-# Instalar dependências do backend
-npm install --prefix . -f express mongoose cors dotenv bcryptjs jsonwebtoken
 ```
 
 ### 2️⃣ Configurar Variáveis de Ambiente
 
-O arquivo `.env` já está criado com sua string do MongoDB. Verifique se está correto:
+Crie/edite o arquivo `.env` na raiz do projeto com sua string de conexão MongoDB:
 
-```
-MONGODB_URI=mongodb+srv://murilo_dev:MuriloKaspar93blocobe@gb-attendence.vw27p8v.mongodb.net/gb-attendance?retryWrites=true&w=majority
+```env
+MONGODB_URI=sua_string_de_conexao_mongodb_aqui
 PORT=3001
+JWT_SECRET=sua_chave_secreta_jwt_aqui
 ```
 
-### 3️⃣ Iniciar o Backend (Servidor)
+**Como obter a string do MongoDB Atlas:**
+
+1. Acesse [MongoDB Atlas](https://cloud.mongodb.com)
+2. Vá em "Database" → "Connect" → "Connect your application"
+3. Copie a connection string e substitua `<password>` pela sua senha
+
+### 3️⃣ Iniciar o Backend
 
 Em um terminal, execute:
 
@@ -47,157 +51,271 @@ Você verá:
 🚀 Servidor rodando em http://localhost:3001
 ```
 
-### 4️⃣ Iniciar o Frontend
+### 4️⃣ Criar Dados Iniciais (Primeira Vez)
 
-Em OUTRO terminal (deixe o backend rodando), execute:
-
-```powershell
-npm run dev
-```
-
-Você verá algo como:
-
-```
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.1.X:5173/
-```
-
-### 5️⃣ Acessar o Aplicativo
-
-- **No computador**: Abra http://localhost:5173
-- **No celular**: Use o endereço Network (ex: http://192.168.1.X:5173)
-
-## 📱 Como Rodar no Celular
-
-### ✅ Opção 1: Navegador (Mais Simples e Rápido)
-
-1. Certifique-se que o celular está na **mesma rede WiFi** que o computador
-2. Anote o endereço IP do seu computador:
-
-   ```powershell
-   ipconfig
-   ```
-
-   Procure por "Endereço IPv4" (exemplo: 192.168.1.100)
-
-3. No celular, abra o navegador e acesse:
-
-   ```
-   http://SEU_IP:5173
-   ```
-
-   Exemplo: `http://192.168.1.100:5173`
-
-4. Para adicionar à tela inicial (como app):
-   - **Android**: Menu → "Adicionar à tela inicial"
-   - **iOS**: Compartilhar → "Adicionar à Tela de Início"
-
-### 🚀 Opção 2: Aplicativo Nativo (Android/iOS) - **JÁ CONFIGURADO!**
-
-Seu projeto agora está pronto para gerar aplicativos nativos!
-
-**Para Android:**
+Com o backend rodando, em outro terminal execute:
 
 ```powershell
-# Abrir projeto no Android Studio
-npm run android
+Invoke-RestMethod -Uri "http://localhost:3001/api/setup/init" -Method POST -ContentType "application/json"
+```
 
-# OU gerar APK diretamente
-npm run build
-npx cap sync
+Isso criará:
+
+- 1 usuário admin (admin@graciebarra.com / admin123)
+- 4 alunos de teste com diferentes faixas
+- 3 aulas padrão (Fundamentos, Avançado, Kids)
+
+### 5️⃣ Iniciar o Frontend
+
+Em outro terminal (deixe o backend rodando), execute:
+
+```powershell
+npm run dev -- --host 192.168.15.2
+```
+
+**⚠️ IMPORTANTE**: Substitua `192.168.15.2` pelo seu IP local. Para descobrir:
+
+```powershell
+ipconfig
+```
+
+Procure por "Endereço IPv4" na seção da sua rede WiFi.
+
+## 📱 Como Rodar no Celular (Live Reload)
+
+### ✅ Configuração (já feita!)
+
+O projeto já está configurado para live reload. Qualquer alteração no código atualiza automaticamente no celular!
+
+### 🚀 Passos para rodar:
+
+**1. Configure seu IP no Capacitor:**
+
+Edite `capacitor.config.json` e atualize a URL com seu IP:
+
+```json
+{
+  "server": {
+    "url": "http://SEU_IP:5173",
+    "cleartext": true
+  }
+}
+```
+
+**2. Configure o backend no frontend:**
+
+Edite `.env.local` e configure o IP do backend:
+
+```env
+VITE_API_URL=http://SEU_IP:3001/api
+```
+
+**3. Sincronize e instale no celular:**
+
+```powershell
+# Sincronizar configurações
+npx cap sync android
+
+# Instalar no celular conectado via USB
 cd android
-./gradlew assembleDebug
+./gradlew installDebug
 ```
 
-O APK estará em: `android/app/build/outputs/apk/debug/app-debug.apk`
+**4. Inicie os servidores:**
 
-**Para iOS (apenas em Mac):**
+Terminal 1 (Backend):
 
 ```powershell
-npm run ios
+node server/index.js
 ```
 
-📖 **Guia Completo**: Veja o arquivo [GUIA-APP-NATIVO.md](GUIA-APP-NATIVO.md) para instruções detalhadas de como:
-
-- ✅ Instalar Android Studio
-- ✅ Gerar APK para Android
-- ✅ Testar no emulador ou celular
-- ✅ Publicar na Google Play Store
-- ✅ Gerar IPA para iOS (no Mac)
-- ✅ Publicar na Apple App Store
-- ✅ Personalizar ícone e splash screen
-
-**Scripts úteis:**
+Terminal 2 (Frontend com live reload):
 
 ```powershell
-npm run android      # Build + Sync + Abrir Android Studio
-npm run ios          # Build + Sync + Abrir Xcode (Mac)
-npm run sync         # Sincronizar mudanças com as plataformas
-npm run run:android  # Rodar no celular Android conectado via USB
+npm run dev -- --host SEU_IP
 ```
 
-## 🔐 Usuários Padrão (Temporário - dados mock)
+**5. Abra o app no celular**
+
+O app se conectará automaticamente ao servidor de desenvolvimento e **qualquer mudança no código será refletida instantaneamente** no celular! 🔄
+
+## 🔐 Usuários de Login
+
+Os usuários estão salvos no MongoDB. Use o comando de reset para recriar:
+
+## 🔐 Usuários de Login
+
+Os usuários estão salvos no MongoDB. Use o comando de reset para recriar:
 
 **Admin:**
 
-- Email: admin@gb.com
+- Email: admin@graciebarra.com
 - Senha: admin123
 
-**Aluno:**
+**Alunos de teste:**
 
-- Email: joao@example.com
-- Senha: senha123
+- João Silva (Branca 1°): joao@example.com / aluno123
+- Maria Santos (Azul 2°): maria@example.com / aluno123
+- Carlos Oliveira (Roxa): carlos@example.com / aluno123
+- Pedro Costa (GBK Cinza 3°): pedro@example.com / aluno123
+
+## 🗄️ Gerenciamento do Banco de Dados
+
+### Limpar todas as coleções:
+
+```powershell
+node server/reset-db.js
+```
+
+### Recriar dados iniciais:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3001/api/setup/init" -Method POST -ContentType "application/json"
+```
 
 ## 📡 API Endpoints
 
 Base URL: `http://localhost:3001/api`
 
+### Autenticação
+
+- `POST /auth/login` - Login (retorna JWT token)
+
+### Alunos (requer autenticação)
+
 - `GET /students` - Lista todos os alunos
 - `GET /students/:id` - Busca aluno específico
 - `POST /students` - Cria novo aluno
 - `PUT /students/:id` - Atualiza aluno
+
+### Presenças (requer autenticação)
+
 - `GET /attendance` - Lista presenças
 - `POST /attendance` - Registra presença
+- `PATCH /attendance/:id` - Atualiza presença (confirmar/rejeitar)
+
+### Aulas (requer autenticação)
+
 - `GET /classes` - Lista aulas
-- `POST /auth/login` - Login
+- `POST /classes` - Cria nova aula
 
-## 🛠️ Próximos Passos
+### Setup
 
-Para conectar o frontend com o backend:
+- `POST /setup/init` - Cria dados iniciais
 
-1. Instalar axios no frontend:
+**Autenticação:** Inclua o token JWT no header:
 
-```powershell
-npm install axios
+```
+Authorization: Bearer SEU_TOKEN_JWT
 ```
 
-2. Atualizar o `DataContext.tsx` para fazer chamadas HTTP ao backend ao invés de usar dados mock
-
-3. Adicionar autenticação JWT para segurança
-
-## 📝 Estrutura do Projeto
+## 📁 Estrutura do Projeto
 
 ```
 GracieBarra-attendance/
-├── src/                    # Frontend (React)
+├── src/                      # Frontend (React + TypeScript)
 │   ├── app/
-│   │   ├── components/     # Componentes reutilizáveis
-│   │   ├── pages/          # Páginas da aplicação
-│   │   └── context/        # Context API (dados mock)
-│   └── styles/             # Estilos CSS
-├── server/                 # Backend (Node.js + Express)
-│   └── index.js            # API REST + MongoDB
-├── .env                    # Variáveis de ambiente
-└── package.json            # Dependências
-
+│   │   ├── components/       # Componentes reutilizáveis
+│   │   │   ├── ui/           # Componentes Radix UI
+│   │   │   ├── BeltDisplay.tsx
+│   │   │   └── AttendanceCard.tsx
+│   │   ├── pages/            # Páginas da aplicação
+│   │   │   ├── Login.tsx
+│   │   │   ├── StudentDashboard.tsx
+│   │   │   ├── AdminDashboard.tsx
+│   │   │   └── ...
+│   │   ├── context/          # Context API (gerenciamento de estado)
+│   │   │   └── DataContext.tsx
+│   │   └── services/         # Serviços de API
+│   │       └── api.ts        # Axios + interceptors JWT
+│   └── styles/               # Estilos CSS/Tailwind
+├── server/                   # Backend (Node.js + Express + MongoDB)
+│   ├── index.js              # API REST + autenticação JWT
+│   └── reset-db.js           # Script para limpar banco
+├── android/                  # Projeto Android (Capacitor)
+├── capacitor.config.json     # Configuração Capacitor
+├── .env                      # Variáveis backend
+├── .env.local                # Variáveis frontend
+└── package.json              # Dependências
 ```
 
-## ⚠️ Observações Importantes
+## 🛠️ Stack Tecnológica
 
-1. **Segurança**: A senha está em texto plano. Em produção, use bcrypt para hash!
-2. **CORS**: O backend aceita requisições de qualquer origem. Configure corretamente em produção.
-3. **JWT**: Adicione autenticação JWT para produção.
-4. **Firewall**: Pode ser necessário liberar a porta 5173 e 3001 no firewall do Windows.
+### Frontend
+
+- **React 18** + **TypeScript**
+- **Vite** - Build tool
+- **React Router 7** - Roteamento
+- **Tailwind CSS 4** - Estilização
+- **Radix UI** - Componentes acessíveis
+- **Axios** - Cliente HTTP
+- **date-fns** - Manipulação de datas
+- **Lucide React** - Ícones
+- **Sonner** - Notificações toast
+
+### Backend
+
+- **Node.js** + **Express**
+- **MongoDB** (Mongoose) - Banco de dados
+- **JWT** - Autenticação
+- **bcryptjs** - Hash de senhas
+- **CORS** - Segurança
+
+### Mobile
+
+- **Capacitor 8** - Framework nativo
+- Plugins: App, Network, Splash Screen, Status Bar
+
+## 🔧 Scripts Disponíveis
+
+### Frontend
+
+```powershell
+npm run dev              # Inicia servidor de desenvolvimento
+npm run build            # Build de produção
+npm run preview          # Preview do build
+```
+
+### Mobile
+
+```powershell
+npm run android          # Build + Sync + Abrir Android Studio
+npm run ios              # Build + Sync + Abrir Xcode (Mac)
+npm run sync             # Sincronizar com plataformas nativas
+npx cap sync android     # Sync apenas Android
+npx cap open android     # Abrir Android Studio
+```
+
+### Backend
+
+```powershell
+node server/index.js     # Iniciar servidor backend
+node server/reset-db.js  # Limpar banco de dados
+```
+
+## ⚠️ Observações de Segurança
+
+### ⚠️ IMPORTANTE PARA PRODUÇÃO:
+
+1. **Nunca commite arquivos `.env`** com senhas reais
+2. **Mude o `JWT_SECRET`** para algo forte e único
+3. **Configure CORS** para aceitar apenas domínios específicos
+4. **Use HTTPS** em produção
+5. **Habilite rate limiting** no backend
+6. **Valide todas as entradas** do usuário
+7. **Configure corretamente** as permissões do MongoDB Atlas
+8. **Use variáveis de ambiente** para strings sensíveis
+
+### Exemplo de CORS em produção:
+
+```javascript
+app.use(
+  cors({
+    origin: ["https://seudominio.com"],
+    credentials: true,
+  }),
+);
+```
 
 ## 🐛 Problemas Comuns
 
@@ -205,21 +323,59 @@ GracieBarra-attendance/
 
 - Verifique a string de conexão no `.env`
 - Confirme que tem acesso à internet
-- Verifique se o IP está liberado no MongoDB Atlas
+- Verifique se seu IP está liberado no MongoDB Atlas
+- Vá em Network Access e adicione seu IP ou use `0.0.0.0/0` (não recomendado para produção)
 
 ### "Não consigo acessar do celular"
 
-- Confirme que ambos estão na mesma rede WiFi
+- Confirme que ambos estão na **mesma rede WiFi**
 - Desative temporariamente o firewall do Windows
-- Use o IP correto (o que aparece no terminal quando roda `npm run dev`)
+- Use o IP correto (o que aparece no terminal)
+- Verifique se a porta 5173 e 3001 estão abertas
 
-### "Porta já está em uso"
+### "Perfil de aluno não encontrado"
 
-- Mude a porta no `vite.config.ts` ou `.env`
+- Certifique-se que executou o setup inicial: `POST /api/setup/init`
+- Limpe o banco e recrie: `node server/reset-db.js` + setup init
+- Verifique se o studentId está sendo retornado no login
+
+### "Token inválido" ou "Sessão expirada"
+
+- Faça logout e login novamente
+- Limpe o localStorage do navegador (F12 → Application → Clear)
+- Os tokens JWT expiram em 7 dias
+
+### "Live reload não funciona no celular"
+
+- Verifique se o `capacitor.config.json` tem a URL correta
+- Confirme que o servidor dev está rodando com `--host SEU_IP`
+- Reinstale o app após mudar configurações: `npx cap sync android && cd android && ./gradlew installDebug`
+
+### "Gradle build failed"
+
+- Abra o Android Studio e deixe sincronizar/baixar dependências
+- Execute: `cd android && ./gradlew clean`
+- Verifique se tem Java 17 instalado
+
+## 📚 Documentação Adicional
+
+- [GUIA-APP-NATIVO.md](GUIA-APP-NATIVO.md) - Guia completo para gerar apps Android/iOS
+- [CONFIGURACAO-MONGODB.md](CONFIGURACAO-MONGODB.md) - Configuração e segurança do MongoDB
+
+## 🚀 Próximas Funcionalidades
+
+- [ ] Dashboard com gráficos de frequência
+- [ ] Sistema de notificações push
+- [ ] Relatórios em PDF
+- [ ] Integração com calendário
+- [ ] Sistema de pagamentos
+- [ ] Chat entre alunos e professores
+- [ ] Vídeos de técnicas/treinos
+- [ ] Ranking de frequência
 
 ## 📞 Suporte
 
-Qualquer dúvida, pode perguntar!
+Para dúvidas ou problemas, abra uma issue no repositório.
 
 ---
 
