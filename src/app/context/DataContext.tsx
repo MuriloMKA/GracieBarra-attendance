@@ -1,33 +1,38 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService, studentService, attendanceService, classService } from '../services/api';
+import { toast } from 'sonner';
 
 export type UserRole = 'student' | 'admin';
 export type Program = 'GBK' | 'GB1' | 'GB2' | 'GB3';
 export type BeltColor = 'White' | 'Grey' | 'Yellow' | 'Orange' | 'Green' | 'Blue' | 'Purple' | 'Brown' | 'Black';
 
 export interface SpecialDate {
-  id: string;
-  date: string; // YYYY-MM-DD
+  id?: string;
+  _id?: string;
+  date: string;
   type: 'graduation' | 'grade';
   notes?: string;
 }
 
 export interface Student {
-  id: string;
+  id?: string;
+  _id?: string;
   name: string;
   email: string;
   program: Program;
   belt: BeltColor;
-  degrees: number; // 0-4 stripes
-  lastGraduationDate: string; // YYYY-MM-DD
-  nextDegreeDate: string; // YYYY-MM-DD estimated
+  degrees: number;
+  lastGraduationDate: string;
+  nextDegreeDate: string;
   birthDate: string;
   specialDates: SpecialDate[];
 }
 
 export interface Attendance {
-  id: string;
+  id?: string;
+  _id?: string;
   studentId: string;
-  date: string; // ISO datetime
+  date: string;
   classId: string;
   className: string;
   classTime: string;
@@ -35,17 +40,17 @@ export interface Attendance {
 }
 
 export interface JJClass {
-  id: string;
+  id?: string;
+  _id?: string;
   name: string;
   time: string;
   instructor: string;
-  daysOfWeek: number[]; // 0=Sun, 1=Mon ... 6=Sat
+  daysOfWeek: number[];
 }
 
 export interface UserAccount {
   id: string;
   email: string;
-  password: string;
   role: UserRole;
   name: string;
   studentId?: string;
@@ -56,328 +61,268 @@ interface DataContextType {
   students: Student[];
   attendance: Attendance[];
   classes: JJClass[];
-  login: (email: string, password: string) => boolean;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  checkIn: (studentId: string, classId: string, className: string, classTime: string) => void;
-  confirmAttendance: (attendanceId: string) => void;
-  rejectAttendance: (attendanceId: string) => void;
-  updateStudent: (student: Student) => void;
-  addStudent: (student: Omit<Student, 'id'>, email: string, password: string) => void;
-  addSpecialDate: (studentId: string, date: string, type: 'graduation' | 'grade', notes?: string) => void;
-  removeSpecialDate: (studentId: string, specialDateId: string) => void;
-  updateSpecialDates: (studentId: string, specialDates: SpecialDate[]) => void;
+  checkIn: (studentId: string, classId: string, className: string, classTime: string) => Promise<void>;
+  confirmAttendance: (attendanceId: string) => Promise<void>;
+  rejectAttendance: (attendanceId: string) => Promise<void>;
+  updateStudent: (student: Student) => Promise<void>;
+  addStudent: (student: Omit<Student, 'id'>, email: string, password: string) => Promise<void>;
+  addSpecialDate: (studentId: string, date: string, type: 'graduation' | 'grade', notes?: string) => Promise<void>;
+  removeSpecialDate: (studentId: string, specialDateId: string) => Promise<void>;
+  updateSpecialDates: (studentId: string, specialDates: SpecialDate[]) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Gera datas de presença para 2026 (Jan e Fev)
-function makeDates(studentId: string, datesArray: string[], classPattern: Array<{ id: string; name: string; time: string }>): Attendance[] {
-  return datesArray.map((d, i) => ({
-    id: `att-${studentId}-${i}`,
-    studentId,
-    date: new Date(`${d}T20:10:00.000Z`).toISOString(),
-    classId: classPattern[i % classPattern.length].id,
-    className: classPattern[i % classPattern.length].name,
-    classTime: classPattern[i % classPattern.length].time,
-    confirmed: true,
-  }));
-}
+export function DataProvider({ children }: { children: React.ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [classes, setClasses] = useState<JJClass[]>([]);
+  const [loading, setLoading] = useState(false);
 
-const CLS = [
-  { id: 'c1', name: 'Fundamentos', time: '20:10' },
-  { id: 'c3', name: 'Fundamentos', time: '19:00' },
-  { id: 'c2', name: 'Avançado', time: '21:00' },
-];
+  // Carregar dados quando autenticado
+  const loadData = async () => {
+    const token = localStorage.getItem('gb_auth_token');
+    if (!token) return;
 
-const INITIAL_STUDENTS: Student[] = [
-  {
-    id: '1',
-    name: 'João Silva',
-    email: 'joao@example.com',
-    program: 'GB1',
-    belt: 'White',
-    degrees: 1,
-    lastGraduationDate: '2025-08-20',
-    nextDegreeDate: '2026-05-20',
-    birthDate: '1995-02-15',
-    specialDates: [
-      { id: 'sd1-1', date: '2025-08-20', type: 'graduation', notes: 'Faixa Branca — 1º Grau' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Maria Oliveira',
-    email: 'maria@example.com',
-    program: 'GB1',
-    belt: 'White',
-    degrees: 3,
-    lastGraduationDate: '2025-11-10',
-    nextDegreeDate: '2026-04-15',
-    birthDate: '1998-06-22',
-    specialDates: [
-      { id: 'sd2-1', date: '2025-02-15', type: 'graduation', notes: 'Faixa Branca — 1º Grau' },
-      { id: 'sd2-2', date: '2025-06-20', type: 'graduation', notes: 'Faixa Branca — 2º Grau' },
-      { id: 'sd2-3', date: '2025-11-10', type: 'graduation', notes: 'Faixa Branca — 3º Grau' },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Carlos Santos',
-    email: 'carlos@example.com',
-    program: 'GB2',
-    belt: 'Blue',
-    degrees: 2,
-    lastGraduationDate: '2025-06-15',
-    nextDegreeDate: '2026-08-15',
-    birthDate: '1990-11-30',
-    specialDates: [
-      { id: 'sd3-1', date: '2023-03-10', type: 'graduation', notes: 'Faixa Azul — 0 Grau' },
-      { id: 'sd3-2', date: '2024-01-20', type: 'graduation', notes: 'Faixa Azul — 1º Grau' },
-      { id: 'sd3-3', date: '2025-06-15', type: 'graduation', notes: 'Faixa Azul — 2º Grau' },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Pedro Costa',
-    email: 'pedro@example.com',
-    program: 'GBK',
-    belt: 'Grey',
-    degrees: 2,
-    lastGraduationDate: '2025-09-05',
-    nextDegreeDate: '2026-03-05',
-    birthDate: '2014-04-10',
-    specialDates: [
-      { id: 'sd4-1', date: '2025-03-10', type: 'graduation', notes: 'Faixa Cinza — 1º Grau' },
-      { id: 'sd4-2', date: '2025-09-05', type: 'graduation', notes: 'Faixa Cinza — 2º Grau' },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Ana Pereira',
-    email: 'ana@example.com',
-    program: 'GB3',
-    belt: 'Purple',
-    degrees: 1,
-    lastGraduationDate: '2024-12-20',
-    nextDegreeDate: '2026-12-20',
-    birthDate: '1988-07-22',
-    specialDates: [
-      { id: 'sd5-1', date: '2022-05-10', type: 'graduation', notes: 'Faixa Azul — 0 Grau' },
-      { id: 'sd5-2', date: '2023-11-15', type: 'graduation', notes: 'Faixa Roxa — 0 Grau' },
-      { id: 'sd5-3', date: '2024-12-20', type: 'graduation', notes: 'Faixa Roxa — 1º Grau' },
-    ],
-  },
-];
-
-const INITIAL_ACCOUNTS: UserAccount[] = [
-  { id: 'admin1', email: 'admin@graciebarra.com', password: 'admin123', role: 'admin', name: 'Professor Carlos' },
-  { id: 'u1', email: 'joao@example.com', password: 'aluno123', role: 'student', name: 'João Silva', studentId: '1' },
-  { id: 'u2', email: 'maria@example.com', password: 'aluno123', role: 'student', name: 'Maria Oliveira', studentId: '2' },
-  { id: 'u3', email: 'carlos@example.com', password: 'aluno123', role: 'student', name: 'Carlos Santos', studentId: '3' },
-  { id: 'u4', email: 'pedro@example.com', password: 'aluno123', role: 'student', name: 'Pedro Costa', studentId: '4' },
-  { id: 'u5', email: 'ana@example.com', password: 'aluno123', role: 'student', name: 'Ana Pereira', studentId: '5' },
-];
-
-const INITIAL_CLASSES: JJClass[] = [
-  { id: 'c1', name: 'Fundamentos', time: '06:00', instructor: 'Prof. Carlos', daysOfWeek: [1, 2, 3, 4, 5, 6] },
-  { id: 'c2', name: 'Open Mat', time: '10:00', instructor: 'Prof. Carlos', daysOfWeek: [6, 0] },
-  { id: 'c3', name: 'Fundamentos', time: '19:00', instructor: 'Prof. Carlos', daysOfWeek: [1, 2, 3, 4, 5] },
-  { id: 'c4', name: 'Fundamentos', time: '20:10', instructor: 'Prof. Carlos', daysOfWeek: [1, 2, 3, 4, 5] },
-  { id: 'c5', name: 'Avançado', time: '21:00', instructor: 'Prof. Carlos', daysOfWeek: [1, 2, 3, 4, 5] },
-  { id: 'c6', name: 'GBK — Crianças', time: '09:30', instructor: 'Prof. Carlos', daysOfWeek: [6] },
-  { id: 'c7', name: 'GBK — Crianças', time: '18:30', instructor: 'Prof. Carlos', daysOfWeek: [2, 4] },
-];
-
-const INITIAL_ATTENDANCE: Attendance[] = [
-  // João Silva (1) - White 1 stripe
-  ...makeDates('1', [
-    '2026-01-03', '2026-01-06', '2026-01-08', '2026-01-10', '2026-01-13',
-    '2026-01-15', '2026-01-17', '2026-01-20', '2026-01-22', '2026-01-24',
-    '2026-01-27', '2026-01-29', '2026-01-31',
-    '2026-02-03', '2026-02-05', '2026-02-10', '2026-02-12', '2026-02-17',
-    '2026-02-19', '2026-02-24',
-  ], CLS),
-  // Maria Oliveira (2) - White 3 stripes
-  ...makeDates('2', [
-    '2026-01-02', '2026-01-05', '2026-01-07', '2026-01-09', '2026-01-12',
-    '2026-01-14', '2026-01-16', '2026-01-19', '2026-01-21', '2026-01-23',
-    '2026-01-26', '2026-01-28', '2026-01-30',
-    '2026-02-02', '2026-02-04', '2026-02-09', '2026-02-11', '2026-02-16',
-    '2026-02-18', '2026-02-23', '2026-02-25',
-  ], CLS),
-  // Carlos Santos (3) - Blue 2
-  ...makeDates('3', [
-    '2026-01-06', '2026-01-13', '2026-01-20', '2026-01-27',
-    '2026-02-03', '2026-02-10', '2026-02-17', '2026-02-24',
-  ], CLS),
-  // Pedro Costa (4) - GBK
-  ...makeDates('4', [
-    '2026-01-03', '2026-01-10', '2026-01-17', '2026-01-24', '2026-01-31',
-    '2026-02-07', '2026-02-14', '2026-02-21',
-  ], CLS),
-  // Ana Pereira (5) - Purple
-  ...makeDates('5', [
-    '2026-01-07', '2026-01-14', '2026-01-21', '2026-01-28',
-    '2026-02-04', '2026-02-11', '2026-02-18',
-  ], CLS),
-  // Pending check-ins de hoje (Feb 27, 2026)
-  {
-    id: 'pending-1',
-    studentId: '1',
-    date: '2026-02-27T20:10:00.000Z',
-    classId: 'c4',
-    className: 'Fundamentos',
-    classTime: '20:10',
-    confirmed: false,
-  },
-  {
-    id: 'pending-2',
-    studentId: '3',
-    date: '2026-02-27T21:00:00.000Z',
-    classId: 'c5',
-    className: 'Avançado',
-    classTime: '21:00',
-    confirmed: false,
-  },
-];
-
-export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [accounts] = useState<UserAccount[]>(INITIAL_ACCOUNTS);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     try {
-      const saved = localStorage.getItem('gb_current_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
-  const [students, setStudents] = useState<Student[]>(() => {
-    try {
-      const saved = localStorage.getItem('gb_students');
-      return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
-    } catch { return INITIAL_STUDENTS; }
-  });
-  const [attendance, setAttendance] = useState<Attendance[]>(() => {
-    try {
-      const saved = localStorage.getItem('gb_attendance');
-      return saved ? JSON.parse(saved) : INITIAL_ATTENDANCE;
-    } catch { return INITIAL_ATTENDANCE; }
-  });
-  const [classes] = useState<JJClass[]>(INITIAL_CLASSES);
+      setLoading(true);
+      const [studentsData, attendanceData, classesData] = await Promise.all([
+        studentService.getAll(),
+        attendanceService.getAll(),
+        classService.getAll(),
+      ]);
 
-  useEffect(() => {
-    if (currentUser) localStorage.setItem('gb_current_user', JSON.stringify(currentUser));
-    else localStorage.removeItem('gb_current_user');
-  }, [currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem('gb_students', JSON.stringify(students));
-  }, [students]);
-
-  useEffect(() => {
-    localStorage.setItem('gb_attendance', JSON.stringify(attendance));
-  }, [attendance]);
-
-  const login = (email: string, password: string): boolean => {
-    const account = accounts.find(a => a.email.toLowerCase() === email.toLowerCase() && a.password === password);
-    if (account) {
-      setCurrentUser(account);
-      return true;
+      // Normalizar IDs
+      setStudents(studentsData.map((s: any) => ({ ...s, id: s._id || s.id })));
+      setAttendance(attendanceData.map((a: any) => ({ ...a, id: a._id || a.id })));
+      setClasses(classesData.map((c: any) => ({ ...c, id: c._id || c.id })));
+    } catch (error: any) {
+      console.error('Erro ao carregar dados:', error);
+      if (error.response?.status === 401) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        logout();
+      }
+    } finally {
+      setLoading(false);
     }
-    return false;
+  };
+
+  // Restaurar usuário ao carregar página
+  useEffect(() => {
+    const savedUser = localStorage.getItem('gb_current_user');
+    const token = localStorage.getItem('gb_auth_token');
+    
+    if (savedUser && token) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        loadData();
+      } catch (error) {
+        console.error('Erro ao restaurar usuário:', error);
+        localStorage.removeItem('gb_current_user');
+        localStorage.removeItem('gb_auth_token');
+      }
+    }
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const response = await authService.login(email, password);
+      
+      localStorage.setItem('gb_auth_token', response.token);
+      localStorage.setItem('gb_current_user', JSON.stringify(response.user));
+      setCurrentUser(response.user);
+      
+      await loadData();
+      toast.success(`Bem-vindo, ${response.user.name}!`);
+      return true;
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      toast.error(error.response?.data?.error || 'Erro ao fazer login');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
+    localStorage.removeItem('gb_auth_token');
+    localStorage.removeItem('gb_current_user');
     setCurrentUser(null);
+    setStudents([]);
+    setAttendance([]);
+    setClasses([]);
   };
 
-  const checkIn = (studentId: string, classId: string, className: string, classTime: string) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    // Prevent duplicate check-in for same class today
-    const alreadyCheckedIn = attendance.some(
-      a => a.studentId === studentId && a.classId === classId && a.date.startsWith(todayStr)
-    );
-    if (alreadyCheckedIn) return;
-
-    const newRecord: Attendance = {
-      id: `att-${Date.now()}`,
-      studentId,
-      date: new Date().toISOString(),
-      classId,
-      className,
-      classTime,
-      confirmed: false,
-    };
-    setAttendance(prev => [newRecord, ...prev]);
+  const checkIn = async (studentId: string, classId: string, className: string, classTime: string) => {
+    try {
+      const newAttendance = await attendanceService.create({
+        studentId,
+        classId,
+        className,
+        classTime,
+        date: new Date().toISOString(),
+        confirmed: false,
+      });
+      
+      setAttendance([...attendance, { ...newAttendance, id: newAttendance._id || newAttendance.id }]);
+      toast.success('Check-in realizado! Aguarde confirmação do professor.');
+    } catch (error: any) {
+      console.error('Erro no check-in:', error);
+      toast.error(error.response?.data?.error || 'Erro ao fazer check-in');
+    }
   };
 
-  const confirmAttendance = (attendanceId: string) => {
-    setAttendance(prev => prev.map(a => a.id === attendanceId ? { ...a, confirmed: true } : a));
+  const confirmAttendance = async (attendanceId: string) => {
+    try {
+      await attendanceService.update(attendanceId, { confirmed: true });
+      setAttendance(attendance.map(a => 
+        (a.id === attendanceId || a._id === attendanceId) ? { ...a, confirmed: true } : a
+      ));
+      toast.success('Presença confirmada!');
+    } catch (error: any) {
+      console.error('Erro ao confirmar presença:', error);
+      toast.error(error.response?.data?.error || 'Erro ao confirmar presença');
+    }
   };
 
-  const rejectAttendance = (attendanceId: string) => {
-    setAttendance(prev => prev.filter(a => a.id !== attendanceId));
+  const rejectAttendance = async (attendanceId: string) => {
+    try {
+      // Por enquanto, vamos remover localmente
+      // TODO: Adicionar endpoint DELETE no backend
+      setAttendance(attendance.filter(a => a.id !== attendanceId && a._id !== attendanceId));
+      toast.info('Check-in removido.');
+    } catch (error: any) {
+      console.error('Erro ao rejeitar presença:', error);
+      toast.error('Erro ao remover check-in');
+    }
   };
 
-  const updateStudent = (updatedStudent: Student) => {
-    setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+  const updateStudent = async (student: Student) => {
+    try {
+      const studentId = student.id || student._id;
+      if (!studentId) throw new Error('ID do aluno não encontrado');
+      
+      const updated = await studentService.update(studentId, student);
+      setStudents(students.map(s => 
+        (s.id === studentId || s._id === studentId) ? { ...updated, id: updated._id || updated.id } : s
+      ));
+      toast.success('Aluno atualizado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao atualizar aluno:', error);
+      toast.error(error.response?.data?.error || 'Erro ao atualizar aluno');
+    }
   };
 
-  const addStudent = (studentData: Omit<Student, 'id'>, _email: string, _password: string) => {
-    const newStudent: Student = { ...studentData, id: `s-${Date.now()}` };
-    setStudents(prev => [...prev, newStudent]);
+  const addStudent = async (student: Omit<Student, 'id'>, email: string, password: string) => {
+    try {
+      const newStudent = await studentService.create(student);
+      setStudents([...students, { ...newStudent, id: newStudent._id || newStudent.id }]);
+      toast.success('Aluno adicionado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao adicionar aluno:', error);
+      toast.error(error.response?.data?.error || 'Erro ao adicionar aluno');
+    }
   };
 
-  const addSpecialDate = (studentId: string, date: string, type: 'graduation' | 'grade', notes?: string) => {
-    const newSpecialDate: SpecialDate = {
-      id: `sd-${Date.now()}`,
-      date,
-      type,
-      notes,
-    };
-    setStudents(prev => prev.map(s =>
-      s.id === studentId
-        ? { ...s, specialDates: [...s.specialDates, newSpecialDate] }
-        : s
-    ));
+  const addSpecialDate = async (studentId: string, date: string, type: 'graduation' | 'grade', notes?: string) => {
+    try {
+      const student = students.find(s => s.id === studentId || s._id === studentId);
+      if (!student) throw new Error('Aluno não encontrado');
+      
+      const newSpecialDate: SpecialDate = {
+        id: `sd-${Date.now()}`,
+        date,
+        type,
+        notes,
+      };
+      
+      const updatedStudent = {
+        ...student,
+        specialDates: [...student.specialDates, newSpecialDate],
+      };
+      
+      await updateStudent(updatedStudent);
+    } catch (error: any) {
+      console.error('Erro ao adicionar data especial:', error);
+      toast.error('Erro ao adicionar data especial');
+    }
   };
 
-  const removeSpecialDate = (studentId: string, specialDateId: string) => {
-    setStudents(prev => prev.map(s =>
-      s.id === studentId
-        ? { ...s, specialDates: s.specialDates.filter(sd => sd.id !== specialDateId) }
-        : s
-    ));
+  const removeSpecialDate = async (studentId: string, specialDateId: string) => {
+    try {
+      const student = students.find(s => s.id === studentId || s._id === studentId);
+      if (!student) throw new Error('Aluno não encontrado');
+      
+      const updatedStudent = {
+        ...student,
+        specialDates: student.specialDates.filter(sd => sd.id !== specialDateId && sd._id !== specialDateId),
+      };
+      
+      await updateStudent(updatedStudent);
+    } catch (error: any) {
+      console.error('Erro ao remover data especial:', error);
+      toast.error('Erro ao remover data especial');
+    }
   };
 
-  const updateSpecialDates = (studentId: string, specialDates: SpecialDate[]) => {
-    setStudents(prev => prev.map(s =>
-      s.id === studentId ? { ...s, specialDates } : s
-    ));
+  const updateSpecialDates = async (studentId: string, specialDates: SpecialDate[]) => {
+    try {
+      const student = students.find(s => s.id === studentId || s._id === studentId);
+      if (!student) throw new Error('Aluno não encontrado');
+      
+      const updatedStudent = {
+        ...student,
+        specialDates,
+      };
+      
+      await updateStudent(updatedStudent);
+    } catch (error: any) {
+      console.error('Erro ao atualizar datas especiais:', error);
+      toast.error('Erro ao atualizar datas especiais');
+    }
+  };
+
+  const refreshData = async () => {
+    await loadData();
   };
 
   return (
-    <DataContext.Provider value={{
-      currentUser,
-      students,
-      attendance,
-      classes,
-      login,
-      logout,
-      checkIn,
-      confirmAttendance,
-      rejectAttendance,
-      updateStudent,
-      addStudent,
-      addSpecialDate,
-      removeSpecialDate,
-      updateSpecialDates,
-    }}>
+    <DataContext.Provider
+      value={{
+        currentUser,
+        students,
+        attendance,
+        classes,
+        loading,
+        login,
+        logout,
+        checkIn,
+        confirmAttendance,
+        rejectAttendance,
+        updateStudent,
+        addStudent,
+        addSpecialDate,
+        removeSpecialDate,
+        updateSpecialDates,
+        refreshData,
+      }}
+    >
       {children}
     </DataContext.Provider>
   );
-};
+}
 
-export const useData = () => {
+export function useData() {
   const context = useContext(DataContext);
-  if (!context) throw new Error('useData must be used within DataProvider');
+  if (!context) {
+    throw new Error('useData must be used within DataProvider');
+  }
   return context;
-};
+}

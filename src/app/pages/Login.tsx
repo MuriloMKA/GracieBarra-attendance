@@ -17,19 +17,24 @@ export function LoginPage() {
     setError("");
     setLoading(true);
 
-    setTimeout(() => {
-      const success = login(email.trim(), password);
-      setLoading(false);
-      if (success) {
-        const savedUser = localStorage.getItem("gb_current_user");
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
-          navigate(user.role === "admin" ? "/admin" : "/student");
+    login(email.trim(), password)
+      .then((success) => {
+        if (success) {
+          const savedUser = localStorage.getItem("gb_current_user");
+          if (savedUser) {
+            const user = JSON.parse(savedUser);
+            navigate(user.role === "admin" ? "/admin" : "/student");
+          }
+        } else {
+          setError("Email ou senha incorretos. Tente novamente.");
         }
-      } else {
-        setError("Email ou senha incorretos. Tente novamente.");
-      }
-    }, 600);
+      })
+      .catch(() => {
+        setError("Erro ao conectar com o servidor. Verifique sua conexão.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const quickLogin = (em: string, pw: string) => {
@@ -159,44 +164,43 @@ export function LoginPage() {
           {/* Quick Access */}
           <div className="mt-6 pt-5 border-t border-gray-100">
             <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-3">
-              Acesso rápido — demonstração
+              Usuários de teste
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <button
                 onClick={() => quickLogin("admin@graciebarra.com", "admin123")}
-                className="text-xs py-2.5 px-3 bg-[#003087] hover:bg-blue-900 text-white rounded-xl transition-colors font-bold"
+                className="text-sm py-3 px-4 bg-[#003087] hover:bg-blue-900 text-white rounded-xl transition-colors font-bold flex items-center justify-between"
               >
-                👨‍🏫 Professor
+                <span>👨‍🏫 Professor Admin</span>
+                <span className="text-xs text-blue-200">admin</span>
               </button>
               <button
                 onClick={() => quickLogin("joao@example.com", "aluno123")}
-                className="text-xs py-2.5 px-3 border-2 border-[#D10A11] text-[#D10A11] hover:bg-[#D10A11] hover:text-white rounded-xl transition-colors font-bold"
+                className="text-sm py-3 px-4 border-2 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-between"
               >
-                🥋 João (Branca)
+                <span>🥋 João Silva</span>
+                <span className="text-xs text-gray-500">Branca 1°</span>
               </button>
               <button
                 onClick={() => quickLogin("maria@example.com", "aluno123")}
-                className="text-xs py-2.5 px-3 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl transition-colors font-medium"
+                className="text-sm py-3 px-4 border-2 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-between"
               >
-                🥋 Maria (Branca 3°)
+                <span>🥋 Maria Santos</span>
+                <span className="text-xs text-gray-500">Azul 2°</span>
               </button>
               <button
                 onClick={() => quickLogin("carlos@example.com", "aluno123")}
-                className="text-xs py-2.5 px-3 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl transition-colors font-medium"
+                className="text-sm py-3 px-4 border-2 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-between"
               >
-                🥋 Carlos (Azul)
+                <span>🥋 Carlos Oliveira</span>
+                <span className="text-xs text-gray-500">Roxa</span>
               </button>
               <button
                 onClick={() => quickLogin("pedro@example.com", "aluno123")}
-                className="text-xs py-2.5 px-3 border border-green-200 text-green-700 hover:bg-green-50 rounded-xl transition-colors font-medium"
+                className="text-sm py-3 px-4 border-2 border-green-200 text-green-700 hover:bg-green-50 rounded-xl transition-colors font-medium flex items-center justify-between"
               >
-                👦 Pedro (GBK)
-              </button>
-              <button
-                onClick={() => quickLogin("ana@example.com", "aluno123")}
-                className="text-xs py-2.5 px-3 border border-purple-200 text-purple-700 hover:bg-purple-50 rounded-xl transition-colors font-medium"
-              >
-                🥋 Ana (Roxa)
+                <span>👦 Pedro Costa (GBK)</span>
+                <span className="text-xs text-green-600">Cinza 3°</span>
               </button>
             </div>
           </div>
