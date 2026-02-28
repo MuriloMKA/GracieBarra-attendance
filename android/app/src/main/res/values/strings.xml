@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GB Attendance</string>
+    <string name="title_activity_main">GB Attendance</string>
+    <string name="package_name">com.graciebarrabarra.attendance</string>
+    <string name="custom_url_scheme">com.graciebarrabarra.attendance</string>
+</resources>

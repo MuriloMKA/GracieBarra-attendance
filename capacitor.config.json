@@ -1,0 +1,20 @@
+{
+  "appId": "com.graciebarrabarra.attendance",
+  "appName": "GB Attendance",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#DC2626",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#DC2626"
+    }
+  }
+}
