@@ -1,15 +1,16 @@
-import React from 'react';
-import { createBrowserRouter, Outlet, Navigate } from 'react-router';
-import { Toaster } from 'sonner';
-import { DataProvider } from './context/DataContext';
-import { Layout } from './components/Layout';
-import { RequireAuth } from './components/RequireAuth';
-import { LoginPage } from './pages/Login';
-import { StudentDashboard } from './pages/StudentDashboard';
-import { StudentCard } from './pages/StudentCard';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { AdminStudents } from './pages/AdminStudents';
-import { AdminStudentCard } from './pages/AdminStudentCard';
+import React from "react";
+import { createBrowserRouter, Outlet, Navigate } from "react-router";
+import { Toaster } from "sonner";
+import { DataProvider } from "./context/DataContext";
+import { Layout } from "./components/Layout";
+import { RequireAuth } from "./components/RequireAuth";
+import { LoginPage } from "./pages/Login";
+import { StudentDashboard } from "./pages/StudentDashboard";
+import { StudentCard } from "./pages/StudentCard";
+import { AdminDashboard } from "./pages/AdminDashboard";
+import { AdminStudents } from "./pages/AdminStudents";
+import { AdminStudentCard } from "./pages/AdminStudentCard";
+import { AdminClasses } from "./pages/AdminClasses";
 
 function Root() {
   return (
@@ -22,7 +23,7 @@ function Root() {
 
 function StudentLayout() {
   return (
-    <RequireAuth allowedRoles={['student']}>
+    <RequireAuth allowedRoles={["student"]}>
       <Layout>
         <Outlet />
       </Layout>
@@ -32,7 +33,7 @@ function StudentLayout() {
 
 function AdminLayout() {
   return (
-    <RequireAuth allowedRoles={['admin']}>
+    <RequireAuth allowedRoles={["admin"]}>
       <Layout>
         <Outlet />
       </Layout>
@@ -44,23 +45,24 @@ export const router = createBrowserRouter([
   {
     element: <Root />,
     children: [
-      { path: '/', element: <LoginPage /> },
+      { path: "/", element: <LoginPage /> },
       {
         element: <StudentLayout />,
         children: [
-          { path: 'student', element: <StudentDashboard /> },
-          { path: 'student/card', element: <StudentCard /> },
+          { path: "student", element: <StudentDashboard /> },
+          { path: "student/card", element: <StudentCard /> },
         ],
       },
       {
         element: <AdminLayout />,
         children: [
-          { path: 'admin', element: <AdminDashboard /> },
-          { path: 'admin/students', element: <AdminStudents /> },
-          { path: 'admin/students/:id/card', element: <AdminStudentCard /> },
+          { path: "admin", element: <AdminDashboard /> },
+          { path: "admin/students", element: <AdminStudents /> },
+          { path: "admin/students/:id/card", element: <AdminStudentCard /> },
+          { path: "admin/classes", element: <AdminClasses /> },
         ],
       },
-      { path: '*', element: <Navigate to="/" replace /> },
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
 ]);

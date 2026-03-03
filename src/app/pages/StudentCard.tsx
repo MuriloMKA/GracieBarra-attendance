@@ -45,8 +45,8 @@ export const StudentCard: React.FC = () => {
         <div className="text-sm text-[#003087]">
           <strong>Pontos pretos</strong> = aulas que você participou.{" "}
           <strong>Pontos vermelhos</strong> = datas de graduação ou novo grau
-          marcadas pelo professor. O professor pode marcar datas especiais
-          diretamente no seu cartão.
+          marcadas pelo professor. A cor do cartão muda automaticamente: GB1
+          Fundamental (azul) → GB2 Avançado (roxo) → GB3 (preto).
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { useData } from "../context/DataContext";
+import { BELT_NAMES_PT } from "./BeltDisplay";
 import {
   LogOut,
   CreditCard,
@@ -56,8 +57,7 @@ export const Header: React.FC = () => {
           to={isAdmin ? "/admin" : "/student"}
           className="flex items-center gap-3"
         >
-          <img alt="Gracie Barra" className="h-10 w-10 object-contain" />
-          <div className="hidden sm:block">
+          <div>
             <div className="text-[#D10A11] font-black text-base tracking-widest uppercase leading-none">
               Gracie Barra
             </div>
@@ -95,8 +95,7 @@ export const Header: React.FC = () => {
             </div>
             {student && (
               <div className="text-xs text-gray-500">
-                {student.belt === "White" ? "Faixa Branca" : student.belt} •{" "}
-                {student.degrees}° grau
+                {BELT_NAMES_PT[student.belt]} • {student.degrees}° grau
               </div>
             )}
             {isAdmin && (

@@ -48,28 +48,17 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-white rounded-full p-2 shadow-2xl mb-5 w-28 h-28 flex items-center justify-center">
-            <svg
-              viewBox="0 0 100 100"
-              className="h-full w-full"
-              fill="currentColor"
-            >
-              <text
-                x="50"
-                y="60"
-                fontSize="32"
-                fontWeight="bold"
-                textAnchor="middle"
-                fill="#0EA5E9"
-              >
-                GB
-              </text>
-            </svg>
+          <div className="bg-white rounded-full shadow-2xl mb-5 w-28 h-28 flex items-center justify-center overflow-hidden">
+            <img
+              src="/images/logo.png"
+              alt="Gracie Barra Logo"
+              className="w-full h-full object-cover scale-110"
+            />
           </div>
-          <h1 className="text-white text-3xl font-black tracking-widest uppercase">
-            GRACIE BARRA
+          <h1 className="text-white text-3xl font-black tracking-widest uppercase text-center">
+            GRACIE BARRA MARAJOARA
           </h1>
-          <p className="text-red-200 text-sm tracking-widest uppercase mt-1">
+          <p className="text-red-200 text-sm tracking-widest uppercase mt-1 text-center">
             Sistema de Frequência Digital
           </p>
         </div>

@@ -1,6 +1,6 @@
 {
   "appId": "com.graciebarrabarra.attendance",
-  "appName": "GB Attendance",
+  "appName": "GB Attendance DEV",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

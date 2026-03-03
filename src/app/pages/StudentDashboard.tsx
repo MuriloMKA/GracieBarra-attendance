@@ -1,23 +1,27 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router";
 import { useData } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  CheckCircle2,
   Clock,
   CreditCard,
   Award,
   CalendarDays,
   CheckCheck,
-  AlertCircle,
+  TrendingUp,
+  CheckCircle2,
 } from "lucide-react";
-import { BeltDisplay, getCardStyle } from "../components/BeltDisplay";
-import { toast } from "sonner";
+import {
+  BeltDisplay,
+  getCardStyle,
+  calculateProgram,
+  BELT_NAMES_PT,
+} from "../components/BeltDisplay";
+import { getDegreeProgress } from "../utils/degreeCalculator";
 
 export const StudentDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, checkIn } = useData();
-  const [checkedInClasses, setCheckedInClasses] = useState<string[]>([]);
+  const { currentUser, students, attendance, classes } = useData();
 
   const student = students.find(
     (s) => (s.id || s._id) === currentUser?.studentId,
@@ -41,16 +45,19 @@ export const StudentDashboard: React.FC = () => {
   const myTodayAttendance = attendance.filter(
     (a) => a.studentId === studentIdToMatch && a.date.startsWith(todayStr),
   );
-  const alreadyCheckedClassIds = new Set(
-    myTodayAttendance.map((a) => a.classId),
-  );
 
   // Stats
   const myAllAttendance = attendance.filter(
     (a) => a.studentId === studentIdToMatch,
   );
   const confirmedCount = myAllAttendance.filter((a) => a.confirmed).length;
-  const pendingCount = myAllAttendance.filter((a) => !a.confirmed).length;
+
+  // Calcula o programa real baseado na faixa e grau
+  const actualProgram = calculateProgram(
+    student.program,
+    student.belt,
+    student.degrees,
+  );
 
   const cardStyle = getCardStyle(
     student.program,
@@ -58,23 +65,14 @@ export const StudentDashboard: React.FC = () => {
     student.degrees,
   );
 
-  const handleCheckIn = (cls: {
-    id?: string;
-    _id?: string;
-    name: string;
-    time: string;
-  }) => {
-    const classId = (cls.id || cls._id) as string;
-    if (alreadyCheckedClassIds.has(classId)) {
-      toast.error("Você já realizou check-in nesta aula hoje.");
-      return;
-    }
-    checkIn(studentIdToMatch, classId, cls.name, cls.time || "");
-    setCheckedInClasses((prev) => [...prev, classId]);
-    toast.success(
-      `Check-in realizado para ${cls.name} ${cls.time}! Aguarde a confirmação do professor.`,
-    );
-  };
+  // Calcula progresso do próximo grau automaticamente
+  const degreeProgress = getDegreeProgress(
+    myAllAttendance,
+    student.lastGraduationDate,
+    student.belt,
+    student.degrees,
+    student.program,
+  );
 
   // Recent confirmed attendance (last 5)
   const recentAttendance = myAllAttendance
@@ -86,14 +84,23 @@ export const StudentDashboard: React.FC = () => {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
       {/* Welcome */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900">
-            Olá, {student.name.split(" ")[0]}! 👊
-          </h1>
-          <p className="text-gray-500 mt-1 flex items-center gap-2">
-            <CalendarDays size={15} />
-            {format(today, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+            <img
+              src="/images/logo.png"
+              alt="Gracie Barra Logo"
+              className="w-full h-full object-cover scale-110"
+            />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900">
+              Olá, {student.name.split(" ")[0]}! 👊
+            </h1>
+            <p className="text-gray-500 mt-1 flex items-center gap-2">
+              <CalendarDays size={15} />
+              {format(today, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
+          </div>
         </div>
         <Link
           to="/student/card"
@@ -105,7 +112,7 @@ export const StudentDashboard: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-2xl font-black text-[#D10A11]">
             {confirmedCount}
@@ -120,14 +127,6 @@ export const StudentDashboard: React.FC = () => {
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graus na Faixa
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-black text-amber-500">
-            {pendingCount}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 font-medium">
-            Pendentes
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
@@ -149,41 +148,115 @@ export const StudentDashboard: React.FC = () => {
           <Award size={18} className="text-[#D10A11]" />
           Minha Faixa
         </h2>
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="flex-1">
-            <BeltDisplay
-              belt={student.belt}
-              degrees={student.degrees}
-              program={student.program}
-              size="lg"
-            />
-          </div>
-          <div className="text-sm text-gray-600 space-y-1">
-            <div>
-              <span className="font-medium">Programa:</span>{" "}
-              <span className="bg-gray-100 px-2 py-0.5 rounded font-bold text-gray-800">
-                {student.program}
-              </span>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex-1">
+              <BeltDisplay
+                belt={student.belt}
+                degrees={student.degrees}
+                program={student.program}
+                size="lg"
+              />
             </div>
-            <div>
-              <span className="font-medium">Última graduação:</span>{" "}
-              {format(parseISO(student.lastGraduationDate), "dd/MM/yyyy")}
-            </div>
-            <div>
-              <span className="font-medium">Próximo grau estimado:</span>{" "}
-              <span className="text-[#003087] font-bold">
-                {format(parseISO(student.nextDegreeDate), "dd/MM/yyyy")}
-              </span>
+            <div className="text-sm text-gray-600 space-y-1">
+              <div>
+                <span className="font-medium">Programa:</span>{" "}
+                <span className="bg-gray-100 px-2 py-0.5 rounded font-bold text-gray-800">
+                  {actualProgram}
+                </span>
+              </div>
+              <div>
+                <span className="font-medium">Última graduação:</span>{" "}
+                {format(parseISO(student.lastGraduationDate), "dd/MM/yyyy")}
+              </div>
             </div>
           </div>
+
+          {/* Progresso do Próximo Grau */}
+          {degreeProgress.weeksRequired !== null && (
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                  <TrendingUp size={16} className="text-[#003087]" />
+                  Progresso para o {student.degrees + 1}º Grau
+                </h3>
+                {degreeProgress.isReadyForGraduation && (
+                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <CheckCircle2 size={14} />
+                    Pronto!
+                  </span>
+                )}
+              </div>
+
+              {/* Barra de Progresso */}
+              <div className="mb-3">
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      degreeProgress.isReadyForGraduation
+                        ? "bg-green-500"
+                        : "bg-[#003087]"
+                    }`}
+                    style={{ width: `${degreeProgress.progressPercentage}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-600 mt-1">
+                  <span className="font-medium">
+                    {degreeProgress.weeksCompleted} semanas completadas
+                  </span>
+                  <span className="font-bold text-[#003087]">
+                    {degreeProgress.progressPercentage}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Informações Detalhadas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">
+                    Semanas Necessárias
+                  </div>
+                  <div className="font-black text-[#003087] text-lg">
+                    {degreeProgress.weeksRequired}
+                  </div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">
+                    Semanas Restantes
+                  </div>
+                  <div className="font-black text-purple-700 text-lg">
+                    {degreeProgress.weeksRemaining?.toFixed(1) || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Estimada */}
+              <div className="mt-3 p-3 bg-gradient-to-r from-[#003087]/5 to-[#D10A11]/5 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">
+                    Próximo grau estimado:
+                  </span>
+                  <span className="text-sm font-black text-[#003087]">
+                    {degreeProgress.estimatedDate}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mensagem explicativa */}
+              <div className="mt-2 text-xs text-gray-500 italic">
+                * Baseado na sua frequência média. A data pode variar conforme
+                sua assiduidade nos treinos.
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Today's Classes - CHECK-IN */}
+      {/* Aulas de Hoje */}
       <div>
         <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
           <Clock size={18} className="text-[#D10A11]" />
-          Aulas de Hoje — Faça seu Check-In
+          Aulas de Hoje
         </h2>
         {todayClasses.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500">
@@ -193,12 +266,6 @@ export const StudentDashboard: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {todayClasses.map((cls) => {
               const classId = (cls.id || cls._id) as string;
-              const isCheckedIn =
-                alreadyCheckedClassIds.has(classId) ||
-                checkedInClasses.includes(classId);
-              const pendingRecord = myTodayAttendance.find(
-                (a) => a.classId === classId && !a.confirmed,
-              );
               const confirmedRecord = myTodayAttendance.find(
                 (a) => a.classId === classId && a.confirmed,
               );
@@ -208,9 +275,7 @@ export const StudentDashboard: React.FC = () => {
                   className={`bg-white rounded-xl border-2 p-5 shadow-sm transition-all ${
                     confirmedRecord
                       ? "border-green-400 bg-green-50"
-                      : pendingRecord
-                        ? "border-amber-400 bg-amber-50"
-                        : "border-gray-200 hover:border-[#D10A11]/40"
+                      : "border-gray-200"
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -223,7 +288,7 @@ export const StudentDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div
-                      className={`text-2xl font-black ${confirmedRecord ? "text-green-600" : pendingRecord ? "text-amber-600" : "text-[#D10A11]"}`}
+                      className={`text-2xl font-black ${confirmedRecord ? "text-green-600" : "text-[#D10A11]"}`}
                     >
                       {cls.time}
                     </div>
@@ -234,19 +299,10 @@ export const StudentDashboard: React.FC = () => {
                       <CheckCheck size={18} />
                       Presença confirmada!
                     </div>
-                  ) : pendingRecord ? (
-                    <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
-                      <AlertCircle size={16} />
+                  ) : (
+                    <div className="text-gray-500 text-sm">
                       Aguardando confirmação do professor
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => handleCheckIn(cls)}
-                      className="w-full py-2.5 bg-[#D10A11] hover:bg-red-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 text-sm shadow-md hover:shadow-lg"
-                    >
-                      <CheckCircle2 size={18} />
-                      Fazer Check-In
-                    </button>
                   )}
                 </div>
               );

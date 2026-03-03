@@ -1,33 +1,27 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router";
-import { useData } from "../context/DataContext";
+import { useData, JJClass, Student } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Users,
   CheckSquare,
-  Clock,
   Award,
-  Check,
-  X,
   ArrowRight,
   Shield,
+  QrCode,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
-import { BELT_NAMES_PT } from "../components/BeltDisplay";
+import { BELT_NAMES_PT, calculateProgram } from "../components/BeltDisplay";
+import { QRScanner } from "../components/QRScanner";
 
 export const AdminDashboard: React.FC = () => {
-  const {
-    currentUser,
-    students,
-    attendance,
-    confirmAttendance,
-    rejectAttendance,
-  } = useData();
+  const { currentUser, students, attendance, classes, checkIn } = useData();
 
-  const pendingCheckIns = attendance
-    .filter((a) => !a.confirmed)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannedStudent, setScannedStudent] = useState<Student | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>("");
 
   const confirmedToday = attendance.filter((a) => {
     if (!a.confirmed) return false;
@@ -40,32 +34,102 @@ export const AdminDashboard: React.FC = () => {
     );
   }).length;
 
-  const handleConfirm = async (id: string, studentName: string) => {
-    await confirmAttendance(id);
+  // Aulas disponíveis hoje
+  const today = new Date();
+  const todayClasses = classes.filter((c) =>
+    c.daysOfWeek.includes(today.getDay()),
+  );
+
+  const handleScanSuccess = (decodedText: string) => {
+    try {
+      const studentData = JSON.parse(decodedText);
+      const student = students.find(
+        (s) => (s.id || s._id) === studentData.studentId,
+      );
+
+      if (!student) {
+        toast.error("Aluno não encontrado!");
+        setShowScanner(false);
+        return;
+      }
+
+      setScannedStudent(student);
+      setShowScanner(false);
+    } catch (error) {
+      toast.error("QR Code inválido!");
+      setShowScanner(false);
+    }
   };
 
-  const handleReject = async (id: string, studentName: string) => {
-    await rejectAttendance(id);
+  const handleConfirmAttendance = () => {
+    if (!scannedStudent || !selectedClass) {
+      toast.error("Selecione uma aula!");
+      return;
+    }
+
+    const classData = todayClasses.find(
+      (c) => (c.id || c._id) === selectedClass,
+    );
+    if (!classData) return;
+
+    const studentId = (scannedStudent.id || scannedStudent._id) as string;
+
+    // Verifica se já tem presença confirmada hoje nessa aula
+    const alreadyConfirmed = attendance.some(
+      (a) =>
+        a.studentId === studentId &&
+        a.classId === selectedClass &&
+        a.confirmed &&
+        a.date.startsWith(today.toISOString().split("T")[0]),
+    );
+
+    if (alreadyConfirmed) {
+      toast.error("Presença já confirmada nesta aula hoje!");
+      setScannedStudent(null);
+      setSelectedClass("");
+      return;
+    }
+
+    // Adiciona presença confirmada diretamente
+    checkIn(
+      studentId,
+      selectedClass,
+      classData.name,
+      classData.time,
+      true, // Já confirmado
+    );
+
+    setScannedStudent(null);
+    setSelectedClass("");
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-            <Shield size={24} className="text-[#D10A11]" />
-            Painel do Professor
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Bem-vindo, {currentUser?.name} —{" "}
-            {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+            <img
+              src="/images/logo.png"
+              alt="Gracie Barra Logo"
+              className="w-full h-full object-cover scale-110"
+            />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+              <Shield size={24} className="text-[#D10A11]" />
+              Painel do Professor
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Bem-vindo, {currentUser?.name} —{" "}
+              {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <Users size={20} className="text-[#003087]" />
@@ -75,17 +139,6 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="text-3xl font-black text-gray-900">
             {students.length}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <Clock size={20} className="text-amber-500" />
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Pendentes
-            </span>
-          </div>
-          <div className="text-3xl font-black text-amber-500">
-            {pendingCheckIns.length}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
@@ -134,112 +187,145 @@ export const AdminDashboard: React.FC = () => {
             className="group-hover:translate-x-1 transition-transform"
           />
         </Link>
-        <div className="bg-gray-900 text-white rounded-xl p-5 flex items-center gap-4">
-          <Award size={32} className="text-[#D10A11] shrink-0" />
+
+        <Link
+          to="/admin/classes"
+          className="bg-[#D10A11] hover:bg-red-700 text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
+        >
           <div>
-            <div className="font-black text-lg">Cartões de Frequência</div>
-            <div className="text-gray-400 text-sm mt-1">
-              Acesse via lista de alunos para ver e marcar datas
+            <div className="font-black text-lg">Gerenciar Aulas</div>
+            <div className="text-red-200 text-sm mt-1">
+              Configurar horários e dias das aulas
+            </div>
+          </div>
+          <ArrowRight
+            size={24}
+            className="group-hover:translate-x-1 transition-transform"
+          />
+        </Link>
+      </div>
+
+      {/* Confirmar Presença via QR Code */}
+      <div>
+        <h2 className="font-black text-gray-900 text-lg mb-4 flex items-center gap-2">
+          <QrCode size={20} className="text-[#D10A11]" />
+          Confirmar Presença
+        </h2>
+
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="text-center">
+            <div className="mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#D10A11]/10 rounded-full mb-3">
+                <QrCode size={32} className="text-[#D10A11]" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">
+                Escaneie o QR Code do Aluno
+              </h3>
+              <p className="text-gray-500 text-sm">
+                Use a câmera do seu celular para escanear o QR Code pessoal do
+                aluno e confirmar presença
+              </p>
+            </div>
+            <button
+              onClick={() => setShowScanner(true)}
+              className="px-8 py-3 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center gap-2 mx-auto"
+            >
+              <QrCode size={20} />
+              Escanear QR Code
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScanSuccess={handleScanSuccess}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      {/* Confirmação Modal */}
+      {scannedStudent && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-black text-gray-900 text-xl mb-4">
+              Confirmar Presença
+            </h3>
+
+            {/* Info do Aluno */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-full bg-[#003087] text-white flex items-center justify-center font-black">
+                  {scannedStudent.name.charAt(0)}
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900">
+                    {scannedStudent.name}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {BELT_NAMES_PT[scannedStudent.belt]} •{" "}
+                    {calculateProgram(
+                      scannedStudent.program,
+                      scannedStudent.belt,
+                      scannedStudent.degrees,
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seleção de Aula */}
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Selecione a aula:
+              </label>
+              {todayClasses.length === 0 ? (
+                <div className="text-sm text-gray-500 italic">
+                  Nenhuma aula agendada para hoje
+                </div>
+              ) : (
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#D10A11] focus:outline-none text-sm"
+                >
+                  <option value="">Escolha uma aula...</option>
+                  {todayClasses.map((cls) => (
+                    <option key={cls.id || cls._id} value={cls.id || cls._id}>
+                      {cls.name} - {cls.time} ({cls.instructor})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Botões */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setScannedStudent(null);
+                  setSelectedClass("");
+                }}
+                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmAttendance}
+                disabled={!selectedClass}
+                className="flex-1 px-4 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Check size={16} />
+                Confirmar
+              </button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Pending Check-ins */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-black text-gray-900 text-lg flex items-center gap-2">
-            <Clock size={20} className="text-amber-500" />
-            Check-ins Pendentes
-            {pendingCheckIns.length > 0 && (
-              <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                {pendingCheckIns.length}
-              </span>
-            )}
-          </h2>
-        </div>
-
-        {pendingCheckIns.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
-            <Check size={48} className="mx-auto text-green-400 mb-3" />
-            <p className="text-gray-500 font-medium">
-              Todos os check-ins foram processados!
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
-            {pendingCheckIns.map((checkIn) => {
-              const student = students.find(
-                (s) => (s.id || s._id) === checkIn.studentId,
-              );
-              if (!student) return null;
-              const checkInId = checkIn.id || checkIn._id;
-              if (!checkInId) return null;
-
-              const isCheckinToday = (() => {
-                const d = parseISO(checkIn.date);
-                const today = new Date();
-                return (
-                  d.getFullYear() === today.getFullYear() &&
-                  d.getMonth() === today.getMonth() &&
-                  d.getDate() === today.getDate()
-                );
-              })();
-              return (
-                <div
-                  key={checkInId}
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-base shrink-0">
-                      {student.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-bold text-gray-900">
-                        {student.name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {BELT_NAMES_PT[student.belt]}{" "}
-                        {student.degrees > 0 ? `${student.degrees}° grau` : ""}{" "}
-                        • {student.program}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${isCheckinToday ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
-                        >
-                          {format(
-                            parseISO(checkIn.date),
-                            "dd/MM/yyyy 'às' HH:mm",
-                            { locale: ptBR },
-                          )}
-                        </span>
-                        <span className="text-xs bg-[#003087]/10 text-[#003087] px-2 py-0.5 rounded-full font-bold">
-                          {checkIn.className} {checkIn.classTime}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleConfirm(checkInId, student.name)}
-                      className="flex items-center gap-1.5 bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg transition-colors font-bold text-sm"
-                    >
-                      <Check size={16} />
-                      Confirmar
-                    </button>
-                    <button
-                      onClick={() => handleReject(checkInId, student.name)}
-                      className="flex items-center gap-1.5 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg transition-colors text-sm"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };

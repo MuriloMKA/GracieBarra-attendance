@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "dev:server": "node --watch server/index.js"
+    "dev:server": "node --watch server/index.js",
+    "seed:test": "node server/seed-test-data.js",
+    "reset": "node server/reset-db.js"
   },
   "dependencies": {
     "express": "^4.18.2",
