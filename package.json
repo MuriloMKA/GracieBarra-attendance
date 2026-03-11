@@ -14,7 +14,8 @@
     "run:ios": "npm run build && npx cap sync && npx cap run ios",
     "backend": "node server/index.js",
     "init-db": "node -e \"fetch('http://localhost:3001/api/setup/init', {method: 'POST'}).then(r => r.json()).then(d => console.log('✅ Banco inicializado:', d)).catch(e => console.error('❌ Erro:', e.message))\"",
-    "reinstall": "npx cap sync android && cd android && ./gradlew installDebug"
+    "reinstall": "npx cap sync android && cd android && ./gradlew installDebug",
+    "update-app": "cross-env VITE_API_URL=http://192.168.15.200:3001/api npm run build && npx cap sync android && cd android && gradlew installDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",

@@ -70,6 +70,7 @@ export interface JJClass {
   daysOfWeek: number[];
   ageGroup?: string;
   program?: string;
+  closedDates?: string[]; // Datas em que a aula não acontece (YYYY-MM-DD)
 }
 
 export type Class = JJClass;
@@ -236,6 +237,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (autoConfirm) {
         toast.success("Presença confirmada com sucesso!");
+        // Recarregar dados do aluno pois o grau pode ter sido auto-incrementado
+        await refreshData();
       } else {
         toast.success("Check-in realizado! Aguarde confirmação do professor.");
       }
@@ -256,6 +259,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ),
       );
       toast.success("Presença confirmada!");
+      // Recarregar dados pois o grau pode ter sido auto-incrementado no backend
+      await refreshData();
     } catch (error: any) {
       console.error("Erro ao confirmar presença:", error);
       toast.error(error.response?.data?.error || "Erro ao confirmar presença");

@@ -23,7 +23,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // 401 = Token não fornecido, 403 = Token inválido/expirado
+    if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('gb_auth_token');
       localStorage.removeItem('gb_current_user');
       window.location.href = '/';
@@ -45,8 +46,13 @@ export interface LoginResponse {
 
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
-    const { data } = await api.post<LoginResponse>('/auth/login', { email, password });
-    return data;
+    try {
+      const { data } = await api.post<LoginResponse>('/auth/login', { email, password });
+      return data;
+    } catch (error: any) {
+      console.error('Erro no login:', error.response?.data?.error || error.message);
+      throw error;
+    }
   },
 };
 
@@ -94,6 +100,26 @@ export const attendanceService = {
 export const classService = {
   async getAll() {
     const { data } = await api.get('/classes');
+    return data;
+  },
+  
+  async getById(id: string) {
+    const { data } = await api.get(`/classes/${id}`);
+    return data;
+  },
+  
+  async create(classData: any) {
+    const { data } = await api.post('/classes', classData);
+    return data;
+  },
+  
+  async update(id: string, classData: any) {
+    const { data } = await api.put(`/classes/${id}`, classData);
+    return data;
+  },
+  
+  async delete(id: string) {
+    const { data } = await api.delete(`/classes/${id}`);
     return data;
   },
 };

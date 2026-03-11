@@ -11,6 +11,7 @@ import {
   CheckCheck,
   TrendingUp,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import {
   BeltDisplay,
@@ -37,8 +38,19 @@ export const StudentDashboard: React.FC = () => {
   const todayDOW = today.getDay();
   const todayStr = today.toISOString().split("T")[0];
 
-  // Filter classes available today
-  const todayClasses = classes.filter((c) => c.daysOfWeek.includes(todayDOW));
+  // All classes that normally happen today
+  const allTodayClasses = classes.filter((c) =>
+    c.daysOfWeek.includes(todayDOW),
+  );
+
+  // Separate open and closed classes
+  const todayClasses = allTodayClasses.filter(
+    (c) => !(c.closedDates || []).includes(todayStr),
+  );
+
+  const closedTodayClasses = allTodayClasses.filter((c) =>
+    (c.closedDates || []).includes(todayStr),
+  );
 
   // Already checked in classes today (confirmed or pending)
   const studentIdToMatch = (student.id || student._id) as string;
@@ -63,6 +75,7 @@ export const StudentDashboard: React.FC = () => {
     student.program,
     student.belt,
     student.degrees,
+    student.birthDate,
   );
 
   // Calcula progresso do próximo grau automaticamente
@@ -258,12 +271,13 @@ export const StudentDashboard: React.FC = () => {
           <Clock size={18} className="text-[#D10A11]" />
           Aulas de Hoje
         </h2>
-        {todayClasses.length === 0 ? (
+        {allTodayClasses.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500">
             Não há aulas agendadas para hoje.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Aulas Abertas */}
             {todayClasses.map((cls) => {
               const classId = (cls.id || cls._id) as string;
               const confirmedRecord = myTodayAttendance.find(
@@ -304,6 +318,36 @@ export const StudentDashboard: React.FC = () => {
                       Aguardando confirmação do professor
                     </div>
                   )}
+                </div>
+              );
+            })}
+
+            {/* Aulas Fechadas */}
+            {closedTodayClasses.map((cls) => {
+              const classId = (cls.id || cls._id) as string;
+              return (
+                <div
+                  key={classId}
+                  className="bg-gray-100 rounded-xl border-2 border-gray-300 p-5 shadow-sm opacity-75"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="font-bold text-gray-600 text-base">
+                        {cls.name}
+                      </div>
+                      <div className="text-gray-500 text-sm">
+                        {cls.instructor}
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-gray-400">
+                      {cls.time}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-red-600 text-sm font-bold bg-red-50 px-3 py-2 rounded-lg">
+                    <X size={18} />
+                    SEM AULA HOJE
+                  </div>
                 </div>
               );
             })}

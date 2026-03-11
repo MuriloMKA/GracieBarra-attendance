@@ -48,6 +48,18 @@ export const BELT_NAMES_PT: Record<BeltColor, string> = {
   Black: "Faixa Preta",
 };
 
+// Função para calcular idade em anos
+export function calculateAge(birthDate: string): number {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 // Função para calcular o programa correto baseado na faixa e grau
 export function calculateProgram(
   program: Program,
@@ -86,17 +98,50 @@ export function getCardStyle(
   program: Program,
   belt: BeltColor,
   degrees: number,
+  birthDate?: string,
 ) {
   // GBK para crianças e adolescentes (até 15 anos)
   if (program === "GBK") {
+    // Calcular idade se birthDate estiver disponível
+    const age = birthDate ? calculateAge(birthDate) : null;
+
+    // Mini Campeões: 2 a 7 anos (ficha azul clara)
+    if (age !== null && age >= 2 && age <= 7) {
+      return {
+        outerBg: "bg-gradient-to-r from-blue-300 to-blue-400",
+        outerBorder: "border-blue-400",
+        innerBg: "bg-blue-50",
+        textPrimary: "text-white",
+        textSecondary: "text-blue-100",
+        gridHeaderBg: "bg-blue-400",
+        label: "CARTÃO DE FREQUÊNCIA — MINI CAMPEÕES",
+        programLabel: "GBK",
+      };
+    }
+
+    // Juvenil: 8 a 15 anos (ficha verde clara)
+    if (age !== null && age >= 8 && age <= 15) {
+      return {
+        outerBg: "bg-gradient-to-r from-green-300 to-green-400",
+        outerBorder: "border-green-400",
+        innerBg: "bg-green-50",
+        textPrimary: "text-white",
+        textSecondary: "text-green-100",
+        gridHeaderBg: "bg-green-500",
+        label: "CARTÃO DE FREQUÊNCIA — JUVENIL",
+        programLabel: "GBK",
+      };
+    }
+
+    // Fallback para GBK sem idade definida (usa verde por padrão)
     return {
-      outerBg: "bg-gradient-to-r from-blue-400 to-green-400",
-      outerBorder: "border-blue-500",
-      innerBg: "bg-blue-50",
+      outerBg: "bg-gradient-to-r from-green-300 to-green-400",
+      outerBorder: "border-green-400",
+      innerBg: "bg-green-50",
       textPrimary: "text-white",
-      textSecondary: "text-blue-100",
-      gridHeaderBg: "bg-blue-500",
-      label: "CARTÃO DE FREQUÊNCIA — MINI CAMPEÕES",
+      textSecondary: "text-green-100",
+      gridHeaderBg: "bg-green-500",
+      label: "CARTÃO DE FREQUÊNCIA — JUVENIL",
       programLabel: "GBK",
     };
   }

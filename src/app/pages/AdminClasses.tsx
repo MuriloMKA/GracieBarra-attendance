@@ -40,10 +40,8 @@ export const AdminClasses: React.FC = () => {
   const [newClass, setNewClass] = useState<Partial<Class>>({
     name: "",
     time: "",
-    instructor: "Professor",
     daysOfWeek: [],
-    ageGroup: "",
-    program: "",
+    closedDates: [],
   });
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -67,10 +65,8 @@ export const AdminClasses: React.FC = () => {
     setNewClass({
       name: "",
       time: "",
-      instructor: "Professor",
       daysOfWeek: [],
-      ageGroup: "",
-      program: "",
+      closedDates: [],
     });
   };
 
@@ -99,6 +95,27 @@ export const AdminClasses: React.FC = () => {
     return days
       .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label)
       .join(", ");
+  };
+
+  const addClosedDate = (
+    date: string,
+    currentDates: string[],
+    setter: (dates: string[]) => void,
+  ) => {
+    if (!date) return;
+    if (currentDates.includes(date)) {
+      toast.error("Esta data já está na lista!");
+      return;
+    }
+    setter([...currentDates, date].sort());
+  };
+
+  const removeClosedDate = (
+    date: string,
+    currentDates: string[],
+    setter: (dates: string[]) => void,
+  ) => {
+    setter(currentDates.filter((d) => d !== date));
   };
 
   const sortedClasses = [...classes].sort((a, b) => {
@@ -157,9 +174,6 @@ export const AdminClasses: React.FC = () => {
                 <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                   Dias da Semana
                 </th>
-                <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
                 <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
                   Ações
                 </th>
@@ -175,9 +189,6 @@ export const AdminClasses: React.FC = () => {
                     <div className="font-bold text-gray-900 text-sm">
                       {cls.name}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {cls.instructor}
-                    </div>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -189,11 +200,6 @@ export const AdminClasses: React.FC = () => {
                     <div className="text-sm text-gray-600">
                       {formatDaysOfWeek(cls.daysOfWeek)}
                     </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-700">
-                      {cls.ageGroup || cls.program || "Geral"}
-                    </span>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">
@@ -287,67 +293,6 @@ export const AdminClasses: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Instrutor
-                </label>
-                <input
-                  type="text"
-                  value={editingClass.instructor}
-                  onChange={(e) =>
-                    setEditingClass({
-                      ...editingClass,
-                      instructor: e.target.value,
-                    })
-                  }
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
-                  placeholder="Nome do instrutor"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Faixa Etária
-                  </label>
-                  <select
-                    value={editingClass.ageGroup || ""}
-                    onChange={(e) =>
-                      setEditingClass({
-                        ...editingClass,
-                        ageGroup: e.target.value,
-                      })
-                    }
-                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
-                  >
-                    <option value="">Selecione...</option>
-                    {CLASS_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Programa
-                  </label>
-                  <input
-                    type="text"
-                    value={editingClass.program || ""}
-                    onChange={(e) =>
-                      setEditingClass({
-                        ...editingClass,
-                        program: e.target.value,
-                      })
-                    }
-                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
-                    placeholder="Ex: GBK, GB1, GB2, GB3"
-                  />
-                </div>
-              </div>
-
-              <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
                   Dias da Semana *
                 </label>
@@ -373,6 +318,82 @@ export const AdminClasses: React.FC = () => {
                       {day.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Datas Fechadas (opcional)
+                </label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      id="edit-closed-date"
+                      className="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById(
+                          "edit-closed-date",
+                        ) as HTMLInputElement;
+                        if (input.value) {
+                          addClosedDate(
+                            input.value,
+                            editingClass.closedDates || [],
+                            (dates) =>
+                              setEditingClass({
+                                ...editingClass,
+                                closedDates: dates,
+                              }),
+                          );
+                          input.value = "";
+                        }
+                      }}
+                      className="px-4 py-2 bg-[#003087] text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+                  {editingClass.closedDates &&
+                    editingClass.closedDates.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {editingClass.closedDates.sort().map((date) => (
+                          <div
+                            key={date}
+                            className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-sm"
+                          >
+                            <span className="font-medium">
+                              {new Date(date + "T12:00:00").toLocaleDateString(
+                                "pt-BR",
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeClosedDate(
+                                  date,
+                                  editingClass.closedDates || [],
+                                  (dates) =>
+                                    setEditingClass({
+                                      ...editingClass,
+                                      closedDates: dates,
+                                    }),
+                                )
+                              }
+                              className="hover:bg-red-200 rounded-full p-0.5 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  <p className="text-xs text-gray-500 italic">
+                    Adicione datas em que não haverá aula (feriados, eventos,
+                    etc.)
+                  </p>
                 </div>
               </div>
 
@@ -454,58 +475,6 @@ export const AdminClasses: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Instrutor
-                </label>
-                <input
-                  type="text"
-                  value={newClass.instructor}
-                  onChange={(e) =>
-                    setNewClass({ ...newClass, instructor: e.target.value })
-                  }
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
-                  placeholder="Nome do instrutor"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Faixa Etária
-                  </label>
-                  <select
-                    value={newClass.ageGroup || ""}
-                    onChange={(e) =>
-                      setNewClass({ ...newClass, ageGroup: e.target.value })
-                    }
-                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
-                  >
-                    <option value="">Selecione...</option>
-                    {CLASS_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Programa
-                  </label>
-                  <input
-                    type="text"
-                    value={newClass.program || ""}
-                    onChange={(e) =>
-                      setNewClass({ ...newClass, program: e.target.value })
-                    }
-                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
-                    placeholder="Ex: GBK, GB1, GB2, GB3"
-                  />
-                </div>
-              </div>
-
-              <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
                   Dias da Semana *
                 </label>
@@ -531,6 +500,78 @@ export const AdminClasses: React.FC = () => {
                       {day.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Datas Fechadas (opcional)
+                </label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      id="add-closed-date"
+                      className="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById(
+                          "add-closed-date",
+                        ) as HTMLInputElement;
+                        if (input.value) {
+                          addClosedDate(
+                            input.value,
+                            newClass.closedDates || [],
+                            (dates) =>
+                              setNewClass({ ...newClass, closedDates: dates }),
+                          );
+                          input.value = "";
+                        }
+                      }}
+                      className="px-4 py-2 bg-[#003087] text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+                  {newClass.closedDates && newClass.closedDates.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {newClass.closedDates.sort().map((date) => (
+                        <div
+                          key={date}
+                          className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-sm"
+                        >
+                          <span className="font-medium">
+                            {new Date(date + "T12:00:00").toLocaleDateString(
+                              "pt-BR",
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeClosedDate(
+                                date,
+                                newClass.closedDates || [],
+                                (dates) =>
+                                  setNewClass({
+                                    ...newClass,
+                                    closedDates: dates,
+                                  }),
+                              )
+                            }
+                            className="hover:bg-red-200 rounded-full p-0.5 transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500 italic">
+                    Adicione datas em que não haverá aula (feriados, eventos,
+                    etc.)
+                  </p>
                 </div>
               </div>
 

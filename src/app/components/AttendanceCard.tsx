@@ -3,6 +3,7 @@ import { format, parseISO, getMonth, getDate, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Student, Attendance, SpecialDate } from "../context/DataContext";
 import { getCardStyle, BELT_COLORS, BELT_NAMES_PT } from "./BeltDisplay";
+import { getNextDegreeDate } from "../utils/degreeCalculator";
 
 const MONTHS = [
   "Janeiro",
@@ -40,7 +41,7 @@ interface AttendanceCardProps {
   year?: number;
   /** If true, admin can click on cells to toggle special dates */
   adminMode?: boolean;
-  onCellClick?: (date: string, existingType?: "graduation" | "grade") => void;
+  onCellClick?: (date: string, existingType?: "graduation") => void;
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -54,7 +55,12 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   adminMode = false,
   onCellClick,
 }) => {
-  const style = getCardStyle(student.program, student.belt, student.degrees);
+  const style = getCardStyle(
+    student.program,
+    student.belt,
+    student.degrees,
+    student.birthDate,
+  );
 
   // Build attendance set: "YYYY-MM-DD" → 'attended'
   const attendedDates = useMemo(() => {
@@ -71,14 +77,49 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
   // Build special dates map: "YYYY-MM-DD" → SpecialDate
   const specialDatesMap = useMemo(() => {
-    const map = new Map<string, SpecialDate>();
+    const map = new Map<
+      string,
+      SpecialDate | { type: "nextDegree"; date: string; notes?: string }
+    >();
+
+    // Adiciona datas especiais existentes (graduações e graus confirmados)
     student.specialDates.forEach((sd) => {
       if (sd.date.startsWith(String(year))) {
         map.set(sd.date, sd);
       }
     });
+
+    // Calcula e adiciona a data prevista do próximo grau
+    const nextDegreeDate = getNextDegreeDate(
+      attendanceHistory,
+      student.lastGraduationDate,
+      student.belt,
+      student.degrees,
+      student.program,
+    );
+
+    // Se a data prevista é deste ano e não conflita com graduação já marcada
+    if (nextDegreeDate && nextDegreeDate.startsWith(String(year))) {
+      // Só adiciona se não houver uma graduação já marcada nesta data
+      if (!map.has(nextDegreeDate)) {
+        map.set(nextDegreeDate, {
+          type: "nextDegree",
+          date: nextDegreeDate,
+          notes: `Próximo grau previsto (${student.degrees + 1}°)`,
+        });
+      }
+    }
+
     return map;
-  }, [student.specialDates, year]);
+  }, [
+    student.specialDates,
+    student.lastGraduationDate,
+    student.belt,
+    student.degrees,
+    student.program,
+    attendanceHistory,
+    year,
+  ]);
 
   const beltColor = BELT_COLORS[student.belt];
 
@@ -271,7 +312,12 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               `}
                               onClick={() => {
                                 if (adminMode && isValidDay && onCellClick) {
-                                  onCellClick(dateKey, specialDate?.type);
+                                  onCellClick(
+                                    dateKey,
+                                    specialDate?.type === "graduation"
+                                      ? "graduation"
+                                      : undefined,
+                                  );
                                 }
                               }}
                               title={
@@ -279,10 +325,10 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                   ? `Presença: ${day}/${monthIdx + 1}`
                                   : specialDate?.type === "graduation"
                                     ? `Graduação: ${day}/${monthIdx + 1}`
-                                    : specialDate?.type === "grade"
-                                      ? `Novo Grau: ${day}/${monthIdx + 1}`
+                                    : specialDate?.type === "nextDegree"
+                                      ? `Próximo grau previsto (${student.degrees + 1}°): ${day}/${monthIdx + 1}`
                                       : adminMode && isValidDay
-                                        ? "Clique para marcar"
+                                        ? "Clique para marcar graduação"
                                         : ""
                               }
                             >
@@ -290,7 +336,13 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               {specialDate ? (
                                 <div className="relative flex items-center justify-center">
                                   <div
-                                    className={`w-3.5 h-3.5 rounded-full shadow-sm ${specialDate.type === "graduation" ? "bg-red-600 ring-1 ring-red-800" : "bg-red-500"}`}
+                                    className={`w-3.5 h-3.5 rounded-full shadow-sm ${
+                                      specialDate.type === "graduation"
+                                        ? "bg-red-600 ring-1 ring-red-800"
+                                        : specialDate.type === "nextDegree"
+                                          ? "bg-green-500 border-2 border-dashed border-green-600 animate-pulse"
+                                          : "bg-red-600"
+                                    }`}
                                   />
                                   {isAttended && (
                                     <div className="absolute w-5 h-5 rounded-full border-2 border-gray-400 opacity-30" />
@@ -321,12 +373,16 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-600 border border-white/50" />
-            <span>Graduação / Novo grau</span>
+            <span>Graduação (nova faixa)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-dashed border-green-600 animate-pulse" />
+            <span>Próximo grau previsto</span>
           </div>
           {adminMode && (
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded border border-yellow-400 bg-yellow-50" />
-              <span>Clique em um dia para marcar</span>
+              <span>Clique para marcar graduação</span>
             </div>
           )}
         </div>

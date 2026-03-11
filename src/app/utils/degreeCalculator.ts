@@ -216,12 +216,53 @@ export const getDegreeProgress = (
     ? Math.min(100, Math.round((weeksCompleted / weeksRequired) * 100))
     : 0;
 
+  const isReadyForGraduation = weeksRequired ? weeksCompleted >= weeksRequired : false;
+
   return {
     weeksRequired,
     weeksCompleted: Math.floor(weeksCompleted * 10) / 10, // Arredonda para 1 casa decimal
     weeksRemaining: weeksRequired ? Math.max(0, weeksRequired - weeksCompleted) : null,
     progressPercentage,
     estimatedDate,
-    isReadyForGraduation: weeksRequired ? weeksCompleted >= weeksRequired : false,
+    isReadyForGraduation,
+    nextDegree: currentDegree + 1,
   };
+};
+
+/**
+ * Retorna a data exata (YYYY-MM-DD) prevista para o próximo grau
+ * Se o aluno já está pronto, retorna a data de hoje
+ */
+export const getNextDegreeDate = (
+  attendanceRecords: Attendance[],
+  lastGraduationDate: string,
+  belt: BeltColor,
+  currentDegree: number,
+  program?: string
+): string | null => {
+  const progress = getDegreeProgress(
+    attendanceRecords,
+    lastGraduationDate,
+    belt,
+    currentDegree,
+    program
+  );
+
+  // Se já está pronto, retorna hoje
+  if (progress.isReadyForGraduation) {
+    return format(new Date(), "yyyy-MM-dd");
+  }
+
+  // Se não há previsão ou não tem semanas necessárias
+  if (!progress.weeksRequired || !progress.estimatedDate || typeof progress.estimatedDate !== 'string') {
+    return null;
+  }
+
+  // Converte a data estimada DD/MM/YYYY para YYYY-MM-DD
+  const parts = progress.estimatedDate.split('/');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+
+  return null;
 };

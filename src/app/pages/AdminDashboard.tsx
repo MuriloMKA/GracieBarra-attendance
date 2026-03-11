@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { useData, JJClass, Student } from "../context/DataContext";
+import { useData, JJClass, Student, BeltColor } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -11,10 +11,20 @@ import {
   Shield,
   QrCode,
   Check,
+  TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BELT_NAMES_PT, calculateProgram } from "../components/BeltDisplay";
 import { QRScanner } from "../components/QRScanner";
+import api from "../services/api";
+
+interface StudentReadyForDegree extends Student {
+  weeksCompleted: number;
+  weeksRequired: number;
+  nextDegree: number;
+  confirmedAttendances: number;
+}
 
 export const AdminDashboard: React.FC = () => {
   const { currentUser, students, attendance, classes, checkIn } = useData();
@@ -22,6 +32,23 @@ export const AdminDashboard: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [scannedStudent, setScannedStudent] = useState<Student | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>("");
+  const [studentsReadyForDegree, setStudentsReadyForDegree] = useState<
+    StudentReadyForDegree[]
+  >([]);
+
+  // Buscar alunos prontos para receber grau
+  useEffect(() => {
+    const fetchStudentsReadyForDegree = async () => {
+      try {
+        const response = await api.get("/students/ready-for-degree");
+        setStudentsReadyForDegree(response.data);
+      } catch (error) {
+        console.error("Erro ao buscar alunos prontos para grau:", error);
+      }
+    };
+
+    fetchStudentsReadyForDegree();
+  }, [attendance, students]); // Recarrega quando attendance ou students mudarem
 
   const confirmedToday = attendance.filter((a) => {
     if (!a.confirmed) return false;
@@ -204,6 +231,78 @@ export const AdminDashboard: React.FC = () => {
           />
         </Link>
       </div>
+
+      {/* Alunos Prontos para Receber Grau */}
+      {studentsReadyForDegree.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-300 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center justify-center w-12 h-12 bg-amber-500 rounded-full">
+              <TrendingUp size={24} className="text-white" />
+            </div>
+            <div>
+              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2">
+                <AlertCircle size={20} className="text-amber-600" />
+                Alunos Prontos para Receber Grau
+              </h2>
+              <p className="text-amber-700 text-sm">
+                {studentsReadyForDegree.length}{" "}
+                {studentsReadyForDegree.length === 1
+                  ? "aluno completou"
+                  : "alunos completaram"}{" "}
+                os requisitos para o próximo grau
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {studentsReadyForDegree.map((student) => (
+              <Link
+                key={student._id}
+                to={`/admin/students/${student._id}`}
+                className="bg-white rounded-lg border border-amber-200 p-4 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-[#003087] text-white flex items-center justify-center font-black shrink-0">
+                      {student.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-gray-900 truncate">
+                        {student.name}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {BELT_NAMES_PT[student.belt]} {student.degrees}° →{" "}
+                        {student.nextDegree}°
+                      </div>
+                      <div className="text-xs text-amber-600 font-medium mt-1">
+                        {student.weeksCompleted} de {student.weeksRequired}{" "}
+                        semanas completas
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                      Pronto!
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      className="text-gray-400 group-hover:text-[#D10A11] group-hover:translate-x-1 transition-all"
+                    />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-4 p-3 bg-amber-100 rounded-lg">
+            <p className="text-xs text-amber-800">
+              <strong>💡 Dica:</strong> Ao confirmar a presença desses alunos
+              hoje, o grau será automaticamente incrementado no cartão de
+              frequência!
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Confirmar Presença via QR Code */}
       <div>

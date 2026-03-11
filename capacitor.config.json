@@ -3,9 +3,8 @@
   "appName": "GB Attendance",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
+    "androidScheme": "http",
     "iosScheme": "https",
-    "url": "http://192.168.15.200:5173",
     "cleartext": true
   },
   "plugins": {
