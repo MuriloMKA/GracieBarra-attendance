@@ -1,10 +1,13 @@
 import axios from 'axios';
 
-// Configuração da URL base - no app nativo, usar IP da máquina
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
+// Em produção mobile, usa Railway por padrão caso VITE_API_URL não seja injetada no build.
+const API_URL =
+  (import.meta as any).env?.VITE_API_URL ||
+  'https://graciebarra-attendance-production.up.railway.app/api';
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
