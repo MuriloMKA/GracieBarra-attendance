@@ -192,7 +192,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("gb_current_user", JSON.stringify(response.user));
       setCurrentUser(response.user);
 
-      await loadData();
+      // Nao bloqueia o login pela carga inicial; evita travar na tela "Entrando..."
+      loadData().catch((error) => {
+        console.error("Erro ao carregar dados apos login:", error);
+      });
       toast.success(`Bem-vindo, ${response.user.name}!`);
       return true;
     } catch (error: any) {
