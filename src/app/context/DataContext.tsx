@@ -186,7 +186,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const response = await authService.login(email, password);
+      const loginTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout ao fazer login")), 15000);
+      });
+
+      const response = (await Promise.race([
+        authService.login(email, password),
+        loginTimeout,
+      ])) as Awaited<ReturnType<typeof authService.login>>;
 
       localStorage.setItem("gb_auth_token", response.token);
       localStorage.setItem("gb_current_user", JSON.stringify(response.user));
@@ -200,7 +207,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (error: any) {
       console.error("Erro no login:", error);
-      toast.error(error.response?.data?.error || "Erro ao fazer login");
+      toast.error(
+        error.response?.data?.error || error.message || "Erro ao fazer login",
+      );
       return false;
     } finally {
       setLoading(false);
