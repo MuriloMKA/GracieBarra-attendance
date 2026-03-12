@@ -10,6 +10,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_development";
+const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
 
 // Middleware
 app.use(
@@ -42,7 +43,13 @@ const authenticateToken = (req, res, next) => {
 // MongoDB Connection
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Variavel MONGODB_URI (ou DATABASE_URL) nao configurada no ambiente",
+      );
+    }
+
+    await mongoose.connect(MONGODB_URI);
     console.log("✅ MongoDB conectado com sucesso!");
   } catch (error) {
     console.error("❌ Erro ao conectar ao MongoDB:", error.message);
