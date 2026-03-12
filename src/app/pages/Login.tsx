@@ -17,6 +17,12 @@ export function LoginPage() {
     setError("");
     setLoading(true);
 
+    // Fallback visual: evita botao preso em "Entrando..." se a promise travar.
+    const forceStopTimer = setTimeout(() => {
+      setLoading(false);
+      setError("Tempo de resposta excedido. Tente novamente.");
+    }, 20000);
+
     login(email.trim(), password)
       .then((success) => {
         if (success) {
@@ -33,6 +39,7 @@ export function LoginPage() {
         setError("Erro ao conectar com o servidor. Verifique sua conexão.");
       })
       .finally(() => {
+        clearTimeout(forceStopTimer);
         setLoading(false);
       });
   };
