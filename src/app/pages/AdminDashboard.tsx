@@ -258,7 +258,7 @@ export const AdminDashboard: React.FC = () => {
             {studentsReadyForDegree.map((student) => (
               <Link
                 key={student._id}
-                to={`/admin/students/${student._id}`}
+                to={`/admin/students/${student._id}/card`}
                 className="bg-white rounded-lg border border-amber-200 p-4 hover:shadow-md transition-all group"
               >
                 <div className="flex items-start justify-between">

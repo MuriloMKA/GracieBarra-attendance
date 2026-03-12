@@ -122,7 +122,7 @@ export const AdminStudentCard: React.FC = () => {
   } | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
 
-  const student = students.find((s) => s.id === id);
+  const student = students.find((s) => (s.id || s._id) === id);
   if (!student || !student.id) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 text-center text-gray-500">

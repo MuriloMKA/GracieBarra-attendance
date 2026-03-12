@@ -16,7 +16,7 @@ echo 🔄 Iniciando atualização...
 echo.
 
 REM Definir variável de ambiente e rodar build
-powershell -Command "$env:VITE_API_URL='http://192.168.15.200:3001/api'; npm run build"
+powershell -Command "$env:VITE_API_URL='https://graciebarra-attendance-production.up.railway.app/api'; npm run build"
 
 if errorlevel 1 (
     echo.
