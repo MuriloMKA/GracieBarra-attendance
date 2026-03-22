@@ -53,6 +53,24 @@ const getMaxDegreesForGBK = (belt: BeltColor): number => {
   return 11;
 };
 
+const isGBKBelt = (belt: BeltColor): boolean => {
+  return (
+    belt === "White" ||
+    belt === "GreyWhite" ||
+    belt === "Grey" ||
+    belt === "GreyBlack" ||
+    belt === "YellowWhite" ||
+    belt === "Yellow" ||
+    belt === "YellowBlack" ||
+    belt === "OrangeWhite" ||
+    belt === "Orange" ||
+    belt === "OrangeBlack" ||
+    belt === "GreenWhite" ||
+    belt === "Green" ||
+    belt === "GreenBlack"
+  );
+};
+
 const getGBKDegreeStage = (belt: BeltColor, degrees: number) => {
   const maxTotalDegrees = getMaxDegreesForGBK(belt);
   const normalizedDegrees = Math.max(0, Math.min(degrees, maxTotalDegrees));
@@ -113,7 +131,7 @@ export function getDegreeDisplayLabel(
 ): string {
   if (degrees <= 0) return "";
 
-  if (program === "GBK") {
+  if (program === "GBK" || isGBKBelt(belt)) {
     const stage = getGBKDegreeStage(belt, degrees);
     return `${stage.degreeNumber}° grau${stage.degreeNumber > 1 ? "s" : ""} ${stage.colorName}`;
   }
@@ -126,7 +144,7 @@ export function getNextDegreeDisplayLabel(
   belt: BeltColor,
   currentDegrees: number,
 ): string {
-  if (program === "GBK") {
+  if (program === "GBK" || isGBKBelt(belt)) {
     const maxDegrees = getMaxDegreesForGBK(belt);
     if (currentDegrees >= maxDegrees) return "próxima faixa";
     const nextStage = getGBKDegreeStage(belt, currentDegrees + 1);
