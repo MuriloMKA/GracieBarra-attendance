@@ -48,6 +48,98 @@ export const BELT_NAMES_PT: Record<BeltColor, string> = {
   Black: "Faixa Preta",
 };
 
+const getMaxDegreesForGBK = (belt: BeltColor): number => {
+  if (belt === "White" || belt === "GreyWhite") return 5;
+  return 11;
+};
+
+const getGBKDegreeStage = (belt: BeltColor, degrees: number) => {
+  const maxTotalDegrees = getMaxDegreesForGBK(belt);
+  const normalizedDegrees = Math.max(0, Math.min(degrees, maxTotalDegrees));
+
+  if (normalizedDegrees <= 0) {
+    return {
+      degreeNumber: 0,
+      colorName: "",
+      colorHex: "transparent",
+      maxSlots: belt === "White" || belt === "GreyWhite" ? 1 : 4,
+      filledInStage: 0,
+    };
+  }
+
+  if (normalizedDegrees <= 4) {
+    return {
+      degreeNumber: normalizedDegrees,
+      colorName: "branco",
+      colorHex: "#FFFFFF",
+      maxSlots: 4,
+      filledInStage: normalizedDegrees,
+    };
+  }
+
+  if (belt === "White" || belt === "GreyWhite") {
+    return {
+      degreeNumber: 1,
+      colorName: "vermelho",
+      colorHex: "#D10A11",
+      maxSlots: 1,
+      filledInStage: 1,
+    };
+  }
+
+  if (normalizedDegrees <= 8) {
+    return {
+      degreeNumber: normalizedDegrees - 4,
+      colorName: "vermelho",
+      colorHex: "#D10A11",
+      maxSlots: 4,
+      filledInStage: normalizedDegrees - 4,
+    };
+  }
+
+  return {
+    degreeNumber: normalizedDegrees - 8,
+    colorName: "preto",
+    colorHex: "#111827",
+    maxSlots: 3,
+    filledInStage: normalizedDegrees - 8,
+  };
+};
+
+export function getDegreeDisplayLabel(
+  program: Program,
+  belt: BeltColor,
+  degrees: number,
+): string {
+  if (degrees <= 0) return "";
+
+  if (program === "GBK") {
+    const stage = getGBKDegreeStage(belt, degrees);
+    return `${stage.degreeNumber}° grau${stage.degreeNumber > 1 ? "s" : ""} ${stage.colorName}`;
+  }
+
+  return `${degrees}° grau${degrees > 1 ? "s" : ""}`;
+}
+
+export function getNextDegreeDisplayLabel(
+  program: Program,
+  belt: BeltColor,
+  currentDegrees: number,
+): string {
+  if (program === "GBK") {
+    const maxDegrees = getMaxDegreesForGBK(belt);
+    if (currentDegrees >= maxDegrees) return "próxima faixa";
+    const nextStage = getGBKDegreeStage(belt, currentDegrees + 1);
+    return `${nextStage.degreeNumber}° grau ${nextStage.colorName}`;
+  }
+
+  if (belt === "Black" && currentDegrees >= 6) return "próxima faixa";
+  if (belt !== "Black" && currentDegrees >= 4) return "próxima faixa";
+
+  const nextDegree = currentDegrees + 1;
+  return `${nextDegree}° grau${nextDegree > 1 ? "s" : ""}`;
+}
+
 // Função para calcular idade em anos
 export function calculateAge(birthDate: string): number {
   const today = new Date();
@@ -187,116 +279,6 @@ export function getCardStyle(
   };
 }
 
-// Retorna o nome da cor do grau para faixas GBK
-const getGBKDegreeColorName = (
-  belt: BeltColor,
-  degreeIndex: number,
-): string => {
-  // White e GreyWhite: 4 brancos + 1 vermelho
-  if (belt === "White" || belt === "GreyWhite") {
-    if (degreeIndex < 4) return "branco";
-    return "vermelho";
-  }
-
-  // Grey e GreyBlack: 4 brancos + 4 vermelhos + 3 amarelos
-  if (belt === "Grey" || belt === "GreyBlack") {
-    if (degreeIndex < 4) return "branco";
-    if (degreeIndex < 8) return "vermelho";
-    return "amarelo";
-  }
-
-  // YellowWhite, Yellow, YellowBlack: 4 brancos + 4 vermelhos + 3 laranja
-  if (belt === "YellowWhite" || belt === "Yellow" || belt === "YellowBlack") {
-    if (degreeIndex < 4) return "branco";
-    if (degreeIndex < 8) return "vermelho";
-    return "laranja";
-  }
-
-  // OrangeWhite, Orange, OrangeBlack: 4 brancos + 4 vermelhos + 3 verde
-  if (belt === "OrangeWhite" || belt === "Orange" || belt === "OrangeBlack") {
-    if (degreeIndex < 4) return "branco";
-    if (degreeIndex < 8) return "vermelho";
-    return "verde";
-  }
-
-  // GreenWhite, Green, GreenBlack: 4 brancos + 4 vermelhos + 3 azul
-  if (belt === "GreenWhite" || belt === "Green" || belt === "GreenBlack") {
-    if (degreeIndex < 4) return "branco";
-    if (degreeIndex < 8) return "vermelho";
-    return "azul";
-  }
-
-  return "";
-};
-
-// Retorna as cores dos graus para cada faixa GBK
-const getGBKDegreeColors = (
-  belt: BeltColor,
-  totalDegrees: number,
-): string[] => {
-  const colors: string[] = [];
-
-  // White e GreyWhite: 4 brancos + 1 vermelho
-  if (belt === "White" || belt === "GreyWhite") {
-    for (let i = 0; i < totalDegrees; i++) {
-      if (i < 4)
-        colors.push("#FFFFFF"); // Branco
-      else colors.push("#D10A11"); // Vermelho
-    }
-    return colors;
-  }
-
-  // Grey e GreyBlack: 4 brancos + 4 vermelhos + 3 amarelos
-  if (belt === "Grey" || belt === "GreyBlack") {
-    for (let i = 0; i < totalDegrees; i++) {
-      if (i < 4)
-        colors.push("#FFFFFF"); // Branco
-      else if (i < 8)
-        colors.push("#D10A11"); // Vermelho
-      else colors.push("#EAB308"); // Amarelo
-    }
-    return colors;
-  }
-
-  // YellowWhite, Yellow, YellowBlack: 4 brancos + 4 vermelhos + 3 laranja
-  if (belt === "YellowWhite" || belt === "Yellow" || belt === "YellowBlack") {
-    for (let i = 0; i < totalDegrees; i++) {
-      if (i < 4)
-        colors.push("#FFFFFF"); // Branco
-      else if (i < 8)
-        colors.push("#D10A11"); // Vermelho
-      else colors.push("#F97316"); // Laranja
-    }
-    return colors;
-  }
-
-  // OrangeWhite, Orange, OrangeBlack: 4 brancos + 4 vermelhos + 3 verde
-  if (belt === "OrangeWhite" || belt === "Orange" || belt === "OrangeBlack") {
-    for (let i = 0; i < totalDegrees; i++) {
-      if (i < 4)
-        colors.push("#FFFFFF"); // Branco
-      else if (i < 8)
-        colors.push("#D10A11"); // Vermelho
-      else colors.push("#22C55E"); // Verde
-    }
-    return colors;
-  }
-
-  // GreenWhite, Green, GreenBlack: 4 brancos + 4 vermelhos + 3 azul
-  if (belt === "GreenWhite" || belt === "Green" || belt === "GreenBlack") {
-    for (let i = 0; i < totalDegrees; i++) {
-      if (i < 4)
-        colors.push("#FFFFFF"); // Branco
-      else if (i < 8)
-        colors.push("#D10A11"); // Vermelho
-      else colors.push("#2563EB"); // Azul
-    }
-    return colors;
-  }
-
-  return colors;
-};
-
 export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   belt,
   degrees,
@@ -312,15 +294,13 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
 
   // Determina quantos slots de grau mostrar e suas cores
   const isGBK = program === "GBK";
+  const gbkStage = isGBK ? getGBKDegreeStage(belt, degrees) : null;
   const maxDegrees = isGBK
-    ? belt === "White" || belt === "GreyWhite"
-      ? 5
-      : 11
+    ? (gbkStage?.maxSlots ?? 0)
     : belt === "Black"
       ? 6
       : 4;
-
-  const degreeColors = isGBK ? getGBKDegreeColors(belt, maxDegrees) : [];
+  const filledDegrees = isGBK ? (gbkStage?.filledInStage ?? 0) : degrees;
 
   return (
     <div className="flex items-center gap-2">
@@ -336,14 +316,15 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
         <div className="flex-1" />
         <div className="flex gap-px pr-1">
           {Array.from({ length: maxDegrees }).map((_, i) => {
-            const filled = i < degrees;
-            const stripeColor =
-              isGBK && filled
-                ? degreeColors[i]
-                : filled
-                  ? "#D10A11"
-                  : "transparent";
-            const needsBorder = !filled || (isGBK && stripeColor === "#FFFFFF");
+            const filled = i < filledDegrees;
+            const stripeColor = isGBK
+              ? filled
+                ? (gbkStage?.colorHex ?? "transparent")
+                : "transparent"
+              : filled
+                ? "#D10A11"
+                : "transparent";
+            const needsBorder = !filled || stripeColor === "#FFFFFF";
 
             return (
               <div
@@ -361,19 +342,7 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
         </div>
       </div>
       <span className={`${textSizes[size]} font-medium text-gray-700`}>
-        {BELT_NAMES_PT[belt]}{" "}
-        {degrees > 0 ? (
-          isGBK ? (
-            <>
-              {degrees}° grau{degrees > 1 ? "s" : ""}{" "}
-              {getGBKDegreeColorName(belt, degrees - 1)}
-            </>
-          ) : (
-            `${degrees}° grau${degrees > 1 ? "s" : ""}`
-          )
-        ) : (
-          ""
-        )}
+        {BELT_NAMES_PT[belt]} {getDegreeDisplayLabel(program, belt, degrees)}
       </span>
     </div>
   );

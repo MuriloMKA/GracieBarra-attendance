@@ -15,7 +15,12 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { BELT_NAMES_PT, calculateProgram } from "../components/BeltDisplay";
+import {
+  BELT_NAMES_PT,
+  calculateProgram,
+  getDegreeDisplayLabel,
+  getNextDegreeDisplayLabel,
+} from "../components/BeltDisplay";
 import { QRScanner } from "../components/QRScanner";
 import api from "../services/api";
 
@@ -271,8 +276,18 @@ export const AdminDashboard: React.FC = () => {
                         {student.name}
                       </div>
                       <div className="text-xs text-gray-600">
-                        {BELT_NAMES_PT[student.belt]} {student.degrees}° →{" "}
-                        {student.nextDegree}°
+                        {BELT_NAMES_PT[student.belt]}{" "}
+                        {getDegreeDisplayLabel(
+                          student.program,
+                          student.belt,
+                          student.degrees,
+                        )}{" "}
+                        →{" "}
+                        {getNextDegreeDisplayLabel(
+                          student.program,
+                          student.belt,
+                          student.degrees,
+                        )}
                       </div>
                       <div className="text-xs text-amber-600 font-medium mt-1">
                         {student.weeksCompleted} de {student.weeksRequired}{" "}

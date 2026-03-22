@@ -10,15 +10,15 @@ const getMaxDegreesForGBK = (belt: BeltColor): number => {
     case "GreyWhite": // 4 brancos + 1 vermelho
       return 5;
     
-    case "Grey": // 4 brancos + 4 vermelhos + 3 amarelos
+    case "Grey": // 4 brancos + 4 vermelhos + 3 pretos
     case "GreyBlack":
-    case "YellowWhite": // 4 brancos + 4 vermelhos + 3 laranja
+    case "YellowWhite": // 4 brancos + 4 vermelhos + 3 pretos
     case "Yellow":
     case "YellowBlack":
-    case "OrangeWhite": // 4 brancos + 4 vermelhos + 3 verde
+    case "OrangeWhite": // 4 brancos + 4 vermelhos + 3 pretos
     case "Orange":
     case "OrangeBlack":
-    case "GreenWhite": // 4 brancos + 4 vermelhos + 3 azul
+    case "GreenWhite": // 4 brancos + 4 vermelhos + 3 pretos
     case "Green":
     case "GreenBlack":
       return 11;

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { useData } from "../context/DataContext";
-import { BELT_NAMES_PT } from "./BeltDisplay";
+import { BELT_NAMES_PT, getDegreeDisplayLabel } from "./BeltDisplay";
 import {
   LogOut,
   CreditCard,
@@ -95,7 +95,12 @@ export const Header: React.FC = () => {
             </div>
             {student && (
               <div className="text-xs text-gray-500">
-                {BELT_NAMES_PT[student.belt]} • {student.degrees}° grau
+                {BELT_NAMES_PT[student.belt]} •{" "}
+                {getDegreeDisplayLabel(
+                  student.program,
+                  student.belt,
+                  student.degrees,
+                )}
               </div>
             )}
             {isAdmin && (

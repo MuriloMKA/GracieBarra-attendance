@@ -12,7 +12,12 @@ import {
   ArrowLeft,
   TrendingUp,
 } from "lucide-react";
-import { BeltDisplay, BELT_NAMES_PT } from "../components/BeltDisplay";
+import {
+  BeltDisplay,
+  BELT_NAMES_PT,
+  getDegreeDisplayLabel,
+  getNextDegreeDisplayLabel,
+} from "../components/BeltDisplay";
 import { StudentQRCode } from "../components/StudentQRCode";
 import { toast } from "sonner";
 import { getDegreeProgress } from "../utils/degreeCalculator";
@@ -63,17 +68,17 @@ const getMaxDegreesForBelt = (program: Program, belt: BeltColor): number => {
     case "GreyWhite": // 4 brancos + 1 vermelho
       return 5;
 
-    case "Grey": // 4 brancos + 4 vermelhos + 3 amarelos
-    case "GreyBlack": // 4 brancos + 4 vermelhos + 3 amarelos
-    case "YellowWhite": // 4 brancos + 4 vermelhos + 3 laranja
-    case "Yellow": // 4 brancos + 4 vermelhos + 3 laranja
-    case "YellowBlack": // 4 brancos + 4 vermelhos + 3 laranja
-    case "OrangeWhite": // 4 brancos + 4 vermelhos + 3 verde
-    case "Orange": // 4 brancos + 4 vermelhos + 3 verde
-    case "OrangeBlack": // 4 brancos + 4 vermelhos + 3 verde
-    case "GreenWhite": // 4 brancos + 4 vermelhos + 3 azul
-    case "Green": // 4 brancos + 4 vermelhos + 3 azul
-    case "GreenBlack": // 4 brancos + 4 vermelhos + 3 azul
+    case "Grey": // 4 brancos + 4 vermelhos + 3 pretos
+    case "GreyBlack": // 4 brancos + 4 vermelhos + 3 pretos
+    case "YellowWhite": // 4 brancos + 4 vermelhos + 3 pretos
+    case "Yellow": // 4 brancos + 4 vermelhos + 3 pretos
+    case "YellowBlack": // 4 brancos + 4 vermelhos + 3 pretos
+    case "OrangeWhite": // 4 brancos + 4 vermelhos + 3 pretos
+    case "Orange": // 4 brancos + 4 vermelhos + 3 pretos
+    case "OrangeBlack": // 4 brancos + 4 vermelhos + 3 pretos
+    case "GreenWhite": // 4 brancos + 4 vermelhos + 3 pretos
+    case "Green": // 4 brancos + 4 vermelhos + 3 pretos
+    case "GreenBlack": // 4 brancos + 4 vermelhos + 3 pretos
       return 11;
 
     default:
@@ -284,17 +289,13 @@ export const AdminStudents: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex gap-1 items-center">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className={`w-2.5 h-5 rounded-sm ${i < student.degrees ? "bg-[#D10A11]" : "bg-gray-200"}`}
-                          />
-                        ))}
-                        <span className="text-xs text-gray-500 ml-1">
-                          ({student.degrees})
-                        </span>
-                      </div>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {getDegreeDisplayLabel(
+                          student.program,
+                          student.belt,
+                          student.degrees,
+                        ) || "Sem grau"}
+                      </span>
                     </td>
                     <td className="px-5 py-4 hidden md:table-cell">
                       <span className="text-sm text-gray-600">
@@ -400,7 +401,12 @@ export const AdminStudents: React.FC = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp size={14} className="text-[#003087]" />
                       <span className="text-xs font-bold text-gray-700">
-                        Progresso {editingStudent.degrees + 1}º Grau
+                        Progresso{" "}
+                        {getNextDegreeDisplayLabel(
+                          editingStudent.program,
+                          editingStudent.belt,
+                          editingStudent.degrees,
+                        )}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
@@ -542,7 +548,11 @@ export const AdminStudents: React.FC = () => {
                       <label className="block text-sm font-bold text-gray-700 mb-1">
                         Graus na Faixa:{" "}
                         <span className="text-[#D10A11]">
-                          {editingStudent.degrees}
+                          {getDegreeDisplayLabel(
+                            editingStudent.program,
+                            editingStudent.belt,
+                            editingStudent.degrees,
+                          ) || "Sem grau"}
                         </span>
                       </label>
                       <input
@@ -769,7 +779,12 @@ export const AdminStudents: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Graus: {newStudent.degrees}
+                    Graus:{" "}
+                    {getDegreeDisplayLabel(
+                      (newStudent.program as Program) || "GB1",
+                      ((newStudent.belt as BeltColor) || "White") as BeltColor,
+                      newStudent.degrees || 0,
+                    ) || "Sem grau"}
                   </label>
                   <input
                     type="range"

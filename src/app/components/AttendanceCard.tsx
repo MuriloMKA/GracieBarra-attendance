@@ -2,7 +2,13 @@ import React, { useMemo } from "react";
 import { format, parseISO, getMonth, getDate, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Student, Attendance, SpecialDate } from "../context/DataContext";
-import { getCardStyle, BELT_COLORS, BELT_NAMES_PT } from "./BeltDisplay";
+import {
+  getCardStyle,
+  BELT_COLORS,
+  BELT_NAMES_PT,
+  getDegreeDisplayLabel,
+  getNextDegreeDisplayLabel,
+} from "./BeltDisplay";
 import { getNextDegreeDate } from "../utils/degreeCalculator";
 
 const MONTHS = [
@@ -105,7 +111,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
         map.set(nextDegreeDate, {
           type: "nextDegree",
           date: nextDegreeDate,
-          notes: `Próximo grau previsto (${student.degrees + 1}°)`,
+          notes: `Próximo grau previsto (${getNextDegreeDisplayLabel(student.program, student.belt, student.degrees)})`,
         });
       }
     }
@@ -217,7 +223,11 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                       );
                     })}
                     <span className="text-white text-xs font-bold ml-1">
-                      {student.degrees}°
+                      {getDegreeDisplayLabel(
+                        student.program,
+                        student.belt,
+                        student.degrees,
+                      )}
                     </span>
                   </div>
                 </div>
@@ -326,7 +336,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                   : specialDate?.type === "graduation"
                                     ? `Graduação: ${day}/${monthIdx + 1}`
                                     : specialDate?.type === "nextDegree"
-                                      ? `Próximo grau previsto (${student.degrees + 1}°): ${day}/${monthIdx + 1}`
+                                      ? `Próximo grau previsto (${getNextDegreeDisplayLabel(student.program, student.belt, student.degrees)}): ${day}/${monthIdx + 1}`
                                       : adminMode && isValidDay
                                         ? "Clique para marcar graduação"
                                         : ""

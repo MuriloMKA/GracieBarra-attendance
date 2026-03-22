@@ -17,7 +17,8 @@ import {
   BeltDisplay,
   getCardStyle,
   calculateProgram,
-  BELT_NAMES_PT,
+  getDegreeDisplayLabel,
+  getNextDegreeDisplayLabel,
 } from "../components/BeltDisplay";
 import { getDegreeProgress } from "../utils/degreeCalculator";
 
@@ -135,8 +136,12 @@ export const StudentDashboard: React.FC = () => {
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-black text-[#003087]">
-            {student.degrees}
+          <div className="text-lg font-black text-[#003087]">
+            {getDegreeDisplayLabel(
+              student.program,
+              student.belt,
+              student.degrees,
+            )}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graus na Faixa
@@ -191,7 +196,12 @@ export const StudentDashboard: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
                   <TrendingUp size={16} className="text-[#003087]" />
-                  Progresso para o {student.degrees + 1}º Grau
+                  Progresso para{" "}
+                  {getNextDegreeDisplayLabel(
+                    student.program,
+                    student.belt,
+                    student.degrees,
+                  )}
                 </h3>
                 {degreeProgress.isReadyForGraduation && (
                   <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
