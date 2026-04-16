@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Bell, Megaphone, Send, Sparkles } from "lucide-react";
+import { Link } from "react-router";
+import { ArrowLeft, Bell, Megaphone, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { notificationService } from "../services/api";
 
@@ -55,12 +56,18 @@ export const AdminNotifications: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-3">
+        <Link
+          to="/admin"
+          className="flex items-center gap-2 text-gray-500 hover:text-[#D10A11] transition-colors text-sm font-medium"
+        >
+          <ArrowLeft size={18} />
+        </Link>
         <div className="w-12 h-12 rounded-full bg-[#003087] text-white flex items-center justify-center">
           <Megaphone size={24} />
         </div>
         <div>
           <h1 className="text-2xl font-black text-gray-900">
-            Notificacoes Push
+            Notificações de Push
           </h1>
           <p className="text-sm text-gray-500">
             Envie mensagens para todos os usuarios e rode a analise automatica

@@ -334,9 +334,13 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   };
 
   const getAdultSlotColor = (slotIndex: number) => {
-    return slotIndex < Math.min(normalizedDegrees, visibleSlots)
-      ? "#D10A11"
-      : "transparent";
+    if (slotIndex >= Math.min(normalizedDegrees, visibleSlots)) {
+      return "transparent";
+    }
+
+    // Adulto: faixa branca mantém graus vermelhos para melhor contraste.
+    // Da faixa azul em diante, os graus devem ser brancos.
+    return belt === "White" ? "#D10A11" : "#FFFFFF";
   };
 
   return (

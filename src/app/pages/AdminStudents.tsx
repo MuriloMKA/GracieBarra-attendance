@@ -17,6 +17,7 @@ import {
   BELT_NAMES_PT,
   getDegreeDisplayLabel,
   getNextDegreeDisplayLabel,
+  calculateProgram,
 } from "../components/BeltDisplay";
 import { StudentQRCode } from "../components/StudentQRCode";
 import { toast } from "sonner";
@@ -86,6 +87,14 @@ const getMaxDegreesForBelt = (program: Program, belt: BeltColor): number => {
   }
 };
 
+const normalizeProgram = (
+  program: Program,
+  belt: BeltColor,
+  degrees: number,
+): Program => {
+  return program === "GBK" ? "GBK" : calculateProgram(program, belt, degrees);
+};
+
 const BELT_COLORS_CSS: Record<BeltColor, { bg: string; text: string }> = {
   White: { bg: "bg-gray-100", text: "text-gray-800" },
   GreyWhite: { bg: "bg-gray-200", text: "text-gray-700" },
@@ -138,8 +147,18 @@ export const AdminStudents: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingStudent) {
-      updateStudent(editingStudent);
-      toast.success(`${editingStudent.name} atualizado com sucesso!`);
+      const normalizedProgram = normalizeProgram(
+        editingStudent.program,
+        editingStudent.belt,
+        editingStudent.degrees,
+      );
+      const normalizedStudent = {
+        ...editingStudent,
+        program: normalizedProgram,
+      };
+
+      updateStudent(normalizedStudent);
+      toast.success(`${normalizedStudent.name} atualizado com sucesso!`);
       setEditingStudent(null);
     }
   };
@@ -147,8 +166,15 @@ export const AdminStudents: React.FC = () => {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudent.name || !newStudent.email) return;
+
+    const normalizedProgram = normalizeProgram(
+      (newStudent.program as Program) || "GB1",
+      ((newStudent.belt as BeltColor) || "White") as BeltColor,
+      newStudent.degrees || 0,
+    );
+
     addStudent(
-      newStudent as Omit<Student, "id">,
+      { ...newStudent, program: normalizedProgram } as Omit<Student, "id">,
       newStudent.email!,
       "aluno123",
     );
@@ -494,9 +520,14 @@ export const AdminStudents: React.FC = () => {
                             editingStudent.degrees > maxDegrees
                               ? 0
                               : editingStudent.degrees;
+                          const normalizedProgram = normalizeProgram(
+                            newProgram,
+                            newBelt,
+                            newDegrees,
+                          );
                           setEditingStudent({
                             ...editingStudent,
-                            program: newProgram,
+                            program: normalizedProgram,
                             belt: newBelt,
                             degrees: newDegrees,
                           });
@@ -505,7 +536,7 @@ export const AdminStudents: React.FC = () => {
                       >
                         {PROGRAM_OPTIONS.map((p) => (
                           <option key={p} value={p}>
-                            {p === "GBK" ? "GBK — Crianças" : p}
+                            {p}
                           </option>
                         ))}
                       </select>
@@ -527,10 +558,16 @@ export const AdminStudents: React.FC = () => {
                             editingStudent.degrees > maxDegrees
                               ? 0
                               : editingStudent.degrees;
+                          const normalizedProgram = normalizeProgram(
+                            editingStudent.program,
+                            newBelt,
+                            newDegrees,
+                          );
                           setEditingStudent({
                             ...editingStudent,
                             belt: newBelt,
                             degrees: newDegrees,
+                            program: normalizedProgram,
                           });
                         }}
                         className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
@@ -563,12 +600,19 @@ export const AdminStudents: React.FC = () => {
                           editingStudent.belt,
                         )}
                         value={editingStudent.degrees}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const newDegrees = parseInt(e.target.value);
+                          const normalizedProgram = normalizeProgram(
+                            editingStudent.program,
+                            editingStudent.belt,
+                            newDegrees,
+                          );
                           setEditingStudent({
                             ...editingStudent,
-                            degrees: parseInt(e.target.value),
-                          })
-                        }
+                            degrees: newDegrees,
+                            program: normalizedProgram,
+                          });
+                        }}
                         className="w-full accent-[#D10A11]"
                       />
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -668,8 +712,8 @@ export const AdminStudents: React.FC = () => {
             {/* Info sobre regras de programa */}
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
               <strong>Regras de Programa:</strong> GB1 Fundamental = Faixa
-              branca 0-3 graus • GB2 Avançado = Faixa branca 4 graus • GB3 =
-              Faixa azul em diante • GBK = Crianças/Adolescentes (até 15 anos)
+              branca 1-2 graus • GB2 Avançado = Faixa branca 3-4 graus • GB3 =
+              Faixa azul em diante • GBK
             </div>
 
             <form onSubmit={handleAdd} className="space-y-4">
@@ -727,9 +771,14 @@ export const AdminStudents: React.FC = () => {
                         (newStudent.degrees || 0) > maxDegrees
                           ? 0
                           : newStudent.degrees;
+                      const normalizedProgram = normalizeProgram(
+                        newProgram,
+                        (newBelt as BeltColor) || "White",
+                        newDegrees || 0,
+                      );
                       setNewStudent({
                         ...newStudent,
-                        program: newProgram,
+                        program: normalizedProgram,
                         belt: newBelt,
                         degrees: newDegrees,
                       });
@@ -738,7 +787,7 @@ export const AdminStudents: React.FC = () => {
                   >
                     {PROGRAM_OPTIONS.map((p) => (
                       <option key={p} value={p}>
-                        {p === "GBK" ? "GBK — Crianças" : p}
+                        {p}
                       </option>
                     ))}
                   </select>
@@ -760,10 +809,16 @@ export const AdminStudents: React.FC = () => {
                         (newStudent.degrees || 0) > maxDegrees
                           ? 0
                           : newStudent.degrees;
+                      const normalizedProgram = normalizeProgram(
+                        (newStudent.program as Program) || "GB1",
+                        newBelt,
+                        newDegrees || 0,
+                      );
                       setNewStudent({
                         ...newStudent,
                         belt: newBelt,
                         degrees: newDegrees,
+                        program: normalizedProgram,
                       });
                     }}
                     className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
@@ -794,12 +849,20 @@ export const AdminStudents: React.FC = () => {
                       (newStudent.belt as BeltColor) || "White",
                     )}
                     value={newStudent.degrees}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newDegrees = parseInt(e.target.value);
+                      const normalizedProgram = normalizeProgram(
+                        (newStudent.program as Program) || "GB1",
+                        ((newStudent.belt as BeltColor) ||
+                          "White") as BeltColor,
+                        newDegrees,
+                      );
                       setNewStudent({
                         ...newStudent,
-                        degrees: parseInt(e.target.value),
-                      })
-                    }
+                        degrees: newDegrees,
+                        program: normalizedProgram,
+                      });
+                    }}
                     className="w-full accent-[#D10A11]"
                   />
                   <div className="flex justify-between text-xs text-gray-400 mt-1">

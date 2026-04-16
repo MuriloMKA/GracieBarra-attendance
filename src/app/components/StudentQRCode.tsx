@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Download, QrCode } from "lucide-react";
 
@@ -17,6 +17,7 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
   student,
   size = "md",
 }) => {
+  const qrWrapperRef = useRef<HTMLDivElement | null>(null);
   const qrSize = size === "sm" ? 150 : size === "md" ? 200 : 250;
   const studentId =
     student.id || student._id || student.name.replace(/\s+/g, "-");
@@ -24,14 +25,11 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
   const qrData = JSON.stringify({
     studentId: studentId,
     name: student.name,
-    belt: student.belt,
     program: student.program,
   });
 
   const handleDownload = () => {
-    const qrCanvas = document.getElementById(
-      `qr-code-${studentId}`,
-    ) as HTMLCanvasElement | null;
+    const qrCanvas = qrWrapperRef.current?.querySelector("canvas");
     if (!qrCanvas) return;
 
     const exportCanvas = document.createElement("canvas");
@@ -67,12 +65,48 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
       qrSize + 95,
     );
 
-    const downloadLink = document.createElement("a");
-    downloadLink.download = `qrcode-${student.name.replace(/\s+/g, "-")}.png`;
-    downloadLink.href = exportCanvas.toDataURL("image/png");
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
+    const filename = `qrcode-${student.name.replace(/\s+/g, "-")}.png`;
+
+    const triggerDownload = (url: string) => {
+      const downloadLink = document.createElement("a");
+      downloadLink.download = filename;
+      downloadLink.href = url;
+      downloadLink.rel = "noopener";
+      downloadLink.target = "_blank";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+
+    if (exportCanvas.toBlob) {
+      exportCanvas.toBlob(async (blob) => {
+        if (!blob) {
+          triggerDownload(exportCanvas.toDataURL("image/png"));
+          return;
+        }
+
+        // Em alguns celulares/webviews, o atributo download falha. Tenta compartilhar o arquivo.
+        if (navigator.share && typeof File !== "undefined") {
+          try {
+            const file = new File([blob], filename, { type: "image/png" });
+            await navigator.share({
+              title: "QR Code do aluno",
+              files: [file],
+            });
+            return;
+          } catch {
+            // Fallback para download normal abaixo.
+          }
+        }
+
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, "image/png");
+      return;
+    }
+
+    triggerDownload(exportCanvas.toDataURL("image/png"));
   };
 
   return (
@@ -82,7 +116,10 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
         <h3 className="font-bold text-gray-900 text-sm">QR Code de Presença</h3>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-lg mb-3 flex flex-col items-center gap-3">
+      <div
+        ref={qrWrapperRef}
+        className="bg-white p-4 rounded-xl shadow-lg mb-3 flex flex-col items-center gap-3"
+      >
         <QRCodeCanvas
           id={`qr-code-${studentId}`}
           value={qrData}
