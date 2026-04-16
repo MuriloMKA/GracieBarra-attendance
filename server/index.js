@@ -947,23 +947,6 @@ app.post("/api/setup/init", async (req, res) => {
         birthDate: "2015-02-18",
         specialDates: [],
       },
-      {
-        name: "Lucas Mendes",
-        email: "lucas@example.com",
-        program: "GBK",
-        belt: "Yellow",
-        degrees: 1,
-        lastGraduationDate: "2026-01-15",
-        nextDegreeDate: "2026-03-15",
-        birthDate: "2016-05-10",
-        specialDates: [
-          {
-            type: "graduation",
-            date: "2026-01-15",
-            notes: "Faixa Amarela",
-          },
-        ],
-      },
     ];
 
     const createdStudents = await Student.insertMany(students);
@@ -1004,13 +987,6 @@ app.post("/api/setup/init", async (req, res) => {
         name: "Pedro Costa",
         studentId: createdStudents[3]._id.toString(),
       },
-      {
-        email: "lucas@example.com",
-        password: await bcrypt.hash("aluno123", 10),
-        role: "student",
-        name: "Lucas Mendes",
-        studentId: createdStudents[4]._id.toString(),
-      },
     ];
 
     await User.insertMany(users);
@@ -1039,129 +1015,12 @@ app.post("/api/setup/init", async (req, res) => {
 
     await Class.insertMany(classes);
 
-    // Criar presenças de exemplo para Lucas Mendes (para visualização)
-    const lucasId = createdStudents[4]._id.toString();
-    const lucasAttendances = [
-      // Semana 1 (Jan 22-26)
-      {
-        studentId: lucasId,
-        date: "2026-01-22",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-01-24",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 2 (Jan 27-31)
-      {
-        studentId: lucasId,
-        date: "2026-01-27",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-01-29",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-01-31",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 3 (Fev 3-7)
-      {
-        studentId: lucasId,
-        date: "2026-02-03",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-02-05",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 4 (Fev 10-14)
-      {
-        studentId: lucasId,
-        date: "2026-02-10",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-02-12",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-02-14",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 5 (Fev 17-21)
-      {
-        studentId: lucasId,
-        date: "2026-02-17",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-02-19",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 6 (Fev 24-28)
-      {
-        studentId: lucasId,
-        date: "2026-02-24",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-02-26",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 7 (Mar 3-7)
-      {
-        studentId: lucasId,
-        date: "2026-03-03",
-        confirmed: true,
-        classId: null,
-      },
-      {
-        studentId: lucasId,
-        date: "2026-03-05",
-        confirmed: true,
-        classId: null,
-      },
-      // Semana 8 (Mar 9-10)
-      {
-        studentId: lucasId,
-        date: "2026-03-09",
-        confirmed: true,
-        classId: null,
-      },
-    ];
-
-    await Attendance.insertMany(lucasAttendances);
-
     res.json({
       message: "Dados iniciais criados com sucesso!",
       users: {
         admin: "admin@graciebarra.com / admin123",
         students:
-          "joao@example.com, maria@example.com, carlos@example.com, pedro@example.com, lucas@example.com / aluno123",
+          "joao@example.com, maria@example.com, carlos@example.com, pedro@example.com / aluno123",
       },
     });
   } catch (error) {

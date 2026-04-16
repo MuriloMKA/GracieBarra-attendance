@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { toast } from "sonner";
 import { notificationService } from "./api";
@@ -22,8 +23,24 @@ const ensureListeners = () => {
     console.error("Erro no registro de notificacao push:", error);
   });
 
-  PushNotifications.addListener("pushNotificationReceived", (notification) => {
+  PushNotifications.addListener("pushNotificationReceived", async (notification) => {
     if (notification.title || notification.body) {
+      // Em foreground, muitos dispositivos nao mostram banner push por padrao.
+      // Espelha como notificacao local para aparecer no sistema.
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Date.now() % 2147483000,
+            title: notification.title || "Notificacao",
+            body: notification.body || "",
+            channelId: "default",
+            schedule: { at: new Date(Date.now() + 100) },
+          },
+        ],
+      }).catch((error) => {
+        console.error("Erro ao exibir notificacao local:", error);
+      });
+
       toast.info(notification.title || "Notificacao", {
         description: notification.body,
       });
@@ -52,8 +69,19 @@ export const registerPushNotifications = async (userId: string) => {
     return;
   }
 
+  await LocalNotifications.requestPermissions().catch(() => undefined);
+
   if (Capacitor.getPlatform() === "android") {
     await PushNotifications.createChannel({
+      id: "default",
+      name: "Geral",
+      description: "Canal padrao de notificacoes",
+      importance: 4,
+      visibility: 1,
+      sound: "default",
+    }).catch(() => undefined);
+
+    await LocalNotifications.createChannel({
       id: "default",
       name: "Geral",
       description: "Canal padrao de notificacoes",

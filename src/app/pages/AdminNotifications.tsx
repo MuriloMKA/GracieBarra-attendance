@@ -3,29 +3,10 @@ import { Bell, Megaphone, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { notificationService } from "../services/api";
 
-interface NotificationStatus {
-  pushConfigured: boolean;
-  activeDeviceTokens: number;
-}
-
 export const AdminNotifications: React.FC = () => {
   const [title, setTitle] = useState("Aviso da Gracie Barra");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<NotificationStatus | null>(null);
-
-  const loadStatus = async () => {
-    try {
-      const response = await notificationService.getStatus();
-      setStatus(response);
-    } catch (error) {
-      console.error("Erro ao carregar status das notificacoes:", error);
-    }
-  };
-
-  useEffect(() => {
-    loadStatus();
-  }, []);
 
   const handleBroadcast = async () => {
     if (!title.trim() || !message.trim()) {
@@ -44,7 +25,6 @@ export const AdminNotifications: React.FC = () => {
         `Notificacao enviada: ${response.sentCount} sucesso(s), ${response.failedCount} falha(s).`,
       );
       setMessage("");
-      await loadStatus();
     } catch (error: any) {
       console.error("Erro ao enviar notificacao:", error);
       toast.error(
@@ -62,7 +42,6 @@ export const AdminNotifications: React.FC = () => {
       toast.success(
         `Analise concluida: ${response.notifiedStudents} aluno(s) notificado(s).`,
       );
-      await loadStatus();
     } catch (error: any) {
       console.error("Erro ao executar analise de proximidade de grau:", error);
       toast.error(
@@ -87,32 +66,6 @@ export const AdminNotifications: React.FC = () => {
             Envie mensagens para todos os usuarios e rode a analise automatica
             de motivacao.
           </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
-            Configuracao Firebase
-          </div>
-          <div
-            className={`text-lg font-black ${
-              status?.pushConfigured ? "text-green-600" : "text-amber-600"
-            }`}
-          >
-            {status?.pushConfigured
-              ? "Configurado"
-              : "Nao configurado (FIREBASE_SERVICE_ACCOUNT_JSON)"}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
-            Dispositivos ativos
-          </div>
-          <div className="text-3xl font-black text-[#003087]">
-            {status?.activeDeviceTokens ?? 0}
-          </div>
         </div>
       </div>
 
@@ -150,7 +103,7 @@ export const AdminNotifications: React.FC = () => {
 
         <button
           onClick={handleBroadcast}
-          disabled={loading || !status?.pushConfigured}
+          disabled={loading}
           className="px-5 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <Send size={16} />
@@ -169,7 +122,7 @@ export const AdminNotifications: React.FC = () => {
         </p>
         <button
           onClick={handleNearDegreeCheck}
-          disabled={loading || !status?.pushConfigured}
+          disabled={loading}
           className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Executar Analise Agora

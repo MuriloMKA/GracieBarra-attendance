@@ -131,7 +131,7 @@ export function getDegreeDisplayLabel(
 ): string {
   if (degrees <= 0) return "";
 
-  if (program === "GBK" || isGBKBelt(belt)) {
+  if (program === "GBK") {
     const stage = getGBKDegreeStage(belt, degrees);
     return `${stage.degreeNumber}° grau${stage.degreeNumber > 1 ? "s" : ""} ${stage.colorName}`;
   }
@@ -144,7 +144,7 @@ export function getNextDegreeDisplayLabel(
   belt: BeltColor,
   currentDegrees: number,
 ): string {
-  if (program === "GBK" || isGBKBelt(belt)) {
+  if (program === "GBK") {
     const maxDegrees = getMaxDegreesForGBK(belt);
     if (currentDegrees >= maxDegrees) return "próxima faixa";
     const nextStage = getGBKDegreeStage(belt, currentDegrees + 1);

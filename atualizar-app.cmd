@@ -84,12 +84,13 @@ if errorlevel 1 (
 
 echo.
 echo [2/5] Verificando dispositivo conectado...
+"%ADB_EXE%" start-server >nul 2>&1
 setlocal enabledelayedexpansion
 set "DEVICE_FOUND="
 "%ADB_EXE%" devices > "%TEMP%\adb_devices.txt" 2>&1
-for /f "skip=1 tokens=1" %%A in (%TEMP%\adb_devices.txt) do (
+for /f "skip=1 tokens=1,2" %%A in (%TEMP%\adb_devices.txt) do (
     if not "%%A"=="" (
-        if not "%%A"=="device" set "DEVICE_FOUND=1"
+        if "%%B"=="device" set "DEVICE_FOUND=1"
     )
 )
 endlocal && set "DEVICE_FOUND=%DEVICE_FOUND%"
@@ -123,6 +124,24 @@ if errorlevel 1 (
 
 echo.
 echo [5/5] Desinstalando app anterior e instalando nova versao...
+setlocal enabledelayedexpansion
+set "DEVICE_READY="
+"%ADB_EXE%" devices > "%TEMP%\adb_devices_preinstall.txt" 2>&1
+for /f "skip=1 tokens=1,2" %%A in (%TEMP%\adb_devices_preinstall.txt) do (
+    if not "%%A"=="" (
+        if "%%B"=="device" set "DEVICE_READY=1"
+    )
+)
+endlocal && set "DEVICE_READY=%DEVICE_READY%"
+
+if not defined DEVICE_READY (
+    echo.
+    echo ERRO: dispositivo desconectado antes da instalacao.
+    echo Reconecte o celular, desbloqueie a tela e confirme depuracao USB.
+    "%ADB_EXE%" devices
+    goto :fail
+)
+
 "%ADB_EXE%" uninstall com.graciebarrabarra.attendance >nul 2>&1
 pushd android
 call gradlew.bat installDebug

@@ -10,6 +10,7 @@ import {
   CalendarDays,
   CheckCheck,
   TrendingUp,
+  ArrowRight,
   CheckCircle2,
   X,
 } from "lucide-react";
@@ -233,23 +234,41 @@ export const StudentDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Informações Detalhadas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-500 mb-1">
-                    Semanas Necessárias
+              {/* Contagem visual de progresso */}
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                  <span className="font-medium">Sua contagem</span>
+                  <span className="font-medium">Objetivo</span>
+                </div>
+
+                <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
+                  <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-[#003087] font-black text-sm">
+                    {degreeProgress.weeksCompleted.toFixed(1)} sem
                   </div>
-                  <div className="font-black text-[#003087] text-lg">
-                    {degreeProgress.weeksRequired}
+
+                  <div className="relative h-2 rounded-full bg-blue-100 overflow-visible">
+                    <div
+                      className="absolute left-0 top-0 h-full rounded-full bg-[#003087]"
+                      style={{ width: `${degreeProgress.progressPercentage}%` }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2"
+                      style={{
+                        left: `calc(${degreeProgress.progressPercentage}% - 8px)`,
+                      }}
+                    >
+                      <ArrowRight size={14} className="text-[#003087]" />
+                    </div>
+                  </div>
+
+                  <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-gray-700 font-black text-sm">
+                    {degreeProgress.weeksRequired} sem
                   </div>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-500 mb-1">
-                    Semanas Restantes
-                  </div>
-                  <div className="font-black text-purple-700 text-lg">
-                    {degreeProgress.weeksRemaining?.toFixed(1) || 0}
-                  </div>
+
+                <div className="text-xs text-gray-600 mt-2 font-medium">
+                  {degreeProgress.weeksCompleted.toFixed(1)} de{" "}
+                  {degreeProgress.weeksRequired} semanas concluidas
                 </div>
               </div>
 
