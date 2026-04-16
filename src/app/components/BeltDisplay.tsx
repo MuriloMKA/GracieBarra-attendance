@@ -179,9 +179,11 @@ export function calculateProgram(
   // Se for GBK (crianças/adolescentes), mantém GBK
   if (program === "GBK") return "GBK";
 
-  // Adultos: calcula baseado na faixa e grau
-  if (belt === "White" && degrees <= 3) return "GB1";
-  if (belt === "White" && degrees === 4) return "GB2";
+  // Adultos: sequência oficial
+  // Faixa branca 1° e 2° grau = GB1
+  if (belt === "White" && degrees <= 2) return "GB1";
+  // Faixa branca 3° e 4° grau = GB2
+  if (belt === "White" && degrees >= 3 && degrees <= 4) return "GB2";
   // Faixa azul em diante = GB3
   if (
     belt === "Blue" ||
@@ -256,8 +258,8 @@ export function getCardStyle(
     };
   }
 
-  // GB1 - FUNDAMENTAL: Faixa branca 0-3 graus
-  if (belt === "White" && degrees <= 3) {
+  // GB1 - FUNDAMENTAL: Faixa branca 0-2 graus
+  if (belt === "White" && degrees <= 2) {
     return {
       outerBg: "bg-blue-600",
       outerBorder: "border-blue-800",
@@ -270,8 +272,8 @@ export function getCardStyle(
     };
   }
 
-  // GB2 - AVANÇADO: Faixa branca 4 graus
-  if (belt === "White" && degrees === 4) {
+  // GB2 - AVANÇADO: Faixa branca 3-4 graus
+  if (belt === "White" && degrees >= 3 && degrees <= 4) {
     return {
       outerBg: "bg-purple-900",
       outerBorder: "border-purple-950",
@@ -306,19 +308,36 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   const beltColor = BELT_COLORS[belt];
   const isLight = belt === "White" || belt === "Yellow" || belt === "Grey";
 
-  const heights = { sm: "h-4", md: "h-6", lg: "h-8" };
-  const stripeWidths = { sm: "w-2", md: "w-3", lg: "w-4" };
+  const heights = { sm: "h-5", md: "h-7", lg: "h-9" };
+  const stripeWidths = { sm: "w-[10px]", md: "w-[14px]", lg: "w-[18px]" };
+  const stripeHeights = { sm: "h-4", md: "h-5", lg: "h-6" };
   const textSizes = { sm: "text-xs", md: "text-sm", lg: "text-base" };
 
   // Determina quantos slots de grau mostrar e suas cores
   const isGBK = program === "GBK";
-  const gbkStage = isGBK ? getGBKDegreeStage(belt, degrees) : null;
-  const maxDegrees = isGBK
-    ? (gbkStage?.maxSlots ?? 0)
-    : belt === "Black"
-      ? 6
-      : 4;
-  const filledDegrees = isGBK ? (gbkStage?.filledInStage ?? 0) : degrees;
+  const normalizedDegrees = Math.max(0, degrees);
+  const visibleSlots = isGBK ? 4 : belt === "Black" ? 6 : 4;
+
+  // GBK: sobreposição por etapa no mesmo slot.
+  // 1-4 brancos, 5-8 vermelhos sobre os brancos, 9-11 pretos sobre os vermelhos.
+  const getGBKSlotColor = (slotIndex: number) => {
+    const blackFilled = Math.min(Math.max(normalizedDegrees - 8, 0), 3);
+    if (slotIndex < blackFilled) return "#111827";
+
+    const redFilled = Math.min(Math.max(normalizedDegrees - 4, 0), 4);
+    if (slotIndex < redFilled) return "#D10A11";
+
+    const whiteFilled = Math.min(normalizedDegrees, 4);
+    if (slotIndex < whiteFilled) return "#FFFFFF";
+
+    return "transparent";
+  };
+
+  const getAdultSlotColor = (slotIndex: number) => {
+    return slotIndex < Math.min(normalizedDegrees, visibleSlots)
+      ? "#D10A11"
+      : "transparent";
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -332,22 +351,18 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
       >
         {/* Stripe area on the right */}
         <div className="flex-1" />
-        <div className="flex gap-px pr-1">
-          {Array.from({ length: maxDegrees }).map((_, i) => {
-            const filled = i < filledDegrees;
+        <div className="flex items-center gap-1 pr-1.5">
+          {Array.from({ length: visibleSlots }).map((_, i) => {
             const stripeColor = isGBK
-              ? filled
-                ? (gbkStage?.colorHex ?? "transparent")
-                : "transparent"
-              : filled
-                ? "#D10A11"
-                : "transparent";
-            const needsBorder = !filled || stripeColor === "#FFFFFF";
+              ? getGBKSlotColor(i)
+              : getAdultSlotColor(i);
+            const needsBorder =
+              stripeColor === "transparent" || stripeColor === "#FFFFFF";
 
             return (
               <div
                 key={i}
-                className={`${stripeWidths[size]} h-full rounded-sm`}
+                className={`${stripeWidths[size]} ${stripeHeights[size]} rounded-sm`}
                 style={{
                   backgroundColor: stripeColor,
                   border: needsBorder

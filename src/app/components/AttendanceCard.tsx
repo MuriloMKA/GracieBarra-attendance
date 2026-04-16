@@ -8,6 +8,7 @@ import {
   BELT_NAMES_PT,
   getDegreeDisplayLabel,
   getNextDegreeDisplayLabel,
+  calculateProgram,
 } from "./BeltDisplay";
 import { getNextDegreeDate } from "../utils/degreeCalculator";
 
@@ -61,8 +62,14 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   adminMode = false,
   onCellClick,
 }) => {
-  const style = getCardStyle(
+  const actualProgram = calculateProgram(
     student.program,
+    student.belt,
+    student.degrees,
+  );
+
+  const style = getCardStyle(
+    actualProgram,
     student.belt,
     student.degrees,
     student.birthDate,
@@ -224,7 +231,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                     })}
                     <span className="text-white text-xs font-bold ml-1">
                       {getDegreeDisplayLabel(
-                        student.program,
+                        actualProgram,
                         student.belt,
                         student.degrees,
                       )}
@@ -262,9 +269,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
               className={`text-2xl font-black tracking-wider ${style.textPrimary}`}
             >
               GB
-              {student.program === "GBK"
+              {actualProgram === "GBK"
                 ? "[K]"
-                : student.program.replace("GB", "")}
+                : actualProgram.replace("GB", "")}
             </div>
           </div>
         </div>
@@ -336,7 +343,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                   : specialDate?.type === "graduation"
                                     ? `Graduação: ${day}/${monthIdx + 1}`
                                     : specialDate?.type === "nextDegree"
-                                      ? `Próximo grau previsto (${getNextDegreeDisplayLabel(student.program, student.belt, student.degrees)}): ${day}/${monthIdx + 1}`
+                                      ? `Próximo grau previsto (${getNextDegreeDisplayLabel(actualProgram, student.belt, student.degrees)}): ${day}/${monthIdx + 1}`
                                       : adminMode && isValidDay
                                         ? "Clique para marcar graduação"
                                         : ""

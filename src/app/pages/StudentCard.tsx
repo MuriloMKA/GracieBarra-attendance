@@ -47,7 +47,8 @@ export const StudentCard: React.FC = () => {
           <strong>Pontos vermelhos</strong> = datas de graduação (nova faixa).{" "}
           <strong>Pontos verdes</strong> = previsão do próximo grau
           (incrementado automaticamente). A cor do cartão muda automaticamente:
-          GB1 Fundamental (azul) → GB2 Avançado (roxo) → GB3 (preto).
+          Faixa branca 1° e 2° grau = GB1 (azul) → faixa branca 3° e 4° grau =
+          GB2 (roxo escuro) → faixa azul em diante = GB3 (preto).
         </div>
       </div>
 
