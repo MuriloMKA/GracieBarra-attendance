@@ -11,6 +11,7 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminStudents } from "./pages/AdminStudents";
 import { AdminStudentCard } from "./pages/AdminStudentCard";
 import { AdminClasses } from "./pages/AdminClasses";
+import { AdminNotifications } from "./pages/AdminNotifications";
 
 function Root() {
   return (
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
           { path: "admin/students", element: <AdminStudents /> },
           { path: "admin/students/:id/card", element: <AdminStudentCard /> },
           { path: "admin/classes", element: <AdminClasses /> },
+          { path: "admin/notifications", element: <AdminNotifications /> },
         ],
       },
       { path: "*", element: <Navigate to="/" replace /> },

@@ -7,6 +7,7 @@ import {
   CreditCard,
   LayoutDashboard,
   Users,
+  Bell,
   CheckSquare,
   Menu,
   X,
@@ -43,6 +44,11 @@ export const Header: React.FC = () => {
   const adminLinks = [
     { to: "/admin", label: "Painel", icon: <LayoutDashboard size={16} /> },
     { to: "/admin/students", label: "Alunos", icon: <Users size={16} /> },
+    {
+      to: "/admin/notifications",
+      label: "Notificacoes",
+      icon: <Bell size={16} />,
+    },
   ];
 
   const links = isAdmin ? adminLinks : studentLinks;

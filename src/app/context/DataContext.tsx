@@ -5,6 +5,7 @@ import {
   attendanceService,
   classService,
 } from "../services/api";
+import { registerPushNotifications } from "../services/pushNotifications";
 import { toast } from "sonner";
 
 export type UserRole = "student" | "admin";
@@ -182,6 +183,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    registerPushNotifications(currentUser.id).catch((error) => {
+      console.error("Erro ao inicializar notificacoes push:", error);
+    });
+  }, [currentUser?.id]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {

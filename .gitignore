@@ -1,5 +1,9 @@
 .env
 .env.local
+*.env
+firebase-adminsdk-*.json
+*-firebase-adminsdk-*.json
+ios/App/App/GoogleService-Info.plist
 node_modules/
 dist/
 build/

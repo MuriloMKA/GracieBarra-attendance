@@ -13,6 +13,7 @@ import {
   Check,
   TrendingUp,
   AlertCircle,
+  Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -203,7 +204,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Quick Links */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link
           to="/admin/students"
           className="bg-[#003087] hover:bg-blue-900 text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
@@ -228,6 +229,25 @@ export const AdminDashboard: React.FC = () => {
             <div className="font-black text-lg">Gerenciar Aulas</div>
             <div className="text-red-200 text-sm mt-1">
               Configurar horários e dias das aulas
+            </div>
+          </div>
+          <ArrowRight
+            size={24}
+            className="group-hover:translate-x-1 transition-transform"
+          />
+        </Link>
+
+        <Link
+          to="/admin/notifications"
+          className="bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
+        >
+          <div>
+            <div className="font-black text-lg flex items-center gap-2">
+              <Bell size={18} />
+              Notificacoes
+            </div>
+            <div className="text-amber-100 text-sm mt-1">
+              Enviar push para todos os usuarios
             </div>
           </div>
           <ArrowRight

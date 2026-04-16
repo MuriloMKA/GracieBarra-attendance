@@ -1,7 +1,6 @@
 import React from "react";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import { Download, QrCode } from "lucide-react";
-import { Student } from "../context/DataContext";
 
 interface StudentQRCodeProps {
   student: {
@@ -19,7 +18,8 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
   size = "md",
 }) => {
   const qrSize = size === "sm" ? 150 : size === "md" ? 200 : 250;
-  const studentId = (student.id || student._id) as string;
+  const studentId =
+    student.id || student._id || student.name.replace(/\s+/g, "-");
 
   const qrData = JSON.stringify({
     studentId: studentId,
@@ -29,57 +29,50 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
   });
 
   const handleDownload = () => {
-    const svg = document.getElementById(`qr-code-${studentId}`);
-    if (!svg) return;
+    const qrCanvas = document.getElementById(
+      `qr-code-${studentId}`,
+    ) as HTMLCanvasElement | null;
+    if (!qrCanvas) return;
 
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
+    const exportCanvas = document.createElement("canvas");
+    const ctx = exportCanvas.getContext("2d");
+    if (!ctx) return;
 
-    canvas.width = qrSize + 100;
-    canvas.height = qrSize + 150;
+    exportCanvas.width = qrSize + 100;
+    exportCanvas.height = qrSize + 150;
 
-    img.onload = () => {
-      // Fundo branco
-      ctx!.fillStyle = "#FFFFFF";
-      ctx!.fillRect(0, 0, canvas.width, canvas.height);
+    // Fundo branco
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-      // Título
-      ctx!.fillStyle = "#1F2937";
-      ctx!.font = "bold 18px Arial";
-      ctx!.textAlign = "center";
-      ctx!.fillText("GRACIE BARRA MARAJOARA", canvas.width / 2, 30);
+    // Titulo
+    ctx.fillStyle = "#1F2937";
+    ctx.font = "bold 18px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("GRACIE BARRA MARAJOARA", exportCanvas.width / 2, 30);
 
-      // Nome do aluno
-      ctx!.font = "bold 16px Arial";
-      ctx!.fillText(student.name, canvas.width / 2, 55);
+    // Nome do aluno
+    ctx.font = "bold 16px Arial";
+    ctx.fillText(student.name, exportCanvas.width / 2, 55);
 
-      // QR Code
-      ctx!.drawImage(img, 50, 70, qrSize, qrSize);
+    // QR Code
+    ctx.drawImage(qrCanvas, 50, 70, qrSize, qrSize);
 
-      // Instruções
-      ctx!.fillStyle = "#6B7280";
-      ctx!.font = "12px Arial";
-      ctx!.fillText(
-        "Apresente ao professor para confirmar presença",
-        canvas.width / 2,
-        qrSize + 95,
-      );
+    // Instrucoes
+    ctx.fillStyle = "#6B7280";
+    ctx.font = "12px Arial";
+    ctx.fillText(
+      "Apresente ao professor para confirmar presenca",
+      exportCanvas.width / 2,
+      qrSize + 95,
+    );
 
-      // Download
-      const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `qrcode-${student.name.replace(/\s+/g, "-")}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
-
-    const svgBlob = new Blob([svgData], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    const url = URL.createObjectURL(svgBlob);
-    img.src = url;
+    const downloadLink = document.createElement("a");
+    downloadLink.download = `qrcode-${student.name.replace(/\s+/g, "-")}.png`;
+    downloadLink.href = exportCanvas.toDataURL("image/png");
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   };
 
   return (
@@ -89,14 +82,18 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
         <h3 className="font-bold text-gray-900 text-sm">QR Code de Presença</h3>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-lg mb-3">
-        <QRCodeSVG
+      <div className="bg-white p-4 rounded-xl shadow-lg mb-3 flex flex-col items-center gap-3">
+        <QRCodeCanvas
           id={`qr-code-${studentId}`}
           value={qrData}
           size={qrSize}
           level="H"
           includeMargin={true}
         />
+        <div className="text-center">
+          <p className="text-sm font-bold text-gray-900">{student.name}</p>
+          <p className="text-xs text-gray-500">{student.belt}</p>
+        </div>
       </div>
 
       <button

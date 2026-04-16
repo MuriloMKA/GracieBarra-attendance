@@ -127,4 +127,32 @@ export const classService = {
   },
 };
 
+export const notificationService = {
+  async registerDevice(token: string, platform: string) {
+    const { data } = await api.post("/notifications/register-device", {
+      token,
+      platform,
+    });
+    return data;
+  },
+
+  async broadcast(title: string, message: string) {
+    const { data } = await api.post("/notifications/broadcast", {
+      title,
+      message,
+    });
+    return data;
+  },
+
+  async checkNearDegree() {
+    const { data } = await api.post("/notifications/check-near-degree");
+    return data;
+  },
+
+  async getStatus() {
+    const { data } = await api.get("/notifications/status");
+    return data;
+  },
+};
+
 export default api;
