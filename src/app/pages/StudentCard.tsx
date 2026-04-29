@@ -20,7 +20,7 @@ export const StudentCard: React.FC = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-4">
         <Link
           to="/student"
@@ -46,9 +46,7 @@ export const StudentCard: React.FC = () => {
           <strong>Pontos pretos</strong> = aulas que você participou.{" "}
           <strong>Pontos vermelhos</strong> = datas de graduação (nova faixa).{" "}
           <strong>Pontos verdes</strong> = previsão do próximo grau
-          (incrementado automaticamente). A cor do cartão muda automaticamente:
-          Faixa branca 1° e 2° grau = GB1 (azul) → faixa branca 3° e 4° grau =
-          GB2 (roxo escuro) → faixa azul em diante = GB3 (preto).
+          (incrementado automaticamente).
         </div>
       </div>
 
@@ -56,6 +54,7 @@ export const StudentCard: React.FC = () => {
         student={student}
         attendanceHistory={myAttendance}
         year={new Date().getFullYear()}
+        compact
       />
     </div>
   );

@@ -48,6 +48,8 @@ interface AttendanceCardProps {
   year?: number;
   /** If true, admin can click on cells to toggle special dates */
   adminMode?: boolean;
+  /** Compact visualization for read-only student mode */
+  compact?: boolean;
   onCellClick?: (date: string, existingType?: "graduation") => void;
 }
 
@@ -60,8 +62,11 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   attendanceHistory,
   year = new Date().getFullYear(),
   adminMode = false,
+  compact = false,
   onCellClick,
 }) => {
+  const isCompact = compact && !adminMode;
+
   const actualProgram = calculateProgram(
     student.program,
     student.belt,
@@ -149,9 +154,13 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     >
       <div className={`${style.outerBg}`}>
         {/* Card Header */}
-        <div className="px-4 pt-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div
+          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${isCompact ? "px-3 pt-3 pb-2" : "px-4 pt-4 pb-3"}`}
+        >
           <div className="flex items-center gap-3">
-            <div className="bg-white rounded-full p-1.5 h-14 w-14 flex items-center justify-center shrink-0 shadow-md">
+            <div
+              className={`bg-white rounded-full flex items-center justify-center shrink-0 shadow-md ${isCompact ? "p-1 h-11 w-11" : "p-1.5 h-14 w-14"}`}
+            >
               <svg
                 viewBox="0 0 100 100"
                 className="h-full w-full"
@@ -182,7 +191,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                   >
                     NOME:
                   </span>
-                  <div className="bg-white/20 px-3 py-0.5 rounded text-white text-sm font-bold min-w-[180px]">
+                  <div
+                    className={`bg-white/20 px-3 py-0.5 rounded text-white font-bold ${isCompact ? "text-xs min-w-[140px]" : "text-sm min-w-[180px]"}`}
+                  >
                     {student.name}
                   </div>
                 </div>
@@ -220,7 +231,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                       return (
                         <div
                           key={b}
-                          className={`h-4 w-4 rounded-sm border ${isCurrent ? "ring-2 ring-white ring-offset-1" : "opacity-60"}`}
+                          className={`${isCompact ? "h-3.5 w-3.5" : "h-4 w-4"} rounded-sm border ${isCurrent ? "ring-2 ring-white ring-offset-1" : "opacity-60"}`}
                           style={{
                             backgroundColor: colors[b],
                             borderColor: b === "White" ? "#9CA3AF" : colors[b],
@@ -229,7 +240,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                         />
                       );
                     })}
-                    <span className="text-white text-xs font-bold ml-1">
+                    <span
+                      className={`text-white font-bold ml-1 ${isCompact ? "text-[10px]" : "text-xs"}`}
+                    >
                       {getDegreeDisplayLabel(
                         actualProgram,
                         student.belt,
@@ -244,7 +257,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
           {/* Right - Program label + Graduation dates */}
           <div className="flex flex-col items-end gap-2">
-            <div className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-right">
+            <div
+              className={`bg-white/10 border border-white/20 rounded-lg text-right ${isCompact ? "px-2 py-1.5" : "px-3 py-2"}`}
+            >
               <div
                 className={`text-[10px] font-bold uppercase tracking-widest ${style.textSecondary} mb-1`}
               >
@@ -255,7 +270,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
               {[0, 1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="bg-white rounded text-gray-800 text-xs font-medium px-2 py-0.5 mb-0.5 min-w-[100px] text-center"
+                  className={`bg-white rounded text-gray-800 font-medium px-2 py-0.5 mb-0.5 text-center ${isCompact ? "text-[10px] min-w-[88px]" : "text-xs min-w-[100px]"}`}
                 >
                   {graduationDates[i] ? (
                     format(parseISO(graduationDates[i].date), "dd/MM/yyyy")
@@ -266,7 +281,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
               ))}
             </div>
             <div
-              className={`text-2xl font-black tracking-wider ${style.textPrimary}`}
+              className={`font-black tracking-wider ${style.textPrimary} ${isCompact ? "text-xl" : "text-2xl"}`}
             >
               GB
               {actualProgram === "GBK"
@@ -277,22 +292,24 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
         </div>
 
         {/* Grid */}
-        <div className="px-2 pb-3">
+        <div className={isCompact ? "px-1.5 pb-2" : "px-2 pb-3"}>
           <div className="bg-white rounded-xl shadow-inner overflow-hidden">
             <div className="overflow-x-auto">
               <table
                 className="w-full border-collapse"
-                style={{ minWidth: 720 }}
+                style={{ minWidth: isCompact ? 620 : 720 }}
               >
                 <thead>
                   <tr className={`${style.gridHeaderBg} text-white`}>
-                    <th className="text-left px-3 py-1.5 text-xs font-bold border-r border-white/20 w-24">
+                    <th
+                      className={`text-left font-bold border-r border-white/20 ${isCompact ? "px-2 py-1 text-[10px] w-16" : "px-3 py-1.5 text-xs w-24"}`}
+                    >
                       Mês
                     </th>
                     {Array.from({ length: 31 }, (_, i) => (
                       <th
                         key={i}
-                        className="text-center text-[9px] font-bold border-r border-white/10 last:border-r-0 px-0 py-1.5 w-6"
+                        className={`text-center font-bold border-r border-white/10 last:border-r-0 px-0 ${isCompact ? "text-[8px] py-1 w-5" : "text-[9px] py-1.5 w-6"}`}
                       >
                         {i + 1}
                       </th>
@@ -307,7 +324,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                         key={month}
                         className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors"
                       >
-                        <td className="px-3 py-1 text-[11px] font-bold text-gray-700 border-r border-gray-200 uppercase tracking-wider whitespace-nowrap">
+                        <td
+                          className={`font-bold text-gray-700 border-r border-gray-200 uppercase tracking-wider whitespace-nowrap ${isCompact ? "px-2 py-1 text-[10px]" : "px-3 py-1 text-[11px]"}`}
+                        >
                           {MONTHS_SHORT[monthIdx]}
                         </td>
                         {Array.from({ length: 31 }, (_, dayIdx) => {
@@ -323,7 +342,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                           return (
                             <td
                               key={dayIdx}
-                              className={`border-r border-gray-200 last:border-r-0 h-7 text-center align-middle relative
+                              className={`border-r border-gray-200 last:border-r-0 text-center align-middle relative ${isCompact ? "h-6" : "h-7"}
                                 ${!isValidDay ? "bg-gray-100" : ""}
                                 ${adminMode && isValidDay ? "cursor-pointer hover:bg-yellow-50" : ""}
                               `}
@@ -353,7 +372,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               {specialDate ? (
                                 <div className="relative flex items-center justify-center">
                                   <div
-                                    className={`w-3.5 h-3.5 rounded-full shadow-sm ${
+                                    className={`${isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} rounded-full shadow-sm ${
                                       specialDate.type === "graduation"
                                         ? "bg-red-600 ring-1 ring-red-800"
                                         : specialDate.type === "nextDegree"
@@ -362,11 +381,15 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                     }`}
                                   />
                                   {isAttended && (
-                                    <div className="absolute w-5 h-5 rounded-full border-2 border-gray-400 opacity-30" />
+                                    <div
+                                      className={`absolute rounded-full border-2 border-gray-400 opacity-30 ${isCompact ? "w-4 h-4" : "w-5 h-5"}`}
+                                    />
                                   )}
                                 </div>
                               ) : isAttended ? (
-                                <div className="w-3 h-3 rounded-full bg-gray-900 mx-auto shadow-sm" />
+                                <div
+                                  className={`${isCompact ? "w-2.5 h-2.5" : "w-3 h-3"} rounded-full bg-gray-900 mx-auto shadow-sm`}
+                                />
                               ) : null}
                             </td>
                           );
@@ -382,7 +405,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
         {/* Legend */}
         <div
-          className={`px-4 pb-3 flex flex-wrap gap-4 text-xs font-medium ${style.textSecondary}`}
+          className={`flex flex-wrap font-medium ${style.textSecondary} ${isCompact ? "px-3 pb-2 gap-3 text-[11px]" : "px-4 pb-3 gap-4 text-xs"}`}
         >
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-gray-900 border border-white/50" />
