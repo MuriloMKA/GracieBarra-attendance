@@ -1,17 +1,67 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
-import { useData, SpecialDate } from "../context/DataContext";
+import { useData, BeltColor, Program } from "../context/DataContext";
 import { AttendanceCard } from "../components/AttendanceCard";
-import { BeltDisplay, BELT_NAMES_PT } from "../components/BeltDisplay";
+import {
+  BeltDisplay,
+  BELT_NAMES_PT,
+  calculateProgram,
+} from "../components/BeltDisplay";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, X, GraduationCap, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
+const ADULT_BELTS: BeltColor[] = ["White", "Blue", "Purple", "Brown", "Black"];
+const GBK_BELTS: BeltColor[] = ["White", "Grey", "Yellow", "Orange", "Green"];
+
+const getAvailableBelts = (program: Program): BeltColor[] =>
+  program === "GBK" ? GBK_BELTS : ADULT_BELTS;
+
+const getPreviousBelt = (
+  belt: BeltColor,
+  program: Program,
+): BeltColor | undefined => {
+  const orderedBelts = getAvailableBelts(program);
+  const currentIndex = orderedBelts.indexOf(belt);
+  if (currentIndex <= 0) return undefined;
+  return orderedBelts[currentIndex - 1];
+};
+
+const withDayBefore = (isoDate: string): string => {
+  const date = parseISO(isoDate);
+  date.setDate(date.getDate() - 1);
+  return format(date, "yyyy-MM-dd");
+};
+
+const extractBeltFromNotes = (notes?: string): BeltColor | null => {
+  if (!notes) return null;
+  const match = notes.match(/BELT:([A-Za-z]+)/);
+  if (!match) return null;
+  const belt = match[1] as BeltColor;
+  if (BELT_NAMES_PT[belt]) return belt;
+  return null;
+};
+
+const cleanNotes = (notes?: string): string | undefined => {
+  if (!notes) return undefined;
+  return notes.replace(/^BELT:[A-Za-z]+\|?\s*/, "").trim() || undefined;
+};
+
+interface BeltHistorySegment {
+  key: string;
+  belt: BeltColor;
+  startDate: string | null;
+  endDate: string | null;
+  label: string;
+}
+
 interface MarkDateModalProps {
   date: string;
   existingType?: "graduation";
-  onConfirm: (notes: string) => void;
+  currentBelt: BeltColor;
+  currentProgram: Program;
+  onConfirm: (newBelt: BeltColor, notes: string) => void;
   onRemove: () => void;
   onClose: () => void;
 }
@@ -19,10 +69,14 @@ interface MarkDateModalProps {
 function MarkDateModal({
   date,
   existingType,
+  currentBelt,
+  currentProgram,
   onConfirm,
   onRemove,
   onClose,
 }: MarkDateModalProps) {
+  const beltOptions = getAvailableBelts(currentProgram);
+  const [selectedBelt, setSelectedBelt] = useState<BeltColor>(currentBelt);
   const [notes, setNotes] = useState("");
   const displayDate = format(parseISO(date), "d 'de' MMMM 'de' yyyy", {
     locale: ptBR,
@@ -65,15 +119,32 @@ function MarkDateModal({
           </div>
         </div>
 
+        <div className="mb-4">
+          <label className="block text-sm font-bold text-gray-700 mb-1">
+            Nova faixa do aluno
+          </label>
+          <select
+            value={selectedBelt}
+            onChange={(e) => setSelectedBelt(e.target.value as BeltColor)}
+            className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D10A11] focus:outline-none text-sm"
+          >
+            {beltOptions.map((belt) => (
+              <option key={belt} value={belt}>
+                {BELT_NAMES_PT[belt]}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="mb-5">
           <label className="block text-sm font-bold text-gray-700 mb-1">
-            Nome da nova faixa (opcional)
+            Observação (opcional)
           </label>
           <input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex: Faixa Azul"
+            placeholder="Ex: Entrega oficial da nova faixa"
             className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D10A11] focus:outline-none text-sm"
           />
         </div>
@@ -96,7 +167,7 @@ function MarkDateModal({
             Cancelar
           </button>
           <button
-            onClick={() => onConfirm(notes)}
+            onClick={() => onConfirm(selectedBelt, notes)}
             className="px-5 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black text-sm shadow-lg transition-all"
           >
             Confirmar Graduação
@@ -109,13 +180,7 @@ function MarkDateModal({
 
 export const AdminStudentCard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const {
-    students,
-    attendance,
-    addSpecialDate,
-    removeSpecialDate,
-    updateStudent,
-  } = useData();
+  const { students, attendance, removeSpecialDate, updateStudent } = useData();
   const [markingDate, setMarkingDate] = useState<{
     date: string;
     existingType?: "graduation";
@@ -143,45 +208,159 @@ export const AdminStudentCard: React.FC = () => {
     (a) => a.studentId === student.id,
   );
   const confirmedCount = studentAttendance.filter((a) => a.confirmed).length;
+  const gradeDates = student.specialDates
+    .filter((sd) => sd.type === "grade")
+    .sort((a, b) => b.date.localeCompare(a.date));
+
   const graduationDates = student.specialDates
     .filter((sd) => sd.type === "graduation")
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  const beltHistory = useMemo<BeltHistorySegment[]>(() => {
+    const segments: BeltHistorySegment[] = [];
+
+    const gradEvents = graduationDates
+      .map((sd) => ({ ...sd, belt: extractBeltFromNotes(sd.notes) }))
+      .filter((sd) => Boolean(sd.belt)) as Array<{
+      date: string;
+      belt: BeltColor;
+      notes?: string;
+      id?: string;
+      _id?: string;
+    }>;
+
+    if (gradEvents.length === 0) {
+      return [
+        {
+          key: `current-${student.belt}`,
+          belt: student.belt,
+          startDate: null,
+          endDate: null,
+          label: "Faixa Atual",
+        },
+      ];
+    }
+
+    gradEvents.forEach((event, index) => {
+      const nextEvent = gradEvents[index + 1];
+      segments.push({
+        key: `${event.belt}-${event.date}`,
+        belt: event.belt,
+        startDate: event.date,
+        endDate: nextEvent ? withDayBefore(nextEvent.date) : null,
+        label: BELT_NAMES_PT[event.belt],
+      });
+    });
+
+    const first = gradEvents[0];
+    const previousBelt = getPreviousBelt(first.belt, student.program);
+    if (previousBelt) {
+      segments.unshift({
+        key: `before-${first.date}`,
+        belt: previousBelt,
+        startDate: null,
+        endDate: withDayBefore(first.date),
+        label: BELT_NAMES_PT[previousBelt],
+      });
+    }
+
+    return segments;
+  }, [graduationDates, student.belt, student.program]);
+
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState<string>(
+    beltHistory[beltHistory.length - 1]?.key || `current-${student.belt}`,
+  );
+
+  useEffect(() => {
+    const fallbackKey = beltHistory[beltHistory.length - 1]?.key;
+    if (!fallbackKey) return;
+    if (!beltHistory.some((segment) => segment.key === selectedHistoryKey)) {
+      setSelectedHistoryKey(fallbackKey);
+    }
+  }, [beltHistory, selectedHistoryKey]);
+
+  const activeHistory =
+    beltHistory.find((segment) => segment.key === selectedHistoryKey) ||
+    beltHistory[beltHistory.length - 1];
+
+  const isDateInSelectedHistory = (dateInput: string): boolean => {
+    if (!activeHistory) return true;
+    const date = dateInput.slice(0, 10);
+    if (activeHistory.startDate && date < activeHistory.startDate) return false;
+    if (activeHistory.endDate && date > activeHistory.endDate) return false;
+    return true;
+  };
+
+  const filteredAttendance = studentAttendance.filter((a) =>
+    isDateInSelectedHistory(a.date),
+  );
+
+  const filteredSpecialDates = student.specialDates.filter((sd) =>
+    isDateInSelectedHistory(sd.date),
+  );
+
+  const displayStudent = {
+    ...student,
+    belt: activeHistory?.belt || student.belt,
+    program: calculateProgram(
+      student.program,
+      activeHistory?.belt || student.belt,
+      student.degrees,
+    ),
+    specialDates: filteredSpecialDates,
+  };
 
   const handleCellClick = (date: string, existingType?: "graduation") => {
     setMarkingDate({ date, existingType });
   };
 
-  const handleMarkConfirm = (notes: string) => {
+  const handleMarkConfirm = async (newBelt: BeltColor, notes: string) => {
     if (!markingDate) return;
 
-    // Remove existing special date for this date if any
-    const existing = student.specialDates.find(
-      (sd) => sd.date === markingDate.date,
+    const graduationNoteMetadata = `BELT:${newBelt}`;
+    const fullNotes = notes.trim()
+      ? `${graduationNoteMetadata}|${notes.trim()}`
+      : graduationNoteMetadata;
+
+    const specialDatesWithoutGraduationOnDay = student.specialDates.filter(
+      (sd) => !(sd.date === markingDate.date && sd.type === "graduation"),
     );
-    if (existing && existing.id) {
-      removeSpecialDate(studentId, existing.id);
+
+    try {
+      await updateStudent({
+        ...student,
+        belt: newBelt,
+        degrees: 0,
+        program: calculateProgram(student.program, newBelt, 0),
+        lastGraduationDate: markingDate.date,
+        specialDates: [
+          ...specialDatesWithoutGraduationOnDay,
+          {
+            date: markingDate.date,
+            type: "graduation",
+            notes: fullNotes,
+          },
+        ],
+      });
+
+      toast.success(
+        `Graduação registrada e faixa atualizada para ${BELT_NAMES_PT[newBelt]}.`,
+      );
+      setMarkingDate(null);
+    } catch (error) {
+      console.error("Erro ao registrar graduação:", error);
+      toast.error("Não foi possível registrar a graduação.");
     }
-
-    addSpecialDate(
-      studentId,
-      markingDate.date,
-      "graduation",
-      notes.trim() || undefined,
-    );
-
-    // Also update lastGraduationDate
-    updateStudent({ ...student, lastGraduationDate: markingDate.date });
-    toast.success(`Data de graduação marcada: ${markingDate.date}`);
-    setMarkingDate(null);
   };
 
-  const handleMarkRemove = () => {
+  const handleMarkRemove = async () => {
     if (!markingDate) return;
     const existing = student.specialDates.find(
       (sd) => sd.date === markingDate.date,
     );
-    if (existing && existing.id) {
-      removeSpecialDate(studentId, existing.id);
+    const existingId = existing?.id || existing?._id;
+    if (existingId) {
+      await removeSpecialDate(studentId, existingId);
       toast.success("Marcação removida.");
     }
     setMarkingDate(null);
@@ -259,6 +438,12 @@ export const AdminStudentCard: React.FC = () => {
             </div>
             <div className="text-xs text-gray-500">Graduações</div>
           </div>
+          <div>
+            <div className="text-2xl font-black text-emerald-600">
+              {gradeDates.length}
+            </div>
+            <div className="text-xs text-gray-500">Graus</div>
+          </div>
         </div>
       </div>
 
@@ -268,63 +453,80 @@ export const AdminStudentCard: React.FC = () => {
         <div className="text-sm text-amber-800">
           <strong>Modo Admin:</strong> Clique em qualquer célula do calendário
           para marcar datas de <strong>graduação</strong> (nova faixa - bolinha
-          vermelha). Os <strong>graus</strong> (bolinhas verdes) são
-          incrementados automaticamente quando você confirma a presença do
-          aluno.
+          vermelha). Os <strong>graus</strong> são incrementados automaticamente
+          quando você confirma a presença do aluno e ficam marcados com{" "}
+          <strong>X azul</strong> na ficha.
         </div>
       </div>
 
       {/* Attendance Card */}
       <AttendanceCard
-        student={student}
-        attendanceHistory={studentAttendance}
+        student={displayStudent}
+        attendanceHistory={filteredAttendance}
         year={year}
         adminMode={true}
+        historyBeltOptions={beltHistory.map((segment) => ({
+          key: segment.key,
+          belt: segment.belt,
+          label: segment.label,
+        }))}
+        selectedHistoryBeltKey={selectedHistoryKey}
+        onSelectHistoryBelt={setSelectedHistoryKey}
         onCellClick={handleCellClick}
       />
 
-      {/* Graduation History */}
-      {graduationDates.length > 0 && (
+      {/* Degree and Graduation History */}
+      {student.specialDates.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <h3 className="font-black text-gray-900 mb-4 flex items-center gap-2">
             <GraduationCap size={20} className="text-[#D10A11]" />
-            Histórico de Graduações
+            Histórico de Graus e Graduações
           </h3>
           <div className="space-y-2">
-            {graduationDates.map((sd, i) => (
-              <div
-                key={sd.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#D10A11] text-white flex items-center justify-center text-xs font-black">
-                    {i + 1}
-                  </div>
-                  <div>
-                    <div className="font-bold text-gray-900 text-sm">
-                      {format(parseISO(sd.date), "d 'de' MMMM 'de' yyyy", {
-                        locale: ptBR,
-                      })}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {sd.notes || BELT_NAMES_PT[student.belt]}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    if (sd.id) {
-                      removeSpecialDate(studentId, sd.id);
-                      toast.success("Graduação removida do histórico.");
-                    }
-                  }}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Remover"
+            {[...student.specialDates]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map((sd, i) => (
+                <div
+                  key={`${sd.date}-${sd.type}-${sd.id || sd._id || i}`}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-black ${sd.type === "graduation" ? "bg-[#D10A11]" : "bg-blue-600"}`}
+                    >
+                      {i + 1}
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-900 text-sm">
+                        {format(parseISO(sd.date), "d 'de' MMMM 'de' yyyy", {
+                          locale: ptBR,
+                        })}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {sd.type === "graduation"
+                          ? `Graduação: ${BELT_NAMES_PT[extractBeltFromNotes(sd.notes) || student.belt]}`
+                          : "Grau automático confirmado"}
+                        {cleanNotes(sd.notes)
+                          ? ` — ${cleanNotes(sd.notes)}`
+                          : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const eventId = sd.id || sd._id;
+                      if (eventId) {
+                        removeSpecialDate(studentId, eventId);
+                        toast.success("Evento removido do histórico.");
+                      }
+                    }}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remover"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -334,6 +536,8 @@ export const AdminStudentCard: React.FC = () => {
         <MarkDateModal
           date={markingDate.date}
           existingType={markingDate.existingType}
+          currentBelt={student.belt}
+          currentProgram={student.program}
           onConfirm={handleMarkConfirm}
           onRemove={handleMarkRemove}
           onClose={() => setMarkingDate(null)}

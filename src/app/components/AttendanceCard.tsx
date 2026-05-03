@@ -1,7 +1,12 @@
 import React, { useMemo } from "react";
 import { format, parseISO, getMonth, getDate, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Student, Attendance, SpecialDate } from "../context/DataContext";
+import {
+  BeltColor,
+  Student,
+  Attendance,
+  SpecialDate,
+} from "../context/DataContext";
 import {
   getCardStyle,
   BELT_COLORS,
@@ -50,6 +55,13 @@ interface AttendanceCardProps {
   adminMode?: boolean;
   /** Compact visualization for read-only student mode */
   compact?: boolean;
+  historyBeltOptions?: Array<{
+    key: string;
+    belt: BeltColor;
+    label: string;
+  }>;
+  selectedHistoryBeltKey?: string;
+  onSelectHistoryBelt?: (key: string) => void;
   onCellClick?: (date: string, existingType?: "graduation") => void;
 }
 
@@ -63,6 +75,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   year = new Date().getFullYear(),
   adminMode = false,
   compact = false,
+  historyBeltOptions,
+  selectedHistoryBeltKey,
+  onSelectHistoryBelt,
   onCellClick,
 }) => {
   const isCompact = compact && !adminMode;
@@ -141,9 +156,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
   const beltColor = BELT_COLORS[student.belt];
 
-  const graduationDates = student.specialDates
-    .filter((sd) => sd.type === "graduation")
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const gradeDates = student.specialDates
+    .filter((sd) => sd.type === "grade")
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <div
@@ -251,11 +266,51 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                     </span>
                   </div>
                 </div>
+                {historyBeltOptions && historyBeltOptions.length > 0 && (
+                  <div className="flex items-start gap-2 pt-1 flex-wrap">
+                    <span
+                      className={`text-xs font-semibold ${style.textSecondary} opacity-80 mt-1`}
+                    >
+                      HISTÓRICO:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {historyBeltOptions.map((segment) => {
+                        const isSelected =
+                          segment.key === selectedHistoryBeltKey;
+
+                        return (
+                          <button
+                            key={segment.key}
+                            type="button"
+                            onClick={() => onSelectHistoryBelt?.(segment.key)}
+                            className={`px-2 py-1 rounded-full border text-[10px] font-bold transition-all flex items-center gap-1.5 ${
+                              isSelected
+                                ? "border-white bg-white text-[#003087]"
+                                : "border-white/50 text-white hover:bg-white/20"
+                            }`}
+                          >
+                            <span
+                              className="w-2.5 h-2.5 rounded-full border"
+                              style={{
+                                backgroundColor: BELT_COLORS[segment.belt],
+                                borderColor:
+                                  segment.belt === "White"
+                                    ? "#9CA3AF"
+                                    : BELT_COLORS[segment.belt],
+                              }}
+                            />
+                            {segment.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right - Program label + Graduation dates */}
+          {/* Right - Program label + Last grade dates */}
           <div className="flex flex-col items-end gap-2">
             <div
               className={`bg-white/10 border border-white/20 rounded-lg text-right ${isCompact ? "px-2 py-1.5" : "px-3 py-2"}`}
@@ -263,17 +318,17 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
               <div
                 className={`text-[10px] font-bold uppercase tracking-widest ${style.textSecondary} mb-1`}
               >
-                Data da Última
+                Data do Último
                 <br />
-                Graduação
+                Grau
               </div>
               {[0, 1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
                   className={`bg-white rounded text-gray-800 font-medium px-2 py-0.5 mb-0.5 text-center ${isCompact ? "text-[10px] min-w-[88px]" : "text-xs min-w-[100px]"}`}
                 >
-                  {graduationDates[i] ? (
-                    format(parseISO(graduationDates[i].date), "dd/MM/yyyy")
+                  {gradeDates[i] ? (
+                    format(parseISO(gradeDates[i].date), "dd/MM/yyyy")
                   ) : (
                     <span className="text-gray-300">——</span>
                   )}
@@ -361,25 +416,33 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                   ? `Presença: ${day}/${monthIdx + 1}`
                                   : specialDate?.type === "graduation"
                                     ? `Graduação: ${day}/${monthIdx + 1}`
-                                    : specialDate?.type === "nextDegree"
-                                      ? `Próximo grau previsto (${getNextDegreeDisplayLabel(actualProgram, student.belt, student.degrees)}): ${day}/${monthIdx + 1}`
-                                      : adminMode && isValidDay
-                                        ? "Clique para marcar graduação"
-                                        : ""
+                                    : specialDate?.type === "grade"
+                                      ? `Grau confirmado: ${day}/${monthIdx + 1}`
+                                      : specialDate?.type === "nextDegree"
+                                        ? `Próximo grau previsto (${getNextDegreeDisplayLabel(actualProgram, student.belt, student.degrees)}): ${day}/${monthIdx + 1}`
+                                        : adminMode && isValidDay
+                                          ? "Clique para marcar graduação"
+                                          : ""
                               }
                             >
                               {/* Special date takes priority visually, attendance shown as smaller ring */}
                               {specialDate ? (
                                 <div className="relative flex items-center justify-center">
-                                  <div
-                                    className={`${isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} rounded-full shadow-sm ${
-                                      specialDate.type === "graduation"
-                                        ? "bg-red-600 ring-1 ring-red-800"
-                                        : specialDate.type === "nextDegree"
-                                          ? "bg-green-500 border-2 border-dashed border-green-600 animate-pulse"
-                                          : "bg-red-600"
-                                    }`}
-                                  />
+                                  {specialDate.type === "grade" ? (
+                                    <div
+                                      className={`${isCompact ? "w-3.5 h-3.5 text-[9px]" : "w-4 h-4 text-[10px]"} rounded-sm bg-blue-100 border border-blue-600 text-blue-700 font-black flex items-center justify-center leading-none`}
+                                    >
+                                      X
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className={`${isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} rounded-full shadow-sm ${
+                                        specialDate.type === "graduation"
+                                          ? "bg-red-600 ring-1 ring-red-800"
+                                          : "bg-green-500 border-2 border-dashed border-green-600 animate-pulse"
+                                      }`}
+                                    />
+                                  )}
                                   {isAttended && (
                                     <div
                                       className={`absolute rounded-full border-2 border-gray-400 opacity-30 ${isCompact ? "w-4 h-4" : "w-5 h-5"}`}
@@ -414,6 +477,12 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-600 border border-white/50" />
             <span>Graduação (nova faixa)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3.5 h-3.5 rounded-sm bg-blue-100 border border-blue-600 text-blue-700 font-black text-[10px] flex items-center justify-center leading-none">
+              X
+            </div>
+            <span>Grau confirmado</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-dashed border-green-600 animate-pulse" />
