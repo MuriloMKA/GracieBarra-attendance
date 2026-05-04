@@ -1,11 +1,57 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { useData } from "../context/DataContext";
+import { useData, BeltColor } from "../context/DataContext";
 import { AttendanceCard } from "../components/AttendanceCard";
+import { BELT_NAMES_PT } from "../components/BeltDisplay";
 import { ArrowLeft, Info } from "lucide-react";
+import { parseISO, format } from "date-fns";
+
+const extractBeltFromNotes = (notes?: string): BeltColor | null => {
+  if (!notes) return null;
+  const match = notes.match(/BELT:([A-Za-z]+)/);
+  if (!match) return null;
+  const belt = match[1] as BeltColor;
+  if (BELT_NAMES_PT[belt]) return belt;
+  return null;
+};
+
+const getPreviousBelt = (
+  belt: BeltColor,
+  program: string,
+): BeltColor | undefined => {
+  const GBK_BELTS: BeltColor[] = ["White", "Grey", "Yellow", "Orange", "Green"];
+  const ADULT_BELTS: BeltColor[] = [
+    "White",
+    "Blue",
+    "Purple",
+    "Brown",
+    "Black",
+  ];
+  const orderedBelts = program === "GBK" ? GBK_BELTS : ADULT_BELTS;
+  const currentIndex = orderedBelts.indexOf(belt);
+  if (currentIndex <= 0) return undefined;
+  return orderedBelts[currentIndex - 1];
+};
+
+const withDayBefore = (isoDate: string): string => {
+  const date = parseISO(isoDate);
+  date.setDate(date.getDate() - 1);
+  return format(date, "yyyy-MM-dd");
+};
+
+interface BeltHistorySegment {
+  key: string;
+  belt: BeltColor;
+  startDate: string | null;
+  endDate: string | null;
+  label: string;
+}
 
 export const StudentCard: React.FC = () => {
   const { currentUser, students, attendance } = useData();
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState<
+    string | undefined
+  >(undefined);
 
   const student = students.find(
     (s) => (s.id || s._id) === currentUser?.studentId,
@@ -18,6 +64,92 @@ export const StudentCard: React.FC = () => {
   const myAttendance = attendance.filter(
     (a) => a.studentId === (student.id || student._id),
   );
+
+  const graduationDates = student.specialDates
+    .filter((sd) => sd.type === "graduation")
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const beltHistory = useMemo<BeltHistorySegment[]>(() => {
+    const segments: BeltHistorySegment[] = [];
+
+    const gradEvents = graduationDates
+      .map((sd) => ({ ...sd, belt: extractBeltFromNotes(sd.notes) }))
+      .filter((sd) => Boolean(sd.belt)) as Array<{
+      date: string;
+      belt: BeltColor;
+      notes?: string;
+      id?: string;
+      _id?: string;
+    }>;
+
+    if (gradEvents.length === 0) {
+      return [
+        {
+          key: `current-${student.belt}`,
+          belt: student.belt,
+          startDate: null,
+          endDate: null,
+          label: "Faixa Atual",
+        },
+      ];
+    }
+
+    gradEvents.forEach((event, index) => {
+      const nextEvent = gradEvents[index + 1];
+      segments.push({
+        key: `${event.belt}-${event.date}`,
+        belt: event.belt,
+        startDate: event.date,
+        endDate: nextEvent ? withDayBefore(nextEvent.date) : null,
+        label: BELT_NAMES_PT[event.belt],
+      });
+    });
+
+    const first = gradEvents[0];
+    const previousBelt = getPreviousBelt(first.belt, student.program);
+    if (previousBelt) {
+      segments.unshift({
+        key: `before-${first.date}`,
+        belt: previousBelt,
+        startDate: null,
+        endDate: withDayBefore(first.date),
+        label: BELT_NAMES_PT[previousBelt],
+      });
+    }
+
+    return segments;
+  }, [graduationDates, student.belt, student.program]);
+
+  const isDateInSelectedHistory = (dateInput: string): boolean => {
+    if (!selectedHistoryKey) return true;
+    const activeHistory = beltHistory.find(
+      (segment) => segment.key === selectedHistoryKey,
+    );
+    if (!activeHistory) return true;
+
+    const date = dateInput.slice(0, 10);
+    if (activeHistory.startDate && date < activeHistory.startDate) return false;
+    if (activeHistory.endDate && date > activeHistory.endDate) return false;
+    return true;
+  };
+
+  const filteredAttendance = myAttendance.filter((a) =>
+    isDateInSelectedHistory(a.date),
+  );
+
+  const activeHistory =
+    selectedHistoryKey &&
+    beltHistory.find((segment) => segment.key === selectedHistoryKey);
+
+  const displayStudent = activeHistory
+    ? {
+        ...student,
+        belt: activeHistory.belt,
+        specialDates: student.specialDates.filter((sd) =>
+          isDateInSelectedHistory(sd.date),
+        ),
+      }
+    : student;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -51,10 +183,17 @@ export const StudentCard: React.FC = () => {
       </div>
 
       <AttendanceCard
-        student={student}
-        attendanceHistory={myAttendance}
+        student={displayStudent}
+        attendanceHistory={filteredAttendance}
         year={new Date().getFullYear()}
         compact
+        historyBeltOptions={beltHistory.map((segment) => ({
+          key: segment.key,
+          belt: segment.belt,
+          label: segment.label,
+        }))}
+        selectedHistoryBeltKey={selectedHistoryKey}
+        onSelectHistoryBelt={setSelectedHistoryKey}
       />
     </div>
   );

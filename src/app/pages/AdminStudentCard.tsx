@@ -18,6 +18,18 @@ const GBK_BELTS: BeltColor[] = ["White", "Grey", "Yellow", "Orange", "Green"];
 const getAvailableBelts = (program: Program): BeltColor[] =>
   program === "GBK" ? GBK_BELTS : ADULT_BELTS;
 
+// Opções de faixa para a transição (incluindo transição de GBK para GB1)
+const getGraduationBeltOptions = (
+  program: Program,
+  belt: BeltColor,
+): BeltColor[] => {
+  if (program === "GBK" && belt === "Green") {
+    // Transição de juvenil para adulto
+    return ["Green", "Blue"];
+  }
+  return getAvailableBelts(program);
+};
+
 const getPreviousBelt = (
   belt: BeltColor,
   program: Program,
@@ -75,7 +87,7 @@ function MarkDateModal({
   onRemove,
   onClose,
 }: MarkDateModalProps) {
-  const beltOptions = getAvailableBelts(currentProgram);
+  const beltOptions = getGraduationBeltOptions(currentProgram, currentBelt);
   const [selectedBelt, setSelectedBelt] = useState<BeltColor>(currentBelt);
   const [notes, setNotes] = useState("");
   const displayDate = format(parseISO(date), "d 'de' MMMM 'de' yyyy", {
@@ -326,12 +338,18 @@ export const AdminStudentCard: React.FC = () => {
       (sd) => !(sd.date === markingDate.date && sd.type === "graduation"),
     );
 
+    // Detectar transição de GBK para adulto (Green para Blue)
+    let newProgram = student.program;
+    if (student.program === "GBK" && newBelt === "Blue") {
+      newProgram = "GB1"; // Transição de juvenil para adulto
+    }
+
     try {
       await updateStudent({
         ...student,
         belt: newBelt,
         degrees: 0,
-        program: calculateProgram(student.program, newBelt, 0),
+        program: calculateProgram(newProgram, newBelt, 0),
         lastGraduationDate: markingDate.date,
         specialDates: [
           ...specialDatesWithoutGraduationOnDay,
@@ -343,8 +361,12 @@ export const AdminStudentCard: React.FC = () => {
         ],
       });
 
+      const transitionMsg =
+        student.program === "GBK" && newBelt === "Blue"
+          ? " - Transição de juvenil para adulto realizada!"
+          : "";
       toast.success(
-        `Graduação registrada e faixa atualizada para ${BELT_NAMES_PT[newBelt]}.`,
+        `Graduação registrada e faixa atualizada para ${BELT_NAMES_PT[newBelt]}.${transitionMsg}`,
       );
       setMarkingDate(null);
     } catch (error) {
