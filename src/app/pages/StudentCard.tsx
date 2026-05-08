@@ -8,7 +8,7 @@ import { parseISO, format } from "date-fns";
 
 const extractBeltFromNotes = (notes?: string): BeltColor | null => {
   if (!notes) return null;
-  const match = notes.match(/BELT:([A-Za-z]+)/);
+  const match = notes.match(/BELT:([A-Za-z]+(?:[A-Za-z]+)*)/);
   if (!match) return null;
   const belt = match[1] as BeltColor;
   if (BELT_NAMES_PT[belt]) return belt;
@@ -19,7 +19,21 @@ const getPreviousBelt = (
   belt: BeltColor,
   program: string,
 ): BeltColor | undefined => {
-  const GBK_BELTS: BeltColor[] = ["White", "Grey", "Yellow", "Orange", "Green"];
+  const GBK_BELTS: BeltColor[] = [
+    "White",
+    "GreyWhite",
+    "Grey",
+    "GreyBlack",
+    "YellowWhite",
+    "Yellow",
+    "YellowBlack",
+    "OrangeWhite",
+    "Orange",
+    "OrangeBlack",
+    "GreenWhite",
+    "Green",
+    "GreenBlack",
+  ];
   const ADULT_BELTS: BeltColor[] = [
     "White",
     "Blue",

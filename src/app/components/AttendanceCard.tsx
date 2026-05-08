@@ -95,17 +95,17 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     student.birthDate,
   );
 
-  // Build attendance set: "YYYY-MM-DD" → 'attended'
+  // Build attendance map: "YYYY-MM-DD" → count of confirmed check-ins
   const attendedDates = useMemo(() => {
-    const set = new Set<string>();
+    const map = new Map<string, number>();
     attendanceHistory.forEach((a) => {
       if (a.confirmed && getYear(parseISO(a.date)) === year) {
         const d = parseISO(a.date);
         const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
-        set.add(key);
+        map.set(key, (map.get(key) || 0) + 1);
       }
     });
-    return set;
+    return map;
   }, [attendanceHistory, year]);
 
   // Build special dates map: "YYYY-MM-DD" → SpecialDate
@@ -309,34 +309,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Right - Program label + Last grade dates */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="pt-1 sm:pt-0 sm:ml-4">
             <div
-              className={`bg-white/10 border border-white/20 rounded-lg text-right ${isCompact ? "px-2 py-1.5" : "px-3 py-2"}`}
-            >
-              <div
-                className={`text-[10px] font-bold uppercase tracking-widest ${style.textSecondary} mb-1`}
-              >
-                Data do Último
-                <br />
-                Grau
-              </div>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className={`bg-white rounded text-gray-800 font-medium px-2 py-0.5 mb-0.5 text-center ${isCompact ? "text-[10px] min-w-[88px]" : "text-xs min-w-[100px]"}`}
-                >
-                  {gradeDates[i] ? (
-                    format(parseISO(gradeDates[i].date), "dd/MM/yyyy")
-                  ) : (
-                    <span className="text-gray-300">——</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div
-              className={`font-black tracking-wider ${style.textPrimary} ${isCompact ? "text-xl" : "text-2xl"}`}
+              className={`font-black tracking-wider ${style.textPrimary} ${isCompact ? "text-sm" : "text-2xl"}`}
             >
               GB
               {actualProgram === "GBK"
@@ -388,11 +363,37 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                           const day = dayIdx + 1;
                           const isValidDay = day <= daysInMonth;
                           const dateKey = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                          const isAttended =
-                            isValidDay && attendedDates.has(dateKey);
+                          const attendanceCount = isValidDay
+                            ? attendedDates.get(dateKey) || 0
+                            : 0;
+                          const isAttended = attendanceCount > 0;
                           const specialDate = isValidDay
                             ? specialDatesMap.get(dateKey)
                             : undefined;
+
+                          const renderAttendanceDots = (count: number) => {
+                            if (count <= 0) return null;
+                            const dotCount = Math.min(count, 2);
+                            return (
+                              <div
+                                className={`flex items-center justify-center gap-0.5 ${specialDate ? "absolute bottom-0.5 left-1/2 -translate-x-1/2" : ""}`}
+                              >
+                                {Array.from({ length: dotCount }).map(
+                                  (_, dotIdx) => (
+                                    <span
+                                      key={dotIdx}
+                                      className={`${isCompact ? "w-2 h-2" : "w-2.5 h-2.5"} rounded-full bg-gray-900 shadow-sm`}
+                                    />
+                                  ),
+                                )}
+                                {count > 2 && (
+                                  <span className="text-[9px] font-black text-gray-600 ml-0.5">
+                                    +{count - 2}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          };
 
                           return (
                             <td
@@ -443,16 +444,11 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                       }`}
                                     />
                                   )}
-                                  {isAttended && (
-                                    <div
-                                      className={`absolute rounded-full border-2 border-gray-400 opacity-30 ${isCompact ? "w-4 h-4" : "w-5 h-5"}`}
-                                    />
-                                  )}
+                                  {attendanceCount > 0 &&
+                                    renderAttendanceDots(attendanceCount)}
                                 </div>
                               ) : isAttended ? (
-                                <div
-                                  className={`${isCompact ? "w-2.5 h-2.5" : "w-3 h-3"} rounded-full bg-gray-900 mx-auto shadow-sm`}
-                                />
+                                renderAttendanceDots(attendanceCount)
                               ) : null}
                             </td>
                           );

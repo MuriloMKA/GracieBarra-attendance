@@ -1,6 +1,57 @@
 import { BeltColor, Attendance } from "../context/DataContext";
 import { startOfWeek, endOfWeek, parseISO, differenceInWeeks, addWeeks, format } from "date-fns";
 
+const isValidIsoDate = (value?: string | null): value is string => {
+  return typeof value === "string" && value.trim().length > 0;
+};
+
+const getAdultTrainingsRequiredForNextDegree = (
+  belt: BeltColor,
+  currentDegree: number,
+): number | null => {
+  if (belt === "White") {
+    if (currentDegree >= 4) return null;
+    return 30;
+  }
+
+  if (belt === "Blue") {
+    if (currentDegree >= 4) return null;
+    return 65;
+  }
+
+  if (belt === "Purple") {
+    if (currentDegree >= 4) return null;
+    return 75;
+  }
+
+  if (belt === "Brown") {
+    if (currentDegree >= 4) return null;
+    return 85;
+  }
+
+  if (belt === "Black") {
+    if (currentDegree >= 6) return null;
+    if (currentDegree < 3) return 156;
+    return 260;
+  }
+
+  return null;
+};
+
+const countCompletedTrainings = (
+  attendanceRecords: Attendance[],
+  lastGraduationDate?: string,
+): number => {
+  if (!isValidIsoDate(lastGraduationDate)) {
+    return 0;
+  }
+
+  const graduationDate = parseISO(lastGraduationDate);
+  return attendanceRecords.filter(
+    (a) => a.confirmed && parseISO(a.date) >= graduationDate,
+  ).length;
+};
+
 /**
  * Retorna o número máximo de graus para cada faixa GBK
  */
@@ -47,53 +98,7 @@ export const getWeeksRequiredForNextDegree = (
   // ADULTOS
   // Se já tem 4 graus, precisa mudar de faixa (não há 5º grau, exceto na preta)
   if (belt !== "Black" && currentDegree >= 4) return null;
-  if (belt === "Black" && currentDegree >= 6) return null;
-
-  const nextDegree = currentDegree + 1;
-
-  // Faixa Branca
-  if (belt === "White") {
-    if (nextDegree === 1) return 4; // 1 mês
-    if (nextDegree === 2) return 4; // 1 mês
-    if (nextDegree === 3) return 8; // 2 meses
-    if (nextDegree === 4) return 16; // 4 meses
-  }
-
-  // Faixa Azul
-  if (belt === "Blue") {
-    if (nextDegree === 1) return 16; // 4 meses
-    if (nextDegree === 2) return 20; // 5 meses
-    if (nextDegree === 3) return 20; // 5 meses
-    if (nextDegree === 4) return 20; // 5 meses
-  }
-
-  // Faixa Roxa
-  if (belt === "Purple") {
-    if (nextDegree === 1) return 12; // 3 meses
-    if (nextDegree === 2) return 12; // 3 meses
-    if (nextDegree === 3) return 16; // 4 meses
-    if (nextDegree === 4) return 16; // 4 meses
-  }
-
-  // Faixa Marrom
-  if (belt === "Brown") {
-    if (nextDegree === 1) return 12; // 3 meses
-    if (nextDegree === 2) return 12; // 3 meses
-    if (nextDegree === 3) return 16; // 4 meses
-    if (nextDegree === 4) return 16; // 4 meses
-  }
-
-  // Faixa Preta
-  if (belt === "Black") {
-    if (nextDegree === 1) return 156; // 3 anos
-    if (nextDegree === 2) return 156; // 3 anos
-    if (nextDegree === 3) return 156; // 3 anos
-    if (nextDegree === 4) return 260; // 5 anos
-    if (nextDegree === 5) return 260; // 5 anos
-    if (nextDegree === 6) return 260; // 5 anos
-  }
-
-  return null;
+  return getAdultTrainingsRequiredForNextDegree(belt, currentDegree);
 };
 
 /**
@@ -109,6 +114,10 @@ export const calculateCompletedWeeks = (
   attendanceRecords: Attendance[],
   lastGraduationDate: string
 ): number => {
+  if (!isValidIsoDate(lastGraduationDate)) {
+    return 0;
+  }
+
   const graduationDate = parseISO(lastGraduationDate);
   const now = new Date();
 
@@ -142,6 +151,13 @@ export const calculateCompletedWeeks = (
   return totalWeeks;
 };
 
+export const calculateCompletedTrainings = (
+  attendanceRecords: Attendance[],
+  lastGraduationDate: string,
+): number => {
+  return countCompletedTrainings(attendanceRecords, lastGraduationDate);
+};
+
 /**
  * Calcula a data estimada do próximo grau baseado no histórico de frequência
  */
@@ -152,38 +168,34 @@ export const calculateNextDegreeDate = (
   currentDegree: number,
   program?: string
 ): string | null => {
-  const weeksRequired = getWeeksRequiredForNextDegree(belt, currentDegree, program);
-  if (!weeksRequired) return null;
+  if (!isValidIsoDate(lastGraduationDate)) {
+    return null;
+  }
 
-  const weeksCompleted = calculateCompletedWeeks(
-    attendanceRecords,
-    lastGraduationDate
-  );
+  const isGBK = program === "GBK";
+  const progressRequired = getWeeksRequiredForNextDegree(belt, currentDegree, program);
+  if (!progressRequired) return null;
 
-  const weeksRemaining = weeksRequired - weeksCompleted;
+  const progressCompleted = isGBK
+    ? calculateCompletedWeeks(attendanceRecords, lastGraduationDate)
+    : calculateCompletedTrainings(attendanceRecords, lastGraduationDate);
 
-  // Se já completou as semanas necessárias
-  if (weeksRemaining <= 0) {
+  const progressRemaining = progressRequired - progressCompleted;
+
+  if (progressRemaining <= 0) {
     return "Pronto para graduação!";
   }
 
-  // Calcula quantas semanas reais passaram desde a última graduação
   const graduationDate = parseISO(lastGraduationDate);
   const now = new Date();
   const realWeeksPassed = differenceInWeeks(now, graduationDate);
+  const progressRate = realWeeksPassed > 0 ? progressCompleted / realWeeksPassed : 0;
 
-  // Calcula a taxa de progresso (semanas completas / semanas reais)
-  const progressRate = realWeeksPassed > 0 ? weeksCompleted / realWeeksPassed : 0;
-
-  // Se não há progresso (sem treinos), não pode estimar
   if (progressRate <= 0) {
     return "Sem previsão (sem treinos recentes)";
   }
 
-  // Estima quantas semanas reais serão necessárias para completar as semanas restantes
-  const realWeeksNeeded = weeksRemaining / progressRate;
-
-  // Adiciona as semanas estimadas à data atual
+  const realWeeksNeeded = progressRemaining / progressRate;
   const estimatedDate = addWeeks(now, Math.ceil(realWeeksNeeded));
 
   return format(estimatedDate, "dd/MM/yyyy");
@@ -200,10 +212,10 @@ export const getDegreeProgress = (
   program?: string
 ) => {
   const weeksRequired = getWeeksRequiredForNextDegree(belt, currentDegree, program);
-  const weeksCompleted = calculateCompletedWeeks(
-    attendanceRecords,
-    lastGraduationDate
-  );
+  const isGBK = program === "GBK";
+  const weeksCompleted = isGBK
+    ? calculateCompletedWeeks(attendanceRecords, lastGraduationDate)
+    : calculateCompletedTrainings(attendanceRecords, lastGraduationDate);
   const estimatedDate = calculateNextDegreeDate(
     attendanceRecords,
     lastGraduationDate,
@@ -226,6 +238,7 @@ export const getDegreeProgress = (
     estimatedDate,
     isReadyForGraduation,
     nextDegree: currentDegree + 1,
+    progressUnit: isGBK ? "semanas" : "treinos",
   };
 };
 

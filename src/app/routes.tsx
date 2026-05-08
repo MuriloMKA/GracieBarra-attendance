@@ -12,6 +12,7 @@ import { AdminStudents } from "./pages/AdminStudents";
 import { AdminStudentCard } from "./pages/AdminStudentCard";
 import { AdminClasses } from "./pages/AdminClasses";
 import { AdminNotifications } from "./pages/AdminNotifications";
+import { RouteErrorPage } from "./pages/RouteErrorPage";
 
 function Root() {
   return (
@@ -34,7 +35,7 @@ function StudentLayout() {
 
 function AdminLayout() {
   return (
-    <RequireAuth allowedRoles={["admin"]}>
+    <RequireAuth allowedRoles={["admin", "teacher"]}>
       <Layout>
         <Outlet />
       </Layout>
@@ -44,10 +45,12 @@ function AdminLayout() {
 
 export const router = createBrowserRouter([
   {
+    errorElement: <RouteErrorPage />,
     element: <Root />,
     children: [
       { path: "/", element: <LoginPage /> },
       {
+        errorElement: <RouteErrorPage />,
         element: <StudentLayout />,
         children: [
           { path: "student", element: <StudentDashboard /> },
@@ -55,6 +58,7 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        errorElement: <RouteErrorPage />,
         element: <AdminLayout />,
         children: [
           { path: "admin", element: <AdminDashboard /> },

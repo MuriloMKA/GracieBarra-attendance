@@ -9,3 +9,9 @@ dist/
 build/
 *.log
 .DS_Store
+
+# Import / generated data (not needed in production)
+alunos-import.json
+alunos-import.sql
+alunos-ajustes-manuais.csv
+AlunosGB.json

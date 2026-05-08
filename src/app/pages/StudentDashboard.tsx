@@ -80,6 +80,10 @@ export const StudentDashboard: React.FC = () => {
     student.birthDate,
   );
 
+  const graduationDateLabel = student.lastGraduationDate
+    ? format(parseISO(student.lastGraduationDate), "dd/MM/yyyy")
+    : "Sem data";
+
   // Calcula progresso do próximo grau automaticamente
   const degreeProgress = getDegreeProgress(
     myAllAttendance,
@@ -88,6 +92,17 @@ export const StudentDashboard: React.FC = () => {
     student.degrees,
     student.program,
   );
+  const progressUnit =
+    degreeProgress.progressUnit ||
+    (student.program === "GBK" ? "semanas" : "treinos");
+  const progressValue =
+    progressUnit === "semanas"
+      ? degreeProgress.weeksCompleted.toFixed(1)
+      : Math.round(degreeProgress.weeksCompleted).toString();
+  const progressRequiredValue =
+    progressUnit === "semanas"
+      ? String(degreeProgress.weeksRequired || 0)
+      : String(Math.round(degreeProgress.weeksRequired || 0));
 
   // Recent confirmed attendance (last 5)
   const recentAttendance = myAllAttendance
@@ -109,7 +124,7 @@ export const StudentDashboard: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900">
-              Olá, {student.name.split(" ")[0]}! 👊
+              Olá, {student.name?.split(" ")[0] || "Aluno"}! 👊
             </h1>
             <p className="text-gray-500 mt-1 flex items-center gap-2">
               <CalendarDays size={15} />
@@ -186,7 +201,7 @@ export const StudentDashboard: React.FC = () => {
               </div>
               <div>
                 <span className="font-medium">Última graduação:</span>{" "}
-                {format(parseISO(student.lastGraduationDate), "dd/MM/yyyy")}
+                {graduationDateLabel}
               </div>
             </div>
           </div>
@@ -226,7 +241,7 @@ export const StudentDashboard: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-xs text-gray-600 mt-1">
                   <span className="font-medium">
-                    {degreeProgress.weeksCompleted} semanas completadas
+                    {progressValue} {progressUnit} completados
                   </span>
                   <span className="font-bold text-[#003087]">
                     {degreeProgress.progressPercentage}%
@@ -243,7 +258,8 @@ export const StudentDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
                   <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-[#003087] font-black text-sm">
-                    {degreeProgress.weeksCompleted.toFixed(1)} sem
+                    {progressValue}{" "}
+                    {progressUnit === "semanas" ? "sem" : "treinos"}
                   </div>
 
                   <div className="relative h-2 rounded-full bg-blue-100 overflow-visible">
@@ -262,13 +278,14 @@ export const StudentDashboard: React.FC = () => {
                   </div>
 
                   <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-gray-700 font-black text-sm">
-                    {degreeProgress.weeksRequired} sem
+                    {progressRequiredValue}{" "}
+                    {progressUnit === "semanas" ? "sem" : "treinos"}
                   </div>
                 </div>
 
                 <div className="text-xs text-gray-600 mt-2 font-medium">
-                  {degreeProgress.weeksCompleted.toFixed(1)} de{" "}
-                  {degreeProgress.weeksRequired} semanas concluidas
+                  {progressValue} de {progressRequiredValue} {progressUnit}{" "}
+                  concluídos
                 </div>
               </div>
 

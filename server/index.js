@@ -5,8 +5,11 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
+import { configureMongoSrvDns } from "../mongo-srv-dns.js";
 
 dotenv.config();
+
+configureMongoSrvDns();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -48,6 +51,70 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const formatBirthDatePassword = (birthDate) => {
+  if (!birthDate || typeof birthDate !== "string") {
+    return null;
+  }
+
+  const value = birthDate.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}${month}${year}`;
+  }
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [day, month, year] = value.split("/");
+    return `${day}${month}${year}`;
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const year = String(parsedDate.getFullYear());
+  return `${day}${month}${year}`;
+};
+
+const syncStudentAccessUser = async (student) => {
+  if (!student?.email) {
+    return null;
+  }
+
+  const password = formatBirthDatePassword(student.birthDate);
+  if (!password) {
+    return null;
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const studentId = student._id.toString();
+  const existingUser =
+    (await User.findOne({ studentId })) ||
+    (await User.findOne({ email: student.email }));
+
+  if (existingUser) {
+    existingUser.email = student.email;
+    existingUser.password = hashedPassword;
+    existingUser.name = student.name;
+    existingUser.role = "student";
+    existingUser.studentId = studentId;
+    await existingUser.save();
+    return existingUser;
+  }
+
+  const user = new User({
+    email: student.email,
+    password: hashedPassword,
+    role: "student",
+    name: student.name,
+    studentId,
+  });
+  await user.save();
+  return user;
+};
+
 // MongoDB Connection
 const connectDB = async () => {
   try {
@@ -69,7 +136,7 @@ const connectDB = async () => {
 const studentSchema = new mongoose.Schema(
   {
     name: String,
-    email: { type: String, unique: true },
+    email: { type: String, unique: true, sparse: true, default: undefined },
     program: { type: String, enum: ["GBK", "GB1", "GB2", "GB3"] },
     belt: {
       type: String,
@@ -540,8 +607,9 @@ app.get("/api/students/:id", authenticateToken, async (req, res) => {
 app.post("/api/students", authenticateToken, async (req, res) => {
   try {
     const student = new Student(req.body);
-    await student.save();
-    res.status(201).json(student);
+    const savedStudent = await student.save();
+    await syncStudentAccessUser(savedStudent);
+    res.status(201).json(savedStudent);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -553,6 +621,7 @@ app.put("/api/students/:id", authenticateToken, async (req, res) => {
       new: true,
     });
     if (!student) return res.status(404).json({ error: "Student not found" });
+    await syncStudentAccessUser(student);
     res.json(student);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -961,28 +1030,28 @@ app.post("/api/setup/init", async (req, res) => {
       },
       {
         email: "joao@example.com",
-        password: await bcrypt.hash("aluno123", 10),
+        password: await bcrypt.hash("15031995", 10),
         role: "student",
         name: "João Silva",
         studentId: createdStudents[0]._id.toString(),
       },
       {
         email: "maria@example.com",
-        password: await bcrypt.hash("aluno123", 10),
+        password: await bcrypt.hash("22071998", 10),
         role: "student",
         name: "Maria Santos",
         studentId: createdStudents[1]._id.toString(),
       },
       {
         email: "carlos@example.com",
-        password: await bcrypt.hash("aluno123", 10),
+        password: await bcrypt.hash("30111992", 10),
         role: "student",
         name: "Carlos Oliveira",
         studentId: createdStudents[2]._id.toString(),
       },
       {
         email: "pedro@example.com",
-        password: await bcrypt.hash("aluno123", 10),
+        password: await bcrypt.hash("18022015", 10),
         role: "student",
         name: "Pedro Costa",
         studentId: createdStudents[3]._id.toString(),
@@ -1020,7 +1089,7 @@ app.post("/api/setup/init", async (req, res) => {
       users: {
         admin: "admin@graciebarra.com / admin123",
         students:
-          "joao@example.com, maria@example.com, carlos@example.com, pedro@example.com / aluno123",
+          "joao@example.com, maria@example.com, carlos@example.com, pedro@example.com / data de nascimento (ddmmaaaa)",
       },
     });
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useData, Student, BeltColor, Program } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -115,9 +115,24 @@ const BELT_COLORS_CSS: Record<BeltColor, { bg: string; text: string }> = {
   Black: { bg: "bg-gray-900", text: "text-white" },
 };
 
+const getBirthDatePassword = (birthDate?: string) => {
+  if (!birthDate) return "";
+  const value = birthDate.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}${month}${year}`;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [day, month, year] = value.split("/");
+    return `${day}${month}${year}`;
+  }
+  return value.replace(/\D/g, "").slice(0, 8);
+};
+
 export const AdminStudents: React.FC = () => {
   const { students, attendance, updateStudent, addStudent } = useData();
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newlyCreatedStudent, setNewlyCreatedStudent] =
@@ -134,12 +149,31 @@ export const AdminStudents: React.FC = () => {
     specialDates: [],
   });
 
+  const formatGraduationDate = (date?: string) => {
+    if (!date) return "Sem data";
+    return format(parseISO(date), "dd/MM/yyyy");
+  };
+
   const filtered = students.filter(
     (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase()) ||
-      s.belt.toLowerCase().includes(search.toLowerCase()),
+      (s.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (s.email || "").toLowerCase().includes(search.toLowerCase()) ||
+      (s.belt || "").toLowerCase().includes(search.toLowerCase()),
   );
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPageStudents = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const getStudentAttendance = (id: string) =>
     attendance.filter((a) => a.studentId === id && a.confirmed).length;
@@ -166,6 +200,11 @@ export const AdminStudents: React.FC = () => {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudent.name || !newStudent.email) return;
+    const birthDatePassword = getBirthDatePassword(newStudent.birthDate);
+    if (!birthDatePassword) {
+      toast.error("Informe a data de nascimento para gerar a senha.");
+      return;
+    }
 
     const normalizedProgram = normalizeProgram(
       (newStudent.program as Program) || "GB1",
@@ -176,7 +215,7 @@ export const AdminStudents: React.FC = () => {
     addStudent(
       { ...newStudent, program: normalizedProgram } as Omit<Student, "id">,
       newStudent.email!,
-      "aluno123",
+      birthDatePassword,
     );
 
     // Busca o aluno recém-criado
@@ -188,7 +227,7 @@ export const AdminStudents: React.FC = () => {
     }, 500);
 
     toast.success(
-      `${newStudent.name} cadastrado com sucesso! Senha padrão: aluno123`,
+      `${newStudent.name} cadastrado com sucesso! Senha padrão: data de nascimento (ddmmaaaa)`,
     );
     setShowAddModal(false);
     setNewStudent({
@@ -278,7 +317,7 @@ export const AdminStudents: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((student) => {
+              {currentPageStudents.map((student) => {
                 const colors = BELT_COLORS_CSS[student.belt];
                 return (
                   <tr
@@ -325,10 +364,7 @@ export const AdminStudents: React.FC = () => {
                     </td>
                     <td className="px-5 py-4 hidden md:table-cell">
                       <span className="text-sm text-gray-600">
-                        {format(
-                          parseISO(student.lastGraduationDate),
-                          "dd/MM/yyyy",
-                        )}
+                        {formatGraduationDate(student.lastGraduationDate)}
                       </span>
                     </td>
                     <td className="px-5 py-4 hidden lg:table-cell">
@@ -369,6 +405,39 @@ export const AdminStudents: React.FC = () => {
         </div>
       </div>
 
+      {filtered.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
+          <p className="text-sm text-gray-500">
+            Mostrando {(currentPage - 1) * pageSize + 1} a{" "}
+            {Math.min(currentPage * pageSize, filtered.length)} de{" "}
+            {filtered.length} alunos
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <span className="px-3 py-2 rounded-lg bg-gray-100 text-sm font-bold text-gray-700">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((page) => Math.min(totalPages, page + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Edit Modal */}
       {editingStudent &&
         (() => {
@@ -384,6 +453,17 @@ export const AdminStudents: React.FC = () => {
             editingStudent.degrees,
             editingStudent.program,
           );
+          const progressUnit =
+            degreeProgress.progressUnit ||
+            (editingStudent.program === "GBK" ? "semanas" : "treinos");
+          const progressValue =
+            progressUnit === "semanas"
+              ? degreeProgress.weeksCompleted.toFixed(1)
+              : Math.round(degreeProgress.weeksCompleted).toString();
+          const progressRequiredValue =
+            progressUnit === "semanas"
+              ? String(degreeProgress.weeksRequired || 0)
+              : String(Math.round(degreeProgress.weeksRequired || 0));
 
           return (
             <div
@@ -449,8 +529,7 @@ export const AdminStudents: React.FC = () => {
                     </div>
                     <div className="flex justify-between text-xs text-gray-600">
                       <span>
-                        {degreeProgress.weeksCompleted} /{" "}
-                        {degreeProgress.weeksRequired} semanas
+                        {progressValue} / {progressRequiredValue} {progressUnit}
                       </span>
                       <span className="font-bold">
                         {degreeProgress.estimatedDate}
@@ -705,8 +784,8 @@ export const AdminStudents: React.FC = () => {
               </button>
             </div>
             <p className="text-sm text-gray-500 mb-3">
-              A senha padrão será <strong>aluno123</strong>. O aluno pode
-              solicitar alteração.
+              A senha padrão será a data de nascimento no formato
+              <strong> ddmmaaaa</strong>. O aluno pode solicitar alteração.
             </p>
 
             {/* Info sobre regras de programa */}
@@ -883,6 +962,7 @@ export const AdminStudents: React.FC = () => {
                   </label>
                   <input
                     type="date"
+                    required
                     value={newStudent.birthDate}
                     onChange={(e) =>
                       setNewStudent({
@@ -958,7 +1038,7 @@ export const AdminStudents: React.FC = () => {
                 <div className="font-bold mb-1">{newlyCreatedStudent.name}</div>
                 <div className="text-xs">{newlyCreatedStudent.email}</div>
                 <div className="text-xs mt-2 font-semibold">
-                  Senha padrão: aluno123
+                  Senha padrão: data de nascimento (ddmmaaaa)
                 </div>
               </div>
             </div>

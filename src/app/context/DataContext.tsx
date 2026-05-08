@@ -8,7 +8,7 @@ import {
 import { registerPushNotifications } from "../services/pushNotifications";
 import { toast } from "sonner";
 
-export type UserRole = "student" | "admin";
+export type UserRole = "student" | "admin" | "teacher";
 export type Program = "GBK" | "GB1" | "GB2" | "GB3";
 export type BeltColor =
   | "White"
@@ -330,7 +330,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     password: string,
   ) => {
     try {
-      const newStudent = await studentService.create(student);
+      const newStudent = await studentService.create({
+        ...student,
+        password,
+      });
       setStudents([
         ...students,
         { ...newStudent, id: newStudent._id || newStudent.id },

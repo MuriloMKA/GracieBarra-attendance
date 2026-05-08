@@ -7,8 +7,11 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
+import { configureMongoSrvDns } from "../mongo-srv-dns.js";
 
 dotenv.config();
+
+configureMongoSrvDns();
 
 const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
 
@@ -16,7 +19,7 @@ const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
 const studentSchema = new mongoose.Schema(
   {
     name: String,
-    email: { type: String, unique: true },
+    email: { type: String, unique: true, sparse: true, default: undefined },
     program: { type: String, enum: ["GBK", "GB1", "GB2", "GB3"] },
     belt: {
       type: String,
@@ -73,6 +76,25 @@ const attendanceSchema = new mongoose.Schema(
 const Student = mongoose.model("Student", studentSchema);
 const User = mongoose.model("User", userSchema);
 const Attendance = mongoose.model("Attendance", attendanceSchema);
+
+const formatBirthDatePassword = (birthDate) => {
+  if (!birthDate || typeof birthDate !== "string") {
+    return null;
+  }
+
+  const value = birthDate.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}${month}${year}`;
+  }
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [day, month, year] = value.split("/");
+    return `${day}${month}${year}`;
+  }
+
+  return value.replace(/\D/g, "").slice(0, 8) || null;
+};
 
 // Conectar ao banco
 const connectDB = async () => {
@@ -197,7 +219,10 @@ const seedTransitionStudent = async () => {
     );
 
     // Criar usuário do aluno
-    const hashedPassword = await bcrypt.hash("aluno123", 10);
+    const hashedPassword = await bcrypt.hash(
+      formatBirthDatePassword(savedStudent.birthDate),
+      10,
+    );
     const studentUser = new User({
       email: "lucas.ferreira@example.com",
       password: hashedPassword,
@@ -242,7 +267,7 @@ const seedTransitionStudent = async () => {
     console.log(`✅ Total de graduações: 4`);
     console.log(`\n🔑 Credenciais para login:\n`);
     console.log(`Email: lucas.ferreira@example.com`);
-    console.log(`Senha: aluno123`);
+    console.log(`Senha: ${formatBirthDatePassword(savedStudent.birthDate)}`);
     console.log(
       `\n🎯 TESTE SUGERIDO:\n1. Log in como admin\n2. Vá para o aluno Lucas\n3. Clique nos botões de histórico: verá "Faixa Branca", "Faixa Cinza", "Faixa Laranja", "Faixa Azul"\n4. Clique em cada um para ver a ficha de cada período\n5. Note como o programa passa de GBK para GB1 na transição\n6. As futuras graduações serão apenas de faixas adultas!\n`,
     );

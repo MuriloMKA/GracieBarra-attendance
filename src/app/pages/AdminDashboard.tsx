@@ -30,6 +30,7 @@ interface StudentReadyForDegree extends Student {
   weeksRequired: number;
   nextDegree: number;
   confirmedAttendances: number;
+  progressUnit?: "semanas" | "treinos";
 }
 
 export const AdminDashboard: React.FC = () => {
@@ -295,24 +296,40 @@ export const AdminDashboard: React.FC = () => {
                       <div className="font-bold text-gray-900 truncate">
                         {student.name}
                       </div>
-                      <div className="text-xs text-gray-600">
-                        {BELT_NAMES_PT[student.belt]}{" "}
-                        {getDegreeDisplayLabel(
-                          student.program,
-                          student.belt,
-                          student.degrees,
-                        )}{" "}
-                        →{" "}
-                        {getNextDegreeDisplayLabel(
-                          student.program,
-                          student.belt,
-                          student.degrees,
-                        )}
-                      </div>
-                      <div className="text-xs text-amber-600 font-medium mt-1">
-                        {student.weeksCompleted} de {student.weeksRequired}{" "}
-                        semanas completas
-                      </div>
+                      {(() => {
+                        const progressUnit =
+                          student.progressUnit ||
+                          (student.program === "GBK" ? "semanas" : "treinos");
+                        const completed =
+                          progressUnit === "semanas"
+                            ? student.weeksCompleted.toFixed(1)
+                            : Math.round(student.weeksCompleted).toString();
+                        const required =
+                          progressUnit === "semanas"
+                            ? String(student.weeksRequired)
+                            : String(Math.round(student.weeksRequired));
+
+                        return (
+                          <div className="text-xs text-gray-600">
+                            {BELT_NAMES_PT[student.belt]}{" "}
+                            {getDegreeDisplayLabel(
+                              student.program,
+                              student.belt,
+                              student.degrees,
+                            )}{" "}
+                            →{" "}
+                            {getNextDegreeDisplayLabel(
+                              student.program,
+                              student.belt,
+                              student.degrees,
+                            )}
+                            <div className="text-xs text-amber-600 font-medium mt-1">
+                              {completed} de {required} {progressUnit}{" "}
+                              completados
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
