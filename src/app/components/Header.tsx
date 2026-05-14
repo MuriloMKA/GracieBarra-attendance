@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export const Header: React.FC = () => {
-  const { currentUser, logout, students } = useData();
+  const { currentUser, logout, students, switchProfile } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -96,9 +96,26 @@ export const Header: React.FC = () => {
         {/* User + Logout */}
         <div className="flex items-center gap-3">
           <div className="hidden sm:block text-right">
-            <div className="text-sm font-semibold text-gray-900">
-              {currentUser.name}
-            </div>
+            {currentUser.availableProfiles &&
+            currentUser.availableProfiles.length > 1 ? (
+              <select
+                value={currentUser.id}
+                onChange={(e) => switchProfile(e.target.value)}
+                className="text-sm font-semibold text-[#003087] hover:text-[#D10A11] transition-colors bg-transparent border-none cursor-pointer focus:ring-0 text-right appearance-none"
+                style={{ direction: "rtl" }}
+                title="Trocar de perfil"
+              >
+                {currentUser.availableProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-sm font-semibold text-gray-900">
+                {currentUser.name}
+              </div>
+            )}
             {student && (
               <div className="text-xs text-gray-500">
                 {BELT_NAMES_PT[student.belt]} •{" "}

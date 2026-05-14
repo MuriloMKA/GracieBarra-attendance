@@ -43,7 +43,7 @@ const countCompletedTrainings = (
   lastGraduationDate?: string,
 ): number => {
   if (!isValidIsoDate(lastGraduationDate)) {
-    return 0;
+    return attendanceRecords.filter((a) => a.confirmed).length;
   }
 
   const graduationDate = parseISO(lastGraduationDate);
@@ -114,17 +114,14 @@ export const calculateCompletedWeeks = (
   attendanceRecords: Attendance[],
   lastGraduationDate: string
 ): number => {
-  if (!isValidIsoDate(lastGraduationDate)) {
-    return 0;
+  let validAttendances = attendanceRecords.filter((a) => a.confirmed);
+
+  if (isValidIsoDate(lastGraduationDate)) {
+    const graduationDate = parseISO(lastGraduationDate);
+    validAttendances = validAttendances.filter(
+      (a) => parseISO(a.date) >= graduationDate
+    );
   }
-
-  const graduationDate = parseISO(lastGraduationDate);
-  const now = new Date();
-
-  // Filtra apenas presenças confirmadas após a última graduação
-  const validAttendances = attendanceRecords.filter(
-    (a) => a.confirmed && parseISO(a.date) >= graduationDate
-  );
 
   // Agrupa treinos por semana
   const weekMap = new Map<string, number>();
@@ -168,13 +165,12 @@ export const calculateNextDegreeDate = (
   currentDegree: number,
   program?: string
 ): string | null => {
-  if (!isValidIsoDate(lastGraduationDate)) {
-    return null;
-  }
-
   const isGBK = program === "GBK";
   const progressRequired = getWeeksRequiredForNextDegree(belt, currentDegree, program);
   if (!progressRequired) return null;
+
+  const validAttendances = attendanceRecords.filter((a) => a.confirmed);
+  if (validAttendances.length === 0) return "Sem previsão (sem treinos)";
 
   const progressCompleted = isGBK
     ? calculateCompletedWeeks(attendanceRecords, lastGraduationDate)
@@ -186,10 +182,14 @@ export const calculateNextDegreeDate = (
     return "Pronto para graduação!";
   }
 
-  const graduationDate = parseISO(lastGraduationDate);
+  let baselineDate = isValidIsoDate(lastGraduationDate) 
+    ? parseISO(lastGraduationDate) 
+    : parseISO(validAttendances.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0].date);
+
   const now = new Date();
-  const realWeeksPassed = differenceInWeeks(now, graduationDate);
-  const progressRate = realWeeksPassed > 0 ? progressCompleted / realWeeksPassed : 0;
+  let realWeeksPassed = differenceInWeeks(now, baselineDate);
+  if (realWeeksPassed === 0) realWeeksPassed = 1; // minimum 1 week to avoid infinity
+  const progressRate = progressCompleted / realWeeksPassed;
 
   if (progressRate <= 0) {
     return "Sem previsão (sem treinos recentes)";

@@ -93,12 +93,13 @@ interface BeltHistorySegment {
 
 export const AdminStudentCard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { students, attendance, updateStudent, removeSpecialDate } = useData();
+  const { students, attendance, updateStudent, removeSpecialDate, checkIn } =
+    useData();
 
   const [year, setYear] = useState(new Date().getFullYear());
-  const [manualAction, setManualAction] = useState<"grade" | "graduation">(
-    "grade",
-  );
+  const [manualAction, setManualAction] = useState<
+    "grade" | "graduation" | "attendance"
+  >("grade");
   const [manualDate, setManualDate] = useState("");
   const [manualBelt, setManualBelt] = useState<BeltColor>("Blue");
   const [manualNotes, setManualNotes] = useState("");
@@ -260,7 +261,22 @@ export const AdminStudentCard: React.FC = () => {
     }
 
     try {
-      if (manualAction === "grade") {
+      if (manualAction === "attendance") {
+        const attendanceDateObj = parseISO(manualDate);
+        attendanceDateObj.setUTCHours(12);
+
+        const isoDateString = manualDate + "T12:00:00.000Z";
+
+        await checkIn(
+          studentId,
+          "manual-add",
+          "Presença Adicionada Manualmente",
+          "00:00",
+          true,
+        );
+
+        toast.success("Presença adicionada com sucesso.");
+      } else if (manualAction === "grade") {
         // Do not increment degrees for retrospective (past) grade dates
         const todayIso = new Date().toISOString().split("T")[0];
         const isFutureOrToday = manualDate >= todayIso;
@@ -411,7 +427,7 @@ export const AdminStudentCard: React.FC = () => {
           <div>
             <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">
               <GraduationCap size={18} className="text-[#D10A11]" />
-              Adicionar Grau ou Faixa
+              Adicionar Presença, Grau ou Faixa
             </h3>
             <p className="text-sm text-gray-500 mt-1">
               Preencha a data e selecione o tipo de evento. Não é mais preciso
@@ -419,7 +435,18 @@ export const AdminStudentCard: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={() => setManualAction("attendance")}
+              className={`flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                manualAction === "attendance"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Adicionar Presença
+            </button>
             <button
               type="button"
               onClick={() => setManualAction("grade")}

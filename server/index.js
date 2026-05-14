@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
+import nodemailer from "nodemailer";
 import { configureMongoSrvDns } from "../mongo-srv-dns.js";
 
 dotenv.config();
@@ -15,6 +16,15 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_development";
 const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
+
+// Configuração do nodemailer (use variáveis de ambiente EMAIL_USER e EMAIL_PASS no .env ou railway)
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER || "seuemail@gmail.com",
+    pass: process.env.EMAIL_PASS || "suasenhaaplicativo",
+  },
+});
 
 // Middleware
 app.use(
@@ -891,25 +901,48 @@ app.post(
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
 
-    if (!user) {
+    // Busca TODOS os usuários com este email
+    const users = await User.find({ email });
+
+    if (users.length === 0) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    // Comparar senha com hash
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    let authenticatedUser = null;
+    let validUsersFound = [];
+
+    // Precisamos checar a senha, pode ser que múltiplas contas tenham a mesma senha
+    // ou se o usuário logou, ele tem a senha que bate com pelo menos um.
+    for (const user of users) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (isPasswordValid) {
+        if (!authenticatedUser) authenticatedUser = user;
+        validUsersFound.push(user);
+      }
+    }
+
+    if (!authenticatedUser) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    // Gerar token JWT
+    // Retorna todos os perfis associados a essa mesma senha
+    const profiles = validUsersFound.map((u) => ({
+      id: u._id.toString(),
+      email: u.email,
+      role: u.role,
+      name: u.name,
+      studentId: u.studentId,
+    }));
+
+    // O token assina o perfil "principal" (o primeiro encontrado).
+    // O front-end lidará com a troca depois.
     const token = jwt.sign(
       {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        studentId: user.studentId || null,
+        id: authenticatedUser._id,
+        email: authenticatedUser.email,
+        role: authenticatedUser.role,
+        studentId: authenticatedUser.studentId || null,
       },
       JWT_SECRET,
       { expiresIn: "7d" },
@@ -917,13 +950,8 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json({
       token,
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        role: user.role,
-        name: user.name,
-        studentId: user.studentId, // Agora é string no schema
-      },
+      user: profiles[0], // Perfil ativo por padrão
+      profiles: profiles, // Todos os perfis associados à conta
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -82,6 +82,7 @@ export interface UserAccount {
   role: UserRole;
   name: string;
   studentId?: string;
+  availableProfiles?: any[];
 }
 
 interface DataContextType {
@@ -92,6 +93,7 @@ interface DataContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  switchProfile: (profileId: string) => Promise<void>;
   checkIn: (
     studentId: string,
     classId: string,
@@ -202,11 +204,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const response = (await Promise.race([
         authService.login(email, password),
         loginTimeout,
-      ])) as Awaited<ReturnType<typeof authService.login>>;
+      ])) as any;
+
+      if (!response.user)
+        throw new Error("Usuário inválido gerado pelo servidor");
+
+      const userWithProfiles = {
+        ...response.user,
+        availableProfiles: response.profiles || [],
+      };
 
       localStorage.setItem("gb_auth_token", response.token);
-      localStorage.setItem("gb_current_user", JSON.stringify(response.user));
-      setCurrentUser(response.user);
+      localStorage.setItem("gb_current_user", JSON.stringify(userWithProfiles));
+      setCurrentUser(userWithProfiles);
 
       // Nao bloqueia o login pela carga inicial; evita travar na tela "Entrando..."
       loadData().catch((error) => {
@@ -222,6 +232,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return false;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const switchProfile = async (profileId: string): Promise<void> => {
+    if (!currentUser || !currentUser.availableProfiles) return;
+    const profile = currentUser.availableProfiles.find(
+      (p: any) => p.id === profileId,
+    );
+
+    if (profile) {
+      const switchedUser = {
+        ...profile,
+        availableProfiles: currentUser.availableProfiles,
+      };
+      localStorage.setItem("gb_current_user", JSON.stringify(switchedUser));
+      setCurrentUser(switchedUser);
+      toast.success(`Alternado para o perfil de ${profile.name}`);
+      window.location.reload(); // Força o refresh limpo dos dados na mesma máquina
     }
   };
 
