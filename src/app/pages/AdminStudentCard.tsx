@@ -36,10 +36,19 @@ const getGraduationBeltOptions = (
   program: Program,
   belt: BeltColor,
 ): BeltColor[] => {
-  if (program === "GBK" && belt === "Green") {
-    return ["Green", "Blue"];
+  const available = getAvailableBelts(program);
+  const currentIndex = available.indexOf(belt);
+  if (currentIndex === -1) return available;
+  const options = available.slice(currentIndex + 1);
+
+  if (
+    program === "GBK" &&
+    (belt === "Green" || belt === "GreenBlack") &&
+    !options.includes("Blue")
+  ) {
+    options.push("Blue");
   }
-  return getAvailableBelts(program);
+  return options;
 };
 
 const getPreviousBelt = (
@@ -99,7 +108,13 @@ export const AdminStudentCard: React.FC = () => {
   const studentId = student ? ((student.id || student._id) as string) : "";
 
   const studentAttendance = useMemo(
-    () => attendance.filter((a) => a.studentId === studentId),
+    () =>
+      attendance.filter(
+        (a) =>
+          a.studentId === studentId ||
+          (a.studentId as any)?._id === studentId ||
+          (a.studentId as any)?.id === studentId,
+      ),
     [attendance, studentId],
   );
 
@@ -384,7 +399,7 @@ export const AdminStudentCard: React.FC = () => {
           </div>
           <div>
             <div className="text-2xl font-black text-emerald-600">
-              {gradeDates.length}
+              {displayStudent.degrees}
             </div>
             <div className="text-xs text-gray-500">Graus</div>
           </div>

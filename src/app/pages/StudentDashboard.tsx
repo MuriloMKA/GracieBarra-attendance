@@ -56,14 +56,17 @@ export const StudentDashboard: React.FC = () => {
 
   // Already checked in classes today (confirmed or pending)
   const studentIdToMatch = (student.id || student._id) as string;
+  const matchStudentId = (a: any) =>
+    a.studentId === studentIdToMatch ||
+    a.studentId?._id === studentIdToMatch ||
+    a.studentId?.id === studentIdToMatch;
+
   const myTodayAttendance = attendance.filter(
-    (a) => a.studentId === studentIdToMatch && a.date.startsWith(todayStr),
+    (a) => matchStudentId(a) && a.date.startsWith(todayStr),
   );
 
   // Stats
-  const myAllAttendance = attendance.filter(
-    (a) => a.studentId === studentIdToMatch,
-  );
+  const myAllAttendance = attendance.filter(matchStudentId);
   const confirmedCount = myAllAttendance.filter((a) => a.confirmed).length;
 
   // Calcula o programa real baseado na faixa e grau

@@ -176,7 +176,13 @@ export const AdminStudents: React.FC = () => {
   }, [totalPages]);
 
   const getStudentAttendance = (id: string) =>
-    attendance.filter((a) => a.studentId === id && a.confirmed).length;
+    attendance.filter(
+      (a) =>
+        (a.studentId === id ||
+          (a.studentId as any)?._id === id ||
+          (a.studentId as any)?.id === id) &&
+        a.confirmed,
+    ).length;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -444,7 +450,10 @@ export const AdminStudents: React.FC = () => {
           const studentIdMatch = (editingStudent.id ||
             editingStudent._id) as string;
           const studentAttendance = attendance.filter(
-            (a) => a.studentId === studentIdMatch,
+            (a) =>
+              a.studentId === studentIdMatch ||
+              (a.studentId as any)?._id === studentIdMatch ||
+              (a.studentId as any)?.id === studentIdMatch,
           );
           const degreeProgress = getDegreeProgress(
             studentAttendance,

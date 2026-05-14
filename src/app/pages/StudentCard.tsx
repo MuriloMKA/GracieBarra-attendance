@@ -75,8 +75,12 @@ export const StudentCard: React.FC = () => {
       <div className="p-8 text-center text-gray-500">Aluno não encontrado.</div>
     );
 
+  const studentId = student.id || student._id;
   const myAttendance = attendance.filter(
-    (a) => a.studentId === (student.id || student._id),
+    (a) =>
+      a.studentId === studentId ||
+      (a.studentId as any)?._id === studentId ||
+      (a.studentId as any)?.id === studentId,
   );
 
   const graduationDates = student.specialDates
