@@ -100,7 +100,9 @@ export const AdminStudentCard: React.FC = () => {
   const [manualAction, setManualAction] = useState<
     "grade" | "graduation" | "attendance"
   >("grade");
-  const [manualDate, setManualDate] = useState("");
+  const [manualDate, setManualDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [manualBelt, setManualBelt] = useState<BeltColor>("Blue");
   const [manualNotes, setManualNotes] = useState("");
 
@@ -119,7 +121,27 @@ export const AdminStudentCard: React.FC = () => {
     [attendance, studentId],
   );
 
-  const confirmedCount = studentAttendance.filter((a) => a.confirmed).length;
+  const confirmedCount = useMemo(() => {
+    const map = new Map<string, number>();
+    studentAttendance.forEach((a) => {
+      if (a.confirmed) {
+        const d = parseISO(a.date);
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          // ignore weekends
+          const dateStr = a.date.slice(0, 10);
+          const current = map.get(dateStr) || 0;
+          if (current < 2) {
+            map.set(dateStr, current + 1);
+          }
+        }
+      }
+    });
+
+    let total = 0;
+    map.forEach((count) => (total += count));
+    return total;
+  }, [studentAttendance]);
   const gradeDates = (student?.specialDates || [])
     .filter((sd) => sd.type === "grade")
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -273,6 +295,7 @@ export const AdminStudentCard: React.FC = () => {
           "Presença Adicionada Manualmente",
           "00:00",
           true,
+          isoDateString,
         );
 
         toast.success("Presença adicionada com sucesso.");

@@ -42,14 +42,29 @@ const countCompletedTrainings = (
   attendanceRecords: Attendance[],
   lastGraduationDate?: string,
 ): number => {
-  if (!isValidIsoDate(lastGraduationDate)) {
-    return attendanceRecords.filter((a) => a.confirmed).length;
+  let records = attendanceRecords.filter((a) => a.confirmed);
+
+  if (isValidIsoDate(lastGraduationDate)) {
+    const graduationDate = parseISO(lastGraduationDate);
+    records = records.filter((a) => parseISO(a.date) >= graduationDate);
   }
 
-  const graduationDate = parseISO(lastGraduationDate);
-  return attendanceRecords.filter(
-    (a) => a.confirmed && parseISO(a.date) >= graduationDate,
-  ).length;
+  const map = new Map<string, number>();
+  records.forEach((a) => {
+    const d = parseISO(a.date);
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // ignore weekends
+      const dateStr = a.date.slice(0, 10);
+      const current = map.get(dateStr) || 0;
+      if (current < 2) {
+        map.set(dateStr, current + 1);
+      }
+    }
+  });
+
+  let total = 0;
+  map.forEach((count) => total += count);
+  return total;
 };
 
 /**
@@ -124,23 +139,29 @@ export const calculateCompletedWeeks = (
   }
 
   // Agrupa treinos por semana
-  const weekMap = new Map<string, number>();
+  const weekMap = new Map<string, Set<string>>();
 
   validAttendances.forEach((attendance) => {
     const attendanceDate = parseISO(attendance.date);
-    const weekStart = startOfWeek(attendanceDate, { weekStartsOn: 0 }); // Domingo = 0
-    const weekKey = weekStart.toISOString();
+    const dayOfWeek = attendanceDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // ignore weekends
+      const weekStart = startOfWeek(attendanceDate, { weekStartsOn: 0 }); // Domingo = 0
+      const weekKey = weekStart.toISOString();
+      const dateStr = attendance.date.slice(0, 10);
 
-    const currentCount = weekMap.get(weekKey) || 0;
-    weekMap.set(weekKey, currentCount + 1);
+      const daysSet = weekMap.get(weekKey) || new Set<string>();
+      daysSet.add(dateStr); // Conta apenas dias únicos
+      weekMap.set(weekKey, daysSet);
+    }
   });
 
   // Calcula semanas completas
   let totalWeeks = 0;
   weekMap.forEach((daysInWeek) => {
-    if (daysInWeek === 1) {
+    const daysCount = daysInWeek.size;
+    if (daysCount === 1) {
       totalWeeks += 0.5;
-    } else if (daysInWeek >= 2) {
+    } else if (daysCount >= 2) {
       totalWeeks += 1;
     }
   });

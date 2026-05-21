@@ -47,7 +47,7 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
     ctx.fillStyle = "#1F2937";
     ctx.font = "bold 18px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("GRACIE BARRA MARAJOARA", exportCanvas.width / 2, 30);
+    ctx.fillText("GRACIE BARRA", exportCanvas.width / 2, 30);
 
     // Nome do aluno
     ctx.font = "bold 16px Arial";
@@ -67,46 +67,23 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
 
     const filename = `qrcode-${student.name.replace(/\s+/g, "-")}.png`;
 
-    const triggerDownload = (url: string) => {
+    try {
+      const dataUrl = exportCanvas.toDataURL("image/png");
+
       const downloadLink = document.createElement("a");
       downloadLink.download = filename;
-      downloadLink.href = url;
+      downloadLink.href = dataUrl;
+      // Adicionado para suportar melhor o click em alguns browsers
       downloadLink.rel = "noopener";
       downloadLink.target = "_blank";
+
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-    };
-
-    if (exportCanvas.toBlob) {
-      exportCanvas.toBlob(async (blob) => {
-        if (!blob) {
-          triggerDownload(exportCanvas.toDataURL("image/png"));
-          return;
-        }
-
-        // Em alguns celulares/webviews, o atributo download falha. Tenta compartilhar o arquivo.
-        if (navigator.share && typeof File !== "undefined") {
-          try {
-            const file = new File([blob], filename, { type: "image/png" });
-            await navigator.share({
-              title: "QR Code do aluno",
-              files: [file],
-            });
-            return;
-          } catch {
-            // Fallback para download normal abaixo.
-          }
-        }
-
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }, "image/png");
-      return;
+    } catch (err) {
+      console.error("Erro ao gerar/baixar QR Code:", err);
+      // Fallback em caso de falha de segurança do toDataURL ou do click()
     }
-
-    triggerDownload(exportCanvas.toDataURL("image/png"));
   };
 
   return (

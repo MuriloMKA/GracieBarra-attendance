@@ -48,14 +48,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   };
 
   const handleDecoded = async (decodedText: string) => {
-    try {
-      if (scannerRef.current?.isScanning) {
-        await scannerRef.current.stop();
-      }
-    } catch (stopError) {
-      console.error("Error stopping scanner after success:", stopError);
-    }
-    setIsScanning(false);
+    // If the user wants continuous scanning, we shouldn't stop the scanner
+    // Let's just pass the decoded text text out. We can let the parent handle the cooldown.
     onScanSuccess(decodedText);
   };
 

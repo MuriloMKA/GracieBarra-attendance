@@ -101,8 +101,15 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     attendanceHistory.forEach((a) => {
       if (a.confirmed && getYear(parseISO(a.date)) === year) {
         const d = parseISO(a.date);
-        const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
-        map.set(key, (map.get(key) || 0) + 1);
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          // ignore weekends
+          const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
+          const currentCount = map.get(key) || 0;
+          if (currentCount < 2) {
+            map.set(key, currentCount + 1);
+          }
+        }
       }
     });
     return map;
@@ -362,14 +369,20 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                         {Array.from({ length: 31 }, (_, dayIdx) => {
                           const day = dayIdx + 1;
                           const isValidDay = day <= daysInMonth;
+                          const dateObj = new Date(year, monthIdx, day);
+                          const isWeekendDay =
+                            isValidDay &&
+                            (dateObj.getDay() === 0 || dateObj.getDay() === 6);
                           const dateKey = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                          const attendanceCount = isValidDay
-                            ? attendedDates.get(dateKey) || 0
-                            : 0;
+                          const attendanceCount =
+                            isValidDay && !isWeekendDay
+                              ? attendedDates.get(dateKey) || 0
+                              : 0;
                           const isAttended = attendanceCount > 0;
-                          const specialDate = isValidDay
-                            ? specialDatesMap.get(dateKey)
-                            : undefined;
+                          const specialDate =
+                            isValidDay && !isWeekendDay
+                              ? specialDatesMap.get(dateKey)
+                              : undefined;
 
                           const renderAttendanceDots = (count: number) => {
                             if (count <= 0) return null;
@@ -400,10 +413,16 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               key={dayIdx}
                               className={`border-r border-gray-200 last:border-r-0 text-center align-middle relative ${isCompact ? "h-6" : "h-7"}
                                 ${!isValidDay ? "bg-gray-100" : ""}
-                                ${adminMode && isValidDay ? "cursor-pointer hover:bg-yellow-50" : ""}
+                                ${isWeekendDay ? "bg-gray-900" : ""}
+                                ${adminMode && isValidDay && !isWeekendDay ? "cursor-pointer hover:bg-yellow-50" : ""}
                               `}
                               onClick={() => {
-                                if (adminMode && isValidDay && onCellClick) {
+                                if (
+                                  adminMode &&
+                                  isValidDay &&
+                                  !isWeekendDay &&
+                                  onCellClick
+                                ) {
                                   onCellClick(
                                     dateKey,
                                     specialDate?.type === "graduation"

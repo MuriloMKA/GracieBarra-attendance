@@ -100,6 +100,7 @@ interface DataContextType {
     className: string,
     classTime: string,
     autoConfirm?: boolean,
+    dateOverride?: string,
   ) => Promise<void>;
   confirmAttendance: (attendanceId: string) => Promise<void>;
   rejectAttendance: (attendanceId: string) => Promise<void>;
@@ -268,6 +269,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     className: string,
     classTime: string,
     autoConfirm: boolean = false,
+    dateOverride?: string,
   ) => {
     try {
       const newAttendance = await attendanceService.create({
@@ -275,7 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         classId,
         className,
         classTime,
-        date: new Date().toISOString(),
+        date: dateOverride ? dateOverride : new Date().toISOString(),
         confirmed: autoConfirm,
       });
 
@@ -507,6 +509,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         loading,
         login,
         logout,
+        switchProfile,
         checkIn,
         confirmAttendance,
         rejectAttendance,

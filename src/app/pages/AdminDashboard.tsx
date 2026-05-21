@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useData, JJClass, Student, BeltColor } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -22,6 +22,10 @@ import {
   getDegreeDisplayLabel,
   getNextDegreeDisplayLabel,
 } from "../components/BeltDisplay";
+import {
+  getDegreeProgress,
+  getWeeksRequiredForNextDegree,
+} from "../utils/degreeCalculator";
 import { QRScanner } from "../components/QRScanner";
 import api from "../services/api";
 
@@ -34,11 +38,11 @@ interface StudentReadyForDegree extends Student {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, checkIn } = useData();
+  const { currentUser, students, attendance, classes, checkIn, updateStudent } =
+    useData();
 
   const [showScanner, setShowScanner] = useState(false);
-  const [scannedStudent, setScannedStudent] = useState<Student | null>(null);
-  const [selectedClass, setSelectedClass] = useState<string>("");
+  const scannerCooldowns = useRef<Map<string, number>>(new Map());
   const [studentsReadyForDegree, setStudentsReadyForDegree] = useState<
     StudentReadyForDegree[]
   >([]);
@@ -77,64 +81,123 @@ export const AdminDashboard: React.FC = () => {
   const handleScanSuccess = (decodedText: string) => {
     try {
       const studentData = JSON.parse(decodedText);
-      const student = students.find(
-        (s) => (s.id || s._id) === studentData.studentId,
-      );
+      const studentId = studentData.studentId;
 
-      if (!student) {
-        toast.error("Aluno não encontrado!");
-        setShowScanner(false);
+      const now = Date.now();
+      const lastScan = scannerCooldowns.current.get(studentId) || 0;
+      if (now - lastScan < 5000) {
+        // Ignora leituras repetidas do mesmo aluno por 5 segundos
         return;
       }
 
-      setScannedStudent(student);
-      setShowScanner(false);
+      const student = students.find((s) => (s.id || s._id) === studentId);
+
+      if (!student) {
+        toast.error("Aluno não encontrado!");
+        return;
+      }
+
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+
+      scannerCooldowns.current.set(studentId, now);
+
+      const alreadyConfirmed = attendance.some(
+        (a) =>
+          a.studentId === studentId &&
+          a.classId === "manual-scan" &&
+          a.confirmed &&
+          a.date.startsWith(today.toISOString().split("T")[0]),
+      );
+
+      if (alreadyConfirmed) {
+        toast.info(`Presença já confirmada para ${student.name} hoje!`);
+        return;
+      }
+
+      const currentTime = format(now, "HH:mm");
+
+      // Adiciona presença confirmada diretamente
+      checkIn(
+        studentId,
+        "manual-scan",
+        "Presença via QR Code",
+        currentTime,
+        true, // Já confirmado
+      ).then(async () => {
+        toast.success(
+          `Check-in de ${student.name} concluído às ${currentTime}!`,
+        );
+
+        // Verifica sistema de graus após o checkin
+        try {
+          // Precisamos pegar a contagem de treinos atualizada (que agora inclui o checkIn recém-feito na DB)
+          // Mas como o estado React da presença pode não ter atualizado reativamente a tempo,
+          // Vamos calcular simulando a presença extra.
+
+          const progProgram = calculateProgram(
+            student.program,
+            student.belt,
+            student.degrees,
+          );
+          const required = getWeeksRequiredForNextDegree(
+            student.belt,
+            student.degrees,
+            progProgram,
+          );
+
+          if (required && required > 0) {
+            // Simulamos o array de attendances com a nova presença adicionada
+            const simulatedAttendance = [
+              ...attendance,
+              {
+                id: "simulated-now",
+                studentId: student.id,
+                classId: "manual-scan",
+                date: today.toISOString(),
+                status: "present",
+                confirmed: true,
+              },
+            ] as any[];
+
+            // Obtém progresso re-calculado
+            const lastGraduationDate =
+              student.lastGraduationDate || today.toISOString();
+
+            // Usa as funções internas para ver se bateu o total
+            const progressObj = getDegreeProgress(
+              simulatedAttendance,
+              lastGraduationDate,
+              student.belt,
+              student.degrees,
+              progProgram,
+            );
+
+            if (progressObj && progressObj.isReadyForGraduation) {
+              const dateIso = today.toISOString().split("T")[0];
+              await updateStudent({
+                ...student,
+                degrees: student.degrees + 1,
+                specialDates: [
+                  ...student.specialDates,
+                  {
+                    date: dateIso,
+                    type: "grade",
+                    notes: "Grau automático pós Check-in",
+                  },
+                ],
+              });
+              toast.success(`Grau automático atribuído para ${student.name}!`);
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao validar grau automático", e);
+        }
+      });
     } catch (error) {
       toast.error("QR Code inválido!");
-      setShowScanner(false);
     }
-  };
-
-  const handleConfirmAttendance = () => {
-    if (!scannedStudent || !selectedClass) {
-      toast.error("Selecione uma aula!");
-      return;
-    }
-
-    const classData = todayClasses.find(
-      (c) => (c.id || c._id) === selectedClass,
-    );
-    if (!classData) return;
-
-    const studentId = (scannedStudent.id || scannedStudent._id) as string;
-
-    // Verifica se já tem presença confirmada hoje nessa aula
-    const alreadyConfirmed = attendance.some(
-      (a) =>
-        a.studentId === studentId &&
-        a.classId === selectedClass &&
-        a.confirmed &&
-        a.date.startsWith(today.toISOString().split("T")[0]),
-    );
-
-    if (alreadyConfirmed) {
-      toast.error("Presença já confirmada nesta aula hoje!");
-      setScannedStudent(null);
-      setSelectedClass("");
-      return;
-    }
-
-    // Adiciona presença confirmada diretamente
-    checkIn(
-      studentId,
-      selectedClass,
-      classData.name,
-      classData.time,
-      true, // Já confirmado
-    );
-
-    setScannedStudent(null);
-    setSelectedClass("");
   };
 
   return (
@@ -360,29 +423,27 @@ export const AdminDashboard: React.FC = () => {
       <div>
         <h2 className="font-black text-gray-900 text-lg mb-4 flex items-center gap-2">
           <QrCode size={20} className="text-[#D10A11]" />
-          Confirmar Presença
+          Leitor de QR Code
         </h2>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="text-center">
+          <div className="text-center max-w-sm mx-auto">
             <div className="mb-4">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-[#D10A11]/10 rounded-full mb-3">
                 <QrCode size={32} className="text-[#D10A11]" />
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">
-                Escaneie o QR Code do Aluno
-              </h3>
+              <h3 className="font-bold text-gray-900 mb-1">Leitor Contínuo</h3>
               <p className="text-gray-500 text-sm">
-                Use a câmera do seu celular para escanear o QR Code pessoal do
-                aluno e confirmar presença
+                Aponte a câmera para os QR Codes dos alunos. O horário da
+                confirmação será registrado automaticamente.
               </p>
             </div>
             <button
               onClick={() => setShowScanner(true)}
-              className="px-8 py-3 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center gap-2 mx-auto"
+              className="w-full py-3 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center justify-center gap-2 mx-auto"
             >
               <QrCode size={20} />
-              Escanear QR Code
+              Iniciar Leitor
             </button>
           </div>
         </div>
@@ -394,88 +455,6 @@ export const AdminDashboard: React.FC = () => {
           onScanSuccess={handleScanSuccess}
           onClose={() => setShowScanner(false)}
         />
-      )}
-
-      {/* Confirmação Modal */}
-      {scannedStudent && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-black text-gray-900 text-xl mb-4">
-              Confirmar Presença
-            </h3>
-
-            {/* Info do Aluno */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-[#003087] text-white flex items-center justify-center font-black">
-                  {scannedStudent.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">
-                    {scannedStudent.name}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {BELT_NAMES_PT[scannedStudent.belt]} •{" "}
-                    {calculateProgram(
-                      scannedStudent.program,
-                      scannedStudent.belt,
-                      scannedStudent.degrees,
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Seleção de Aula */}
-            <div className="mb-4">
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Selecione a aula:
-              </label>
-              {todayClasses.length === 0 ? (
-                <div className="text-sm text-gray-500 italic">
-                  Nenhuma aula agendada para hoje
-                </div>
-              ) : (
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#D10A11] focus:outline-none text-sm"
-                >
-                  <option value="">Escolha uma aula...</option>
-                  {todayClasses.map((cls) => (
-                    <option key={cls.id || cls._id} value={cls.id || cls._id}>
-                      {cls.name} - {cls.time} ({cls.instructor})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Botões */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setScannedStudent(null);
-                  setSelectedClass("");
-                }}
-                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmAttendance}
-                disabled={!selectedClass}
-                className="flex-1 px-4 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Check size={16} />
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
