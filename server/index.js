@@ -146,7 +146,7 @@ const connectDB = async () => {
 const studentSchema = new mongoose.Schema(
   {
     name: String,
-    email: { type: String, unique: true, sparse: true, default: undefined },
+    email: { type: String, sparse: true, default: undefined },
     program: { type: String, enum: ["GBK", "GB1", "GB2", "GB3"] },
     belt: {
       type: String,
@@ -195,7 +195,7 @@ const attendanceSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema(
   {
-    email: { type: String, unique: true, required: true },
+    email: { type: String, required: true },
     password: { type: String, required: true },
     role: { type: String, enum: ["student", "admin"], default: "student" },
     name: String,
@@ -621,7 +621,14 @@ app.post("/api/students", authenticateToken, async (req, res) => {
     await syncStudentAccessUser(savedStudent);
     res.status(201).json(savedStudent);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    if (error.code === 11000) {
+      return res
+        .status(400)
+        .json({ error: "Dados já cadastrados no sistema." });
+    }
+    res
+      .status(400)
+      .json({ error: "Ocorreu um erro inesperado ao salvar os dados." });
   }
 });
 
@@ -634,7 +641,14 @@ app.put("/api/students/:id", authenticateToken, async (req, res) => {
     await syncStudentAccessUser(student);
     res.json(student);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    if (error.code === 11000) {
+      return res
+        .status(400)
+        .json({ error: "Dados já cadastrados no sistema." });
+    }
+    res
+      .status(400)
+      .json({ error: "Ocorreu um erro inesperado ao salvar os dados." });
   }
 });
 
@@ -1126,11 +1140,18 @@ app.post("/api/setup/init", async (req, res) => {
 });
 
 // Start server
-connectDB().then(() => {
+connectDB().then(async () => {
+  try {
+    // Drop old unique indexes if they exist to allow multiple profiles with same email
+    await User.collection.dropIndex("email_1").catch(() => {});
+    await Student.collection.dropIndex("email_1").catch(() => {});
+  } catch (e) {
+    console.log("Not possible to drop indexes, might not exist.");
+  }
+
   initializeFirebaseMessaging();
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     console.log(`📱 Acesse pelo celular em http://SEU_IP_LOCAL:${PORT}`);
   });
 });
-
