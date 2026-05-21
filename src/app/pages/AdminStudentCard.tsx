@@ -100,8 +100,8 @@ export const AdminStudentCard: React.FC = () => {
   const [manualAction, setManualAction] = useState<
     "grade" | "graduation" | "attendance"
   >("grade");
-  const [manualDate, setManualDate] = useState(
-    () => new Date().toISOString().split("T")[0],
+  const [manualDate, setManualDate] = useState(() =>
+    format(new Date(), "dd/MM/yyyy"),
   );
   const [manualBelt, setManualBelt] = useState<BeltColor>("Blue");
   const [manualNotes, setManualNotes] = useState("");
@@ -271,23 +271,30 @@ export const AdminStudentCard: React.FC = () => {
 
   const resetManualForm = () => {
     setManualAction("grade");
-    setManualDate("");
+    setManualDate(format(new Date(), "dd/MM/yyyy"));
     setManualBelt(graduationBeltOptions[0] || "Blue");
     setManualNotes("");
   };
 
   const handleManualSubmit = async () => {
-    if (!manualDate) {
-      toast.error("Selecione uma data.");
+    if (!manualDate || manualDate.length !== 10) {
+      toast.error("Selecione uma data no formato DD/MM/AAAA.");
       return;
     }
 
+    const dateParts = manualDate.split("/");
+    if (dateParts.length !== 3) {
+      toast.error("Data com formato inválido.");
+      return;
+    }
+    const isoDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
     try {
       if (manualAction === "attendance") {
-        const attendanceDateObj = parseISO(manualDate);
+        const attendanceDateObj = parseISO(isoDate);
         attendanceDateObj.setUTCHours(12);
 
-        const isoDateString = manualDate + "T12:00:00.000Z";
+        const isoDateString = isoDate + "T12:00:00.000Z";
 
         await checkIn(
           studentId,
@@ -302,11 +309,11 @@ export const AdminStudentCard: React.FC = () => {
       } else if (manualAction === "grade") {
         // Do not increment degrees for retrospective (past) grade dates
         const todayIso = new Date().toISOString().split("T")[0];
-        const isFutureOrToday = manualDate >= todayIso;
+        const isFutureOrToday = isoDate >= todayIso;
 
         // Avoid adding duplicate grade for the same date
         const alreadyHasGradeOnDate = (student.specialDates || []).some(
-          (sd) => sd.type === "grade" && sd.date === manualDate,
+          (sd) => sd.type === "grade" && sd.date === isoDate,
         );
         if (alreadyHasGradeOnDate) {
           toast.error("Já existe um grau registrado nessa data.");
@@ -317,7 +324,7 @@ export const AdminStudentCard: React.FC = () => {
             specialDates: [
               ...student.specialDates,
               {
-                date: manualDate,
+                date: isoDate,
                 type: "grade",
                 notes: manualNotes.trim() || undefined,
               },
@@ -341,11 +348,11 @@ export const AdminStudentCard: React.FC = () => {
           belt: manualBelt,
           degrees: 0,
           program: calculateProgram(newProgram, manualBelt, 0),
-          lastGraduationDate: manualDate,
+          lastGraduationDate: isoDate,
           specialDates: [
             ...student.specialDates,
             {
-              date: manualDate,
+              date: isoDate,
               type: "graduation",
               notes: fullNotes,
             },
@@ -499,12 +506,24 @@ export const AdminStudentCard: React.FC = () => {
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">
-              Data
+              Data (DD/MM/AAAA)
             </label>
             <input
-              type="date"
+              type="text"
               value={manualDate}
-              onChange={(e) => setManualDate(e.target.value)}
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
+              onChange={(e) => {
+                let val = e.target.value.replace(/\D/g, "");
+                if (val.length > 8) val = val.slice(0, 8);
+                let formatted = val;
+                if (val.length > 4) {
+                  formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+                } else if (val.length > 2) {
+                  formatted = `${val.slice(0, 2)}/${val.slice(2)}`;
+                }
+                setManualDate(formatted);
+              }}
               className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm"
             />
           </div>
