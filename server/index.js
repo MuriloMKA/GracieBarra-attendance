@@ -927,7 +927,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Retorna todos os perfis associados a essa mesma senha
-    const profiles = validUsersFound.map((u) => ({
+    const profiles = users.map((u) => ({
       id: u._id.toString(),
       email: u.email,
       role: u.role,
@@ -1133,3 +1133,4 @@ connectDB().then(() => {
     console.log(`📱 Acesse pelo celular em http://SEU_IP_LOCAL:${PORT}`);
   });
 });
+
