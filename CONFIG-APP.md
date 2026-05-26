@@ -1,110 +1,56 @@
-# 📱 Configuração do App - IMPORTANTE
+# Deploy Web
 
-## ⚠️ O QUE ESTAVA ERRADO
+Este projeto agora roda como **aplicação web** e é publicado pelo Railway.
 
-O `capacitor.config.json` estava configurado com:
+## Como funciona
 
-```json
-"url": "http://192.168.15.200:5173"
+- O frontend é compilado pelo Vite para `dist/`
+- O backend Express serve a build estática automaticamente
+- Você não precisa mais de Capacitor, Android ou iOS
+
+## Railway
+
+Configuração recomendada:
+
+- Build command: `npm install --include=dev && npm run build`
+- Start command: `node server/index.js`
+
+Variáveis mínimas:
+
+```env
+MONGODB_URI=...
+JWT_SECRET=...
+NODE_ENV=production
 ```
 
-Isso fazia o app tentar **carregar do servidor de desenvolvimento** em vez de usar os **arquivos locais** do build!
+## Domínio
 
-## ✅ SOLUÇÃO APLICADA
+No Railway:
 
-### capacitor.config.json (PRODUÇÃO)
+1. Abra o serviço da aplicação
+2. Vá em `Settings`
+3. Entre em `Networking`
+4. Clique em `Custom Domain`
+5. Adicione o domínio desejado
 
-- **SEM** propriedade `url`
-- App usa arquivos LOCAIS do `dist/`
-- Standalone - funciona sem servidor rodando
-- API: `http://192.168.15.200:3001` (compilado no código)
+## QR Code
 
-### capacitor.config.dev.json (DESENVOLVIMENTO)
+O leitor de QR Code usa a câmera do navegador.
 
-- **COM** propriedade `url: "http://192.168.15.200:5173"`
-- App carrega do servidor Vite (live reload)
-- Requer `npm run dev` rodando
+- Em produção precisa de HTTPS
+- Em desenvolvimento funciona em `localhost`
+- Em celular, o navegador vai pedir permissão de câmera
 
-## 🚀 Como Usar
+## Desenvolvimento local
 
-### Para atualizar o app após mudanças de código:
-
-**Opção 1 - Script automático (RECOMENDADO):**
-
-```bash
-atualizar-app.cmd
-```
-
-**Opção 2 - Manual:**
-
-```bash
-$env:VITE_API_URL="http://192.168.15.200:3001/api"
-npm run build
-npx cap sync android
-cd android
-./gradlew installDebug
-```
-
-### Para desenvolvimento no PC (browser):
-
-```bash
+```powershell
+npm install
+npm run backend
 npm run dev
 ```
 
-Acesse: http://localhost:5173
+Se quiser publicar mudanças, faça:
 
-### Para iniciar o backend:
-
-```bash
-node server/index.js
+```powershell
+npm run build
 ```
-
-Ou use o script: `iniciar.cmd`
-
-## 📝 Credenciais de Login
-
-- **Email:** admin@graciebarra.com
-- **Senha:** admin123
-
-## 🔧 Configurações Importantes
-
-### .env
-
-```
-VITE_API_URL=http://192.168.15.200:3001/api
-```
-
-Esta variável é compilada no build do app!
-
-### Backend (server/index.js)
-
-- Porta: 3001
-- Escuta em: 0.0.0.0 (todas as interfaces)
-- Acessível em: http://192.168.15.200:3001
-
-## 🌐 Rede
-
-- **IP Fixo:** 192.168.15.200
-- **Celular deve estar:** No mesmo WiFi (192.168.15.x)
-- **Firewall:** Porta 3001 liberada
-
-## ⚡ Modo Desenvolvimento vs Produção
-
-| Aspecto            | Produção (Atual)        | Desenvolvimento             |
-| ------------------ | ----------------------- | --------------------------- |
-| Arquivo config     | `capacitor.config.json` | `capacitor.config.dev.json` |
-| URL no config      | ❌ Sem URL              | ✅ Com URL (5173)           |
-| Arquivos           | Locais (dist/)          | Servidor Vite               |
-| Servidor Vite      | ❌ Não precisa          | ✅ Necessário               |
-| Live Reload        | ❌ Não                  | ✅ Sim                      |
-| Rebuild necessário | ✅ Sim                  | ❌ Não                      |
-
-## 🎯 Resumo
-
-O app agora está em **modo PRODUÇÃO standalone**:
-
-- ✅ Usa arquivos locais compilados
-- ✅ Backend em 192.168.15.200:3001 (hardcoded no build)
-- ✅ Não precisa do servidor Vite rodando
-- ✅ Funciona independente após instalado
-- ❌ Precisa rebuild + reinstall para ver mudanças de código
