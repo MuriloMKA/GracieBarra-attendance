@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   Bell,
-  CheckSquare,
   Menu,
   X,
 } from "lucide-react";
@@ -31,6 +30,16 @@ export const Header: React.FC = () => {
     : null;
 
   const isAdmin = currentUser.role === "admin";
+  const availableProfiles = currentUser.availableProfiles || [];
+
+  const handleProfileSwitch = async (profileId: string) => {
+    const profile = availableProfiles.find((p) => p.id === profileId);
+    if (!profile) return;
+
+    await switchProfile(profileId);
+    navigate(profile.role === "admin" ? "/admin" : "/student");
+    setMobileOpen(false);
+  };
 
   const studentLinks = [
     { to: "/student", label: "Início", icon: <LayoutDashboard size={16} /> },
@@ -73,6 +82,31 @@ export const Header: React.FC = () => {
           </div>
         </Link>
 
+        {availableProfiles.length > 1 && (
+          <div className="hidden md:flex flex-1 justify-center px-4">
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-full max-w-full overflow-x-auto">
+              {availableProfiles.map((profile) => {
+                const active = profile.id === currentUser.id;
+
+                return (
+                  <button
+                    key={profile.id}
+                    onClick={() => handleProfileSwitch(profile.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                      active
+                        ? "bg-white text-[#D10A11] shadow"
+                        : "text-gray-500 hover:text-gray-900"
+                    }`}
+                    title="Trocar de perfil"
+                  >
+                    {profile.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1">
           {links.map((link) => (
@@ -96,21 +130,27 @@ export const Header: React.FC = () => {
         {/* User + Logout */}
         <div className="flex items-center gap-3">
           <div className="hidden sm:block text-right">
-            {currentUser.availableProfiles &&
-            currentUser.availableProfiles.length > 1 ? (
-              <select
-                value={currentUser.id}
-                onChange={(e) => switchProfile(e.target.value)}
-                className="text-sm font-semibold text-[#003087] hover:text-[#D10A11] transition-colors bg-transparent border-none cursor-pointer focus:ring-0 text-right appearance-none"
-                style={{ direction: "rtl" }}
-                title="Trocar de perfil"
-              >
-                {currentUser.availableProfiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+            {availableProfiles.length > 1 ? (
+              <div className="flex items-center justify-end gap-1 mb-1 flex-wrap">
+                {availableProfiles.map((profile) => {
+                  const active = profile.id === currentUser.id;
+
+                  return (
+                    <button
+                      key={profile.id}
+                      onClick={() => handleProfileSwitch(profile.id)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                        active
+                          ? "bg-[#003087] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                      title={`Trocar para ${profile.name}`}
+                    >
+                      {profile.name}
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
               <div className="text-sm font-semibold text-gray-900">
                 {currentUser.name}
@@ -153,6 +193,27 @@ export const Header: React.FC = () => {
       {/* Mobile Nav */}
       {mobileOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 px-4 py-3 space-y-1">
+          {availableProfiles.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {availableProfiles.map((profile) => {
+                const active = profile.id === currentUser.id;
+
+                return (
+                  <button
+                    key={profile.id}
+                    onClick={() => handleProfileSwitch(profile.id)}
+                    className={`px-3 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                      active
+                        ? "bg-[#D10A11] text-white"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {profile.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {links.map((link) => (
             <Link
               key={link.to}

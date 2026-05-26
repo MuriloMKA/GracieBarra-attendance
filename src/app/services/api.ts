@@ -44,7 +44,16 @@ export interface LoginResponse {
     role: 'student' | 'admin';
     name: string;
     studentId?: string;
+    token: string;
   };
+  profiles: Array<{
+    id: string;
+    email: string;
+    role: 'student' | 'admin';
+    name: string;
+    studentId?: string;
+    token: string;
+  }>;
 }
 
 export const authService = {

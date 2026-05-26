@@ -102,9 +102,7 @@ const syncStudentAccessUser = async (student) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const studentId = student._id.toString();
-  const existingUser =
-    (await User.findOne({ studentId })) ||
-    (await User.findOne({ email: student.email }));
+  const existingUser = await User.findOne({ studentId });
 
   if (existingUser) {
     existingUser.email = student.email;
@@ -943,30 +941,38 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Retorna todos os perfis associados a essa mesma senha
-    const profiles = users.map((u) => ({
-      id: u._id.toString(),
-      email: u.email,
-      role: u.role,
-      name: u.name,
-      studentId: u.studentId,
-    }));
+    const profiles = users.map((u) => {
+      const profileToken = jwt.sign(
+        {
+          id: u._id.toString(),
+          email: u.email,
+          role: u.role,
+          studentId: u.studentId || null,
+        },
+        JWT_SECRET,
+        { expiresIn: "7d" },
+      );
+
+      return {
+        id: u._id.toString(),
+        email: u.email,
+        role: u.role,
+        name: u.name,
+        studentId: u.studentId,
+        token: profileToken,
+      };
+    });
 
     // O token assina o perfil "principal" (o primeiro encontrado).
     // O front-end lidará com a troca depois.
-    const token = jwt.sign(
-      {
-        id: authenticatedUser._id,
-        email: authenticatedUser.email,
-        role: authenticatedUser.role,
-        studentId: authenticatedUser.studentId || null,
-      },
-      JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const activeProfile =
+      profiles.find(
+        (profile) => profile.id === authenticatedUser._id.toString(),
+      ) || profiles[0];
 
     res.json({
-      token,
-      user: profiles[0], // Perfil ativo por padrão
+      token: activeProfile.token,
+      user: activeProfile, // Perfil ativo por padrão
       profiles: profiles, // Todos os perfis associados à conta
     });
   } catch (error) {

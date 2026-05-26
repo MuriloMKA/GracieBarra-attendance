@@ -82,7 +82,15 @@ export interface UserAccount {
   role: UserRole;
   name: string;
   studentId?: string;
-  availableProfiles?: any[];
+  token?: string;
+  availableProfiles?: {
+    id: string;
+    email: string;
+    role: UserRole;
+    name: string;
+    studentId?: string;
+    token: string;
+  }[];
 }
 
 interface DataContextType {
@@ -210,12 +218,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (!response.user)
         throw new Error("Usuário inválido gerado pelo servidor");
 
+      const profiles = response.profiles || [];
+      const activeProfile =
+        profiles.find((profile: any) => profile.id === response.user.id) ||
+        response.user;
+
       const userWithProfiles = {
-        ...response.user,
-        availableProfiles: response.profiles || [],
+        ...activeProfile,
+        availableProfiles: profiles,
       };
 
-      localStorage.setItem("gb_auth_token", response.token);
+      localStorage.setItem(
+        "gb_auth_token",
+        activeProfile.token || response.token,
+      );
       localStorage.setItem("gb_current_user", JSON.stringify(userWithProfiles));
       setCurrentUser(userWithProfiles);
 
@@ -247,10 +263,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ...profile,
         availableProfiles: currentUser.availableProfiles,
       };
+      localStorage.setItem("gb_auth_token", profile.token);
       localStorage.setItem("gb_current_user", JSON.stringify(switchedUser));
       setCurrentUser(switchedUser);
       toast.success(`Alternado para o perfil de ${profile.name}`);
-      window.location.reload(); // Força o refresh limpo dos dados na mesma máquina
+      await loadData();
     }
   };
 
