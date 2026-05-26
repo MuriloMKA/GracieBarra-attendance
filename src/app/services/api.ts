@@ -107,6 +107,11 @@ export const attendanceService = {
     const { data } = await api.patch(`/attendance/${id}`, updates);
     return data;
   },
+
+  async delete(id: string) {
+    const { data } = await api.delete(`/attendance/${id}`);
+    return data;
+  },
 };
 
 export const classService = {

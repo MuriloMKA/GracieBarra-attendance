@@ -501,6 +501,42 @@ const checkIfReadyForDegree = async (student) => {
   return progress.isReadyForDegree;
 };
 
+const handleConfirmedAttendanceDegreeProgress = async (attendance) => {
+  if (!attendance?.confirmed) return;
+
+  try {
+    const student = await Student.findById(attendance.studentId);
+    if (!student) return;
+
+    const degreeProgress = await getStudentDegreeProgress(student);
+
+    if (!degreeProgress.isReadyForDegree) {
+      await notifyStudentNearDegree(student, degreeProgress);
+      return;
+    }
+
+    student.degrees += 1;
+    student.lastGraduationDate = attendance.date.toISOString().split("T")[0];
+    student.notificationState = {
+      nearDegreeTarget: null,
+      nearDegreeLastSentAt: null,
+    };
+
+    student.specialDates.push({
+      date: attendance.date.toISOString().split("T")[0],
+      type: "grade",
+      notes: `${student.degrees}° Grau - Confirmado automaticamente`,
+    });
+
+    await student.save();
+    console.log(
+      `✅ Grau auto-incrementado: ${student.name} - ${student.degrees}° grau`,
+    );
+  } catch (degreeError) {
+    console.error("Erro ao auto-incrementar grau:", degreeError);
+  }
+};
+
 const notifyStudentNearDegree = async (student, progress) => {
   if (progress.isReadyForDegree)
     return { notified: false, reason: "already-ready" };
@@ -682,6 +718,11 @@ app.post("/api/attendance", authenticateToken, async (req, res) => {
   try {
     const attendance = new Attendance(req.body);
     await attendance.save();
+
+    if (attendance.confirmed) {
+      await handleConfirmedAttendanceDegreeProgress(attendance);
+    }
+
     res.status(201).json(attendance);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -700,52 +741,69 @@ app.patch("/api/attendance/:id", authenticateToken, async (req, res) => {
 
     // Se a presença foi confirmada, verificar se é uma data de grau previsto
     if (req.body.confirmed === true) {
-      try {
-        const student = await Student.findById(attendance.studentId);
-        if (student) {
-          const degreeProgress = await getStudentDegreeProgress(student);
-
-          if (!degreeProgress.isReadyForDegree) {
-            await notifyStudentNearDegree(student, degreeProgress);
-          }
-
-          // Verifica se o aluno está pronto para receber o próximo grau
-          const isReadyForDegree = degreeProgress.isReadyForDegree;
-
-          if (isReadyForDegree) {
-            // Auto-incrementa o grau
-            student.degrees += 1;
-            student.lastGraduationDate = attendance.date
-              .toISOString()
-              .split("T")[0];
-            student.notificationState = {
-              nearDegreeTarget: null,
-              nearDegreeLastSentAt: null,
-            };
-
-            // Adiciona aos special dates
-            student.specialDates.push({
-              date: attendance.date.toISOString().split("T")[0],
-              type: "grade",
-              notes: `${student.degrees}° Grau - Confirmado automaticamente`,
-            });
-
-            await student.save();
-
-            console.log(
-              `✅ Grau auto-incrementado: ${student.name} - ${student.degrees}° grau`,
-            );
-          }
-        }
-      } catch (degreeError) {
-        // Log o erro mas não falha a requisição de confirmação de presença
-        console.error("Erro ao auto-incrementar grau:", degreeError);
-      }
+      await handleConfirmedAttendanceDegreeProgress(attendance);
     }
 
     res.json(attendance);
   } catch (error) {
     console.error("Erro ao atualizar presença:", error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+const rollbackAttendanceDerivedStudentState = async (attendance) => {
+  if (!attendance?.studentId) return;
+
+  const student = await Student.findById(attendance.studentId);
+  if (!student) return;
+
+  const attendanceDate = new Date(attendance.date);
+  if (Number.isNaN(attendanceDate.getTime())) return;
+
+  const attendanceDateIso = attendanceDate.toISOString().split("T")[0];
+  const hasAutoGrade = student.specialDates?.some(
+    (sd) =>
+      sd.type === "grade" &&
+      sd.date === attendanceDateIso &&
+      typeof sd.notes === "string" &&
+      sd.notes.includes("Confirmado automaticamente"),
+  );
+
+  if (!hasAutoGrade) return;
+
+  student.specialDates = (student.specialDates || []).filter(
+    (sd) =>
+      !(
+        sd.type === "grade" &&
+        sd.date === attendanceDateIso &&
+        typeof sd.notes === "string" &&
+        sd.notes.includes("Confirmado automaticamente")
+      ),
+  );
+  student.degrees = Math.max(0, (student.degrees || 0) - 1);
+
+  const remainingRelevantDates = (student.specialDates || [])
+    .filter((sd) => sd.type === "grade" || sd.type === "graduation")
+    .map((sd) => sd.date)
+    .sort();
+
+  student.lastGraduationDate = remainingRelevantDates.at(-1) || "";
+
+  await student.save();
+};
+
+app.delete("/api/attendance/:id", authenticateToken, async (req, res) => {
+  try {
+    const attendance = await Attendance.findByIdAndDelete(req.params.id);
+    if (!attendance) {
+      return res.status(404).json({ error: "Attendance not found" });
+    }
+
+    await rollbackAttendanceDerivedStudentState(attendance);
+
+    res.json({ success: true, attendance });
+  } catch (error) {
+    console.error("Erro ao excluir presença:", error);
     res.status(400).json({ error: error.message });
   }
 });

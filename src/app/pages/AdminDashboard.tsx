@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router";
 import { useData, JJClass, Student, BeltColor } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -25,9 +25,9 @@ import {
 import {
   getDegreeProgress,
   getWeeksRequiredForNextDegree,
+  calculateCompletedWeeks,
 } from "../utils/degreeCalculator";
 import { QRScanner } from "../components/QRScanner";
-import api from "../services/api";
 
 interface StudentReadyForDegree extends Student {
   weeksCompleted: number;
@@ -38,14 +38,10 @@ interface StudentReadyForDegree extends Student {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, checkIn, updateStudent } =
-    useData();
+  const { currentUser, students, attendance, classes, checkIn } = useData();
 
   const [showScanner, setShowScanner] = useState(false);
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
-  const [studentsReadyForDegree, setStudentsReadyForDegree] = useState<
-    StudentReadyForDegree[]
-  >([]);
 
   const vibrate = (pattern: number | number[]) => {
     if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
@@ -55,19 +51,45 @@ export const AdminDashboard: React.FC = () => {
     return navigator.vibrate(pattern);
   };
 
-  // Buscar alunos prontos para receber grau
-  useEffect(() => {
-    const fetchStudentsReadyForDegree = async () => {
-      try {
-        const response = await api.get("/students/ready-for-degree");
-        setStudentsReadyForDegree(response.data);
-      } catch (error) {
-        console.error("Erro ao buscar alunos prontos para grau:", error);
-      }
-    };
+  const studentsReadyForDegree = useMemo<StudentReadyForDegree[]>(() => {
+    const readyStudents: StudentReadyForDegree[] = [];
 
-    fetchStudentsReadyForDegree();
-  }, [attendance, students]); // Recarrega quando attendance ou students mudarem
+    students.forEach((student) => {
+      const required = getWeeksRequiredForNextDegree(
+        student.belt,
+        student.degrees,
+        student.program,
+      );
+
+      if (!required) return;
+
+      const studentAttendance = attendance.filter(
+        (entry) =>
+          entry.confirmed &&
+          (entry.studentId === student.id ||
+            (entry.studentId as any)?._id === student.id ||
+            (entry.studentId as any)?.id === student.id),
+      );
+
+      const weeksCompleted = calculateCompletedWeeks(
+        studentAttendance,
+        student.lastGraduationDate,
+      );
+
+      if (weeksCompleted >= required) {
+        readyStudents.push({
+          ...student,
+          weeksCompleted: Math.floor(weeksCompleted * 10) / 10,
+          weeksRequired: required,
+          nextDegree: student.degrees + 1,
+          confirmedAttendances: studentAttendance.length,
+          progressUnit: student.program === "GBK" ? "semanas" : "treinos",
+        });
+      }
+    });
+
+    return readyStudents;
+  }, [attendance, students]);
 
   const confirmedToday = attendance.filter((a) => {
     if (!a.confirmed) return false;
@@ -135,71 +157,6 @@ export const AdminDashboard: React.FC = () => {
         toast.success(
           `Check-in de ${student.name} concluído às ${currentTime}!`,
         );
-
-        // Verifica sistema de graus após o checkin
-        try {
-          // Precisamos pegar a contagem de treinos atualizada (que agora inclui o checkIn recém-feito na DB)
-          // Mas como o estado React da presença pode não ter atualizado reativamente a tempo,
-          // Vamos calcular simulando a presença extra.
-
-          const progProgram = calculateProgram(
-            student.program,
-            student.belt,
-            student.degrees,
-          );
-          const required = getWeeksRequiredForNextDegree(
-            student.belt,
-            student.degrees,
-            progProgram,
-          );
-
-          if (required && required > 0) {
-            // Simulamos o array de attendances com a nova presença adicionada
-            const simulatedAttendance = [
-              ...attendance,
-              {
-                id: "simulated-now",
-                studentId: student.id,
-                classId: "manual-scan",
-                date: today.toISOString(),
-                status: "present",
-                confirmed: true,
-              },
-            ] as any[];
-
-            // Obtém progresso re-calculado
-            const lastGraduationDate =
-              student.lastGraduationDate || today.toISOString();
-
-            // Usa as funções internas para ver se bateu o total
-            const progressObj = getDegreeProgress(
-              simulatedAttendance,
-              lastGraduationDate,
-              student.belt,
-              student.degrees,
-              progProgram,
-            );
-
-            if (progressObj && progressObj.isReadyForGraduation) {
-              const dateIso = today.toISOString().split("T")[0];
-              await updateStudent({
-                ...student,
-                degrees: student.degrees + 1,
-                specialDates: [
-                  ...student.specialDates,
-                  {
-                    date: dateIso,
-                    type: "grade",
-                    notes: "Grau automático pós Check-in",
-                  },
-                ],
-              });
-              toast.success(`Grau automático atribuído para ${student.name}!`);
-            }
-          }
-        } catch (e) {
-          console.error("Erro ao validar grau automático", e);
-        }
       });
     } catch (error) {
       toast.error("QR Code inválido!");

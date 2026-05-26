@@ -62,7 +62,10 @@ interface AttendanceCardProps {
   }>;
   selectedHistoryBeltKey?: string;
   onSelectHistoryBelt?: (key: string) => void;
-  onCellClick?: (date: string, existingType?: "graduation") => void;
+  onCellClick?: (
+    date: string,
+    existingType?: "graduation" | "attendance",
+  ) => void;
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -81,6 +84,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   onCellClick,
 }) => {
   const isCompact = compact && !adminMode;
+  const canInteractWithCells = adminMode && !!onCellClick;
 
   const actualProgram = calculateProgram(
     student.program,
@@ -425,28 +429,32 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               className={`border-r border-gray-200 last:border-r-0 text-center align-middle relative ${isCompact ? "h-6" : "h-7"}
                                 ${!isValidDay ? "bg-gray-100" : ""}
                                 ${isWeekendDay ? "bg-gray-900" : ""}
-                                ${adminMode && isValidDay && !isWeekendDay ? "cursor-pointer hover:bg-yellow-50" : ""}
+                                ${canInteractWithCells && isValidDay && !isWeekendDay ? "cursor-pointer hover:bg-yellow-50" : ""}
                                 ${isTodayColumn && isValidDay && !isWeekendDay ? "bg-amber-50/70" : ""}
                                 ${isTodayCell ? "ring-2 ring-inset ring-amber-400 bg-amber-100/90" : ""}
                               `}
                               onClick={() => {
                                 if (
-                                  adminMode &&
+                                  canInteractWithCells &&
                                   isValidDay &&
                                   !isWeekendDay &&
                                   onCellClick
                                 ) {
                                   onCellClick(
                                     dateKey,
-                                    specialDate?.type === "graduation"
-                                      ? "graduation"
-                                      : undefined,
+                                    attendanceCount > 0
+                                      ? "attendance"
+                                      : specialDate?.type === "graduation"
+                                        ? "graduation"
+                                        : undefined,
                                   );
                                 }
                               }}
                               title={
                                 isAttended
-                                  ? `Presença: ${day}/${monthIdx + 1}`
+                                  ? canInteractWithCells
+                                    ? `Clique para remover presença: ${day}/${monthIdx + 1}`
+                                    : `Presença: ${day}/${monthIdx + 1}`
                                   : specialDate?.type === "graduation"
                                     ? `Graduação: ${day}/${monthIdx + 1}`
                                     : specialDate?.type === "grade"

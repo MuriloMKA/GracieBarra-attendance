@@ -61,6 +61,16 @@ const getPreviousBelt = (
   return orderedBelts[currentIndex - 1];
 };
 
+const getMaxDegreesForBelt = (program: Program, belt: BeltColor): number => {
+  if (program === "GBK") {
+    if (belt === "White" || belt === "GreyWhite") return 5;
+    return 11;
+  }
+
+  if (belt === "Black") return 6;
+  return 4;
+};
+
 const withDayBefore = (isoDate: string): string => {
   const date = parseISO(isoDate);
   date.setDate(date.getDate() - 1);
@@ -93,12 +103,18 @@ interface BeltHistorySegment {
 
 export const AdminStudentCard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { students, attendance, updateStudent, removeSpecialDate, checkIn } =
-    useData();
+  const {
+    students,
+    attendance,
+    updateStudent,
+    removeSpecialDate,
+    checkIn,
+    rejectAttendance,
+  } = useData();
 
   const [year, setYear] = useState(new Date().getFullYear());
   const [manualAction, setManualAction] = useState<
-    "grade" | "graduation" | "attendance"
+    "grade" | "graduation" | "attendance" | "attendance-remove"
   >("grade");
   const [manualDate, setManualDate] = useState(() =>
     format(new Date(), "dd/MM/yyyy"),
@@ -306,10 +322,26 @@ export const AdminStudentCard: React.FC = () => {
         );
 
         toast.success("Presença adicionada com sucesso.");
+      } else if (manualAction === "attendance-remove") {
+        const attendanceEntry = studentAttendance.find(
+          (a) => a.date.slice(0, 10) === isoDate,
+        );
+
+        if (!attendanceEntry) {
+          toast.error("Não existe presença registrada nesse dia.");
+          return;
+        }
+
+        await rejectAttendance(attendanceEntry.id || attendanceEntry._id || "");
+        toast.success("Presença removida com sucesso.");
       } else if (manualAction === "grade") {
-        // Do not increment degrees for retrospective (past) grade dates
-        const todayIso = new Date().toISOString().split("T")[0];
-        const isFutureOrToday = isoDate >= todayIso;
+        const maxDegrees = getMaxDegreesForBelt(student.program, student.belt);
+        if (student.degrees >= maxDegrees) {
+          toast.error(
+            "Esse aluno já está no limite de graus dessa faixa. Para avançar, use Adicionar Faixa.",
+          );
+          return;
+        }
 
         // Avoid adding duplicate grade for the same date
         const alreadyHasGradeOnDate = (student.specialDates || []).some(
@@ -320,7 +352,7 @@ export const AdminStudentCard: React.FC = () => {
         } else {
           await updateStudent({
             ...student,
-            degrees: isFutureOrToday ? student.degrees + 1 : student.degrees,
+            degrees: student.degrees + 1,
             specialDates: [
               ...student.specialDates,
               {
@@ -370,8 +402,44 @@ export const AdminStudentCard: React.FC = () => {
 
   const handleRemoveSpecialDate = async (specialDateId?: string) => {
     if (!specialDateId) return;
+
+    const specialDateToRemove = student.specialDates.find(
+      (sd) => sd.id === specialDateId || sd._id === specialDateId,
+    );
+
+    if (!specialDateToRemove) {
+      toast.error("Evento não encontrado.");
+      return;
+    }
+
     await removeSpecialDate(studentId, specialDateId);
     toast.success("Evento removido do histórico.");
+  };
+
+  const handleCellClick = async (
+    date: string,
+    existingType?: "graduation" | "attendance",
+  ) => {
+    if (existingType === "attendance") {
+      const attendanceEntry = studentAttendance.find(
+        (a) => a.date.slice(0, 10) === date,
+      );
+
+      if (!attendanceEntry) {
+        toast.error("Presença não encontrada nesse dia.");
+        return;
+      }
+
+      await rejectAttendance(attendanceEntry.id || attendanceEntry._id || "");
+      return;
+    }
+
+    if (existingType === "graduation") {
+      toast.info("Use o histórico abaixo para remover a graduação.");
+      return;
+    }
+
+    toast.info("Esse dia não possui presença para remover.");
   };
 
   return (
@@ -465,25 +533,36 @@ export const AdminStudentCard: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => setManualAction("attendance")}
-              className={`flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+              className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "attendance"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-green-600 text-white border-green-600 shadow-md"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50"
               }`}
             >
               Adicionar Presença
             </button>
             <button
               type="button"
+              onClick={() => setManualAction("attendance-remove")}
+              className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
+                manualAction === "attendance-remove"
+                  ? "bg-gray-900 text-white border-gray-900 shadow-md"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+              }`}
+            >
+              Remover Presença
+            </button>
+            <button
+              type="button"
               onClick={() => setManualAction("grade")}
-              className={`flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+              className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "grade"
-                  ? "bg-[#003087] text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-[#003087] text-white border-[#003087] shadow-md"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-[#003087] hover:bg-blue-50"
               }`}
             >
               Adicionar Grau
@@ -494,10 +573,10 @@ export const AdminStudentCard: React.FC = () => {
                 setManualAction("graduation");
                 setManualBelt(graduationBeltOptions[0] || "Blue");
               }}
-              className={`flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+              className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "graduation"
-                  ? "bg-[#D10A11] text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-[#D10A11] text-white border-[#D10A11] shadow-md"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-[#D10A11] hover:bg-red-50"
               }`}
             >
               Adicionar Faixa
@@ -547,6 +626,13 @@ export const AdminStudentCard: React.FC = () => {
             </div>
           )}
 
+          {manualAction === "attendance-remove" && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              Digite a data da presença que deseja remover. O sistema vai apagar
+              a marcação e atualizar a faixa automaticamente.
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               type="button"
@@ -569,7 +655,7 @@ export const AdminStudentCard: React.FC = () => {
           student={displayStudent}
           attendanceHistory={filteredAttendance}
           year={year}
-          adminMode={false}
+          adminMode={true}
           historyBeltOptions={beltHistory.map((segment) => ({
             key: segment.key,
             belt: segment.belt,

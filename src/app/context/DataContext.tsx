@@ -337,14 +337,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const rejectAttendance = async (attendanceId: string) => {
     try {
-      // Por enquanto, vamos remover localmente
-      // TODO: Adicionar endpoint DELETE no backend
-      setAttendance(
-        attendance.filter(
-          (a) => a.id !== attendanceId && a._id !== attendanceId,
-        ),
-      );
-      toast.info("Check-in removido.");
+      await attendanceService.delete(attendanceId);
+      await refreshData();
+      toast.info("Presença removida.");
     } catch (error: any) {
       console.error("Erro ao rejeitar presença:", error);
       toast.error("Erro ao remover check-in");
@@ -433,11 +428,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       );
       if (!student) throw new Error("Aluno não encontrado");
 
+      const specialDateToRemove = student.specialDates.find(
+        (sd) => sd.id === specialDateId || sd._id === specialDateId,
+      );
+
       const updatedStudent = {
         ...student,
         specialDates: student.specialDates.filter(
           (sd) => sd.id !== specialDateId && sd._id !== specialDateId,
         ),
+        degrees:
+          specialDateToRemove?.type === "grade"
+            ? Math.max(0, student.degrees - 1)
+            : student.degrees,
       };
 
       await updateStudent(updatedStudent);
