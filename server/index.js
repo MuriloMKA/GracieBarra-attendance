@@ -125,6 +125,20 @@ const syncStudentAccessUser = async (student) => {
   return user;
 };
 
+const syncExistingStudentAccessUsers = async () => {
+  const students = await Student.find({ email: { $exists: true, $ne: null } });
+  let syncedCount = 0;
+
+  for (const student of students) {
+    const syncedUser = await syncStudentAccessUser(student);
+    if (syncedUser) {
+      syncedCount += 1;
+    }
+  }
+
+  return syncedCount;
+};
+
 // MongoDB Connection
 const connectDB = async () => {
   try {
@@ -1153,6 +1167,9 @@ connectDB().then(async () => {
     // Drop old unique indexes if they exist to allow multiple profiles with same email
     await User.collection.dropIndex("email_1").catch(() => {});
     await Student.collection.dropIndex("email_1").catch(() => {});
+
+    const syncedCount = await syncExistingStudentAccessUsers();
+    console.log(`🔄 Perfis de alunos sincronizados: ${syncedCount}`);
   } catch (e) {
     console.log("Not possible to drop indexes, might not exist.");
   }
