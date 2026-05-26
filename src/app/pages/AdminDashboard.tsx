@@ -47,6 +47,14 @@ export const AdminDashboard: React.FC = () => {
     StudentReadyForDegree[]
   >([]);
 
+  const vibrate = (pattern: number | number[]) => {
+    if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
+      return false;
+    }
+
+    return navigator.vibrate(pattern);
+  };
+
   // Buscar alunos prontos para receber grau
   useEffect(() => {
     const fetchStudentsReadyForDegree = async () => {
@@ -97,9 +105,7 @@ export const AdminDashboard: React.FC = () => {
         return;
       }
 
-      if (navigator.vibrate) {
-        navigator.vibrate(200);
-      }
+      vibrate([80, 40, 120]);
 
       scannerCooldowns.current.set(studentId, now);
 

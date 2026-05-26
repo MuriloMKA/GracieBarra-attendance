@@ -17,6 +17,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScansRef = useRef<Map<string, number>>(new Map());
 
+  const vibrate = (pattern: number | number[]) => {
+    if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
+      return false;
+    }
+
+    return navigator.vibrate(pattern);
+  };
+
   const mapCameraError = (err: any): string => {
     const message = `${err?.message || ""}`.toLowerCase();
     const name = err?.name;
@@ -67,18 +75,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       }
 
       // Feedback físico de sucesso (1 vibração média)
-      if (navigator.vibrate) {
-        navigator.vibrate(200);
-      }
+      vibrate([80, 40, 120]);
 
       // Manda processar a presença
       onScanSuccess(decodedText);
     } catch (e) {
       // O texto lido não é um JSON ou não pertence aos alunos
       // Feedback físico de erro (padrão de vibração dupla rápida)
-      if (navigator.vibrate) {
-        navigator.vibrate([100, 100, 100]);
-      }
+      vibrate([80, 50, 80, 50, 80]);
       // Nós não chamamos o "onScanSuccess()" de propósito aqui.
       // Desta forma bloqueamos o texto "QR Code inválido" na notificação!
       // Fica visível usando o feedback do celular mas o painel em cima não enlouquece.

@@ -167,6 +167,11 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     .filter((sd) => sd.type === "grade")
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  const today = new Date();
+  const highlightCurrentDate = year === today.getFullYear();
+  const currentMonthIdx = today.getMonth();
+  const currentDay = today.getDate();
+
   return (
     <div
       className={`rounded-2xl overflow-hidden shadow-2xl w-full border-4 ${style.outerBorder}`}
@@ -356,13 +361,15 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                 <tbody>
                   {MONTHS.map((month, monthIdx) => {
                     const daysInMonth = getDaysInMonth(year, monthIdx);
+                    const isCurrentMonth =
+                      highlightCurrentDate && monthIdx === currentMonthIdx;
                     return (
                       <tr
                         key={month}
-                        className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors"
+                        className={`border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors ${isCurrentMonth ? "bg-amber-50/60" : ""}`}
                       >
                         <td
-                          className={`font-bold text-gray-700 border-r border-gray-200 uppercase tracking-wider whitespace-nowrap ${isCompact ? "px-2 py-1 text-[10px]" : "px-3 py-1 text-[11px]"}`}
+                          className={`font-bold text-gray-700 border-r border-gray-200 uppercase tracking-wider whitespace-nowrap ${isCompact ? "px-2 py-1 text-[10px]" : "px-3 py-1 text-[11px]"} ${isCurrentMonth ? "bg-amber-100 text-amber-900 border-amber-200" : ""}`}
                         >
                           {MONTHS_SHORT[monthIdx]}
                         </td>
@@ -383,6 +390,10 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                             isValidDay && !isWeekendDay
                               ? specialDatesMap.get(dateKey)
                               : undefined;
+                          const isTodayColumn =
+                            highlightCurrentDate && day === currentDay;
+                          const isTodayCell =
+                            isTodayColumn && isCurrentMonth && isValidDay;
 
                           const renderAttendanceDots = (count: number) => {
                             if (count <= 0) return null;
@@ -415,6 +426,8 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                 ${!isValidDay ? "bg-gray-100" : ""}
                                 ${isWeekendDay ? "bg-gray-900" : ""}
                                 ${adminMode && isValidDay && !isWeekendDay ? "cursor-pointer hover:bg-yellow-50" : ""}
+                                ${isTodayColumn && isValidDay && !isWeekendDay ? "bg-amber-50/70" : ""}
+                                ${isTodayCell ? "ring-2 ring-inset ring-amber-400 bg-amber-100/90" : ""}
                               `}
                               onClick={() => {
                                 if (
@@ -469,6 +482,13 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               ) : isAttended ? (
                                 renderAttendanceDots(attendanceCount)
                               ) : null}
+                              {isTodayCell && !specialDate && !isAttended && (
+                                <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
+                                  <span className="mt-0.5 inline-flex items-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] font-black text-white shadow-sm">
+                                    HOJE
+                                  </span>
+                                </div>
+                              )}
                             </td>
                           );
                         })}
