@@ -11,6 +11,7 @@ import {
   Check,
   ArrowLeft,
   TrendingUp,
+  Printer,
 } from "lucide-react";
 import {
   BeltDisplay,
@@ -269,16 +270,23 @@ export const AdminStudents: React.FC = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-[#D10A11] hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all"
-        >
-          <UserPlus size={18} />
-          Novo Aluno
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/admin/students/print-qrcodes"
+            className="flex items-center gap-2 bg-[#003087] hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow transition-all"
+          >
+            <Printer size={18} />
+            Imprimir QR Codes
+          </Link>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-[#D10A11] hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all"
+          >
+            <UserPlus size={18} />
+            Novo Aluno
+          </button>
+        </div>
       </div>
-
-      {/* Search */}
       <div className="relative max-w-md">
         <Search
           size={18}

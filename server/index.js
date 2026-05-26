@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 import { configureMongoSrvDns } from "../mongo-srv-dns.js";
 
 dotenv.config();
@@ -1147,6 +1149,16 @@ connectDB().then(async () => {
     await Student.collection.dropIndex("email_1").catch(() => {});
   } catch (e) {
     console.log("Not possible to drop indexes, might not exist.");
+  }
+
+  // Se a build web existir, sirva os arquivos estáticos da pasta /dist (SPA)
+  const distPath = path.resolve("./dist");
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api")) return next();
+      res.sendFile(path.join(distPath, "index.html"));
+    });
   }
 
   initializeFirebaseMessaging();

@@ -106,7 +106,6 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
         />
         <div className="text-center">
           <p className="text-sm font-bold text-gray-900">{student.name}</p>
-          <p className="text-xs text-gray-500">{student.belt}</p>
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import { StudentDashboard } from "./pages/StudentDashboard";
 import { StudentCard } from "./pages/StudentCard";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminStudents } from "./pages/AdminStudents";
+import { PrintQRCodes } from "./pages/PrintQRCodes";
 import { AdminStudentCard } from "./pages/AdminStudentCard";
 import { AdminClasses } from "./pages/AdminClasses";
 import { AdminNotifications } from "./pages/AdminNotifications";
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "admin", element: <AdminDashboard /> },
           { path: "admin/students", element: <AdminStudents /> },
+          { path: "admin/students/print-qrcodes", element: <PrintQRCodes /> },
           { path: "admin/students/:id/card", element: <AdminStudentCard /> },
           { path: "admin/classes", element: <AdminClasses /> },
           { path: "admin/notifications", element: <AdminNotifications /> },

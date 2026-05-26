@@ -15,6 +15,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const [isStarting, setIsStarting] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const lastScansRef = useRef<Map<string, number>>(new Map());
 
   const mapCameraError = (err: any): string => {
     const message = `${err?.message || ""}`.toLowerCase();
@@ -48,9 +49,41 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   };
 
   const handleDecoded = async (decodedText: string) => {
-    // If the user wants continuous scanning, we shouldn't stop the scanner
-    // Let's just pass the decoded text text out. We can let the parent handle the cooldown.
-    onScanSuccess(decodedText);
+    const now = Date.now();
+    const lastScanTime = lastScansRef.current.get(decodedText) || 0;
+
+    // Cooldown de 5 segundos para a mesma leitura exata
+    if (now - lastScanTime < 5000) {
+      return;
+    }
+
+    lastScansRef.current.set(decodedText, now);
+
+    try {
+      // Valida se o QR Code lido é de fato um JSON do sistema Gracie Barra
+      const parsed = JSON.parse(decodedText);
+      if (!parsed.studentId) {
+        throw new Error("Formato inválido: Falta studentId.");
+      }
+
+      // Feedback físico de sucesso (1 vibração média)
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+
+      // Manda processar a presença
+      onScanSuccess(decodedText);
+    } catch (e) {
+      // O texto lido não é um JSON ou não pertence aos alunos
+      // Feedback físico de erro (padrão de vibração dupla rápida)
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 100, 100]);
+      }
+      // Nós não chamamos o "onScanSuccess()" de propósito aqui.
+      // Desta forma bloqueamos o texto "QR Code inválido" na notificação!
+      // Fica visível usando o feedback do celular mas o painel em cima não enlouquece.
+      return;
+    }
   };
 
   const startScanner = async () => {
