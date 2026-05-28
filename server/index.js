@@ -62,6 +62,35 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const createRateLimiter = ({ windowMs, max, message }) => {
+  const requestCounts = new Map();
+
+  return (req, res, next) => {
+    const key =
+      req.user?.id || req.ip || req.socket?.remoteAddress || "anonymous";
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    const timestamps = (requestCounts.get(key) || []).filter(
+      (timestamp) => timestamp > windowStart,
+    );
+
+    if (timestamps.length >= max) {
+      return res.status(429).json({ error: message });
+    }
+
+    timestamps.push(now);
+    requestCounts.set(key, timestamps);
+    next();
+  };
+};
+
+const confirmDegreeRateLimit = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 5,
+  message:
+    "Muitas confirmações de grau em pouco tempo. Tente novamente em instantes.",
+});
+
 const formatBirthDatePassword = (birthDate) => {
   if (!birthDate || typeof birthDate !== "string") {
     return null;
@@ -504,6 +533,7 @@ app.post(
   "/api/students/:id/confirm-degree",
   authenticateToken,
   requireTeacherOrAdmin,
+  confirmDegreeRateLimit,
   async (req, res) => {
     try {
       const student = await Student.findById(req.params.id);
@@ -656,6 +686,7 @@ app.post(
   "/api/notifications",
   authenticateToken,
   requireTeacherOrAdmin,
+  confirmDegreeRateLimit,
   async (req, res) => {
     try {
       const {
