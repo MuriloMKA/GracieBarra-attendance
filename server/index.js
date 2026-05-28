@@ -205,6 +205,7 @@ const studentSchema = new mongoose.Schema(
       ],
     },
     degrees: { type: Number, default: 0 },
+    active: { type: Boolean, default: true },
     lastGraduationDate: String,
     nextDegreeDate: String,
     birthDate: String,
@@ -480,6 +481,35 @@ app.put("/api/students/:id", authenticateToken, async (req, res) => {
 
 // Attendance Routes (protegidas)
 app.get("/api/attendance", authenticateToken, async (req, res) => {
+  app.patch(
+    "/api/students/:id/active",
+    authenticateToken,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const { active } = req.body;
+        if (typeof active !== "boolean") {
+          return res
+            .status(400)
+            .json({ error: "Campo active deve ser booleano" });
+        }
+
+        const student = await Student.findByIdAndUpdate(
+          req.params.id,
+          { active },
+          { new: true },
+        );
+
+        if (!student)
+          return res.status(404).json({ error: "Student not found" });
+
+        await syncStudentAccessUser(student);
+        res.json(student);
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    },
+  );
   try {
     const { studentId } = req.query;
     const query = studentId ? { studentId } : {};
@@ -783,6 +813,16 @@ app.post("/api/auth/login", async (req, res) => {
 
     if (!authenticatedUser) {
       return res.status(401).json({ error: "Credenciais inválidas" });
+    }
+
+    if (authenticatedUser.role === "student" && authenticatedUser.studentId) {
+      const linkedStudent = await Student.findById(authenticatedUser.studentId);
+      if (linkedStudent && linkedStudent.active === false) {
+        return res.status(403).json({
+          error:
+            "Este aluno está inativo no sistema. Peça a reativação ao professor.",
+        });
+      }
     }
 
     // Retorna todos os perfis associados a essa mesma senha

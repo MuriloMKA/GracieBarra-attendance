@@ -52,7 +52,7 @@ export const AdminDashboard: React.FC = () => {
   const [showConfirmedModal, setShowConfirmedModal] = useState(false);
   const [showGraduationsModal, setShowGraduationsModal] = useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
-  const [showAbsentCount, setShowAbsentCount] = useState(true);
+  const [showTotalCount, setShowTotalCount] = useState(true);
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
 
   const vibrate = (pattern: number | number[]) => {
@@ -63,10 +63,15 @@ export const AdminDashboard: React.FC = () => {
     return navigator.vibrate(pattern);
   };
 
+  const activeStudents = useMemo(
+    () => students.filter((student) => student.active !== false),
+    [students],
+  );
+
   const studentsReadyForDegree = useMemo<StudentReadyForDegree[]>(() => {
     const readyStudents: StudentReadyForDegree[] = [];
 
-    students.forEach((student) => {
+    activeStudents.forEach((student) => {
       const required = getWeeksRequiredForNextDegree(
         student.belt,
         student.degrees,
@@ -101,7 +106,7 @@ export const AdminDashboard: React.FC = () => {
     });
 
     return readyStudents;
-  }, [attendance, students]);
+  }, [attendance, activeStudents]);
 
   const absentStudents = useMemo<AbsentStudent[]>(() => {
     const now = new Date();
@@ -111,7 +116,7 @@ export const AdminDashboard: React.FC = () => {
       now.getDate(),
     );
 
-    return students
+    return activeStudents
       .map((student) => {
         const studentId = student.id || student._id;
         const confirmedAttendances = attendance
@@ -146,10 +151,16 @@ export const AdminDashboard: React.FC = () => {
       })
       .filter((student) => student.daysAbsent > 15)
       .sort((a, b) => b.daysAbsent - a.daysAbsent);
-  }, [attendance, students]);
+  }, [attendance, activeStudents]);
+
+  const activeStudentIds = new Set(
+    activeStudents.map((student) => student.id || student._id),
+  );
 
   const confirmedToday = attendance.filter((a) => {
     if (!a.confirmed) return false;
+    const attendanceStudentId = (a.studentId as any)?._id || a.studentId;
+    if (!activeStudentIds.has(attendanceStudentId)) return false;
     const d = parseISO(a.date);
     const today = new Date();
     return (
@@ -164,6 +175,8 @@ export const AdminDashboard: React.FC = () => {
     return attendance
       .filter((a) => {
         if (!a.confirmed) return false;
+        const attendanceStudentId = (a.studentId as any)?._id || a.studentId;
+        if (!activeStudentIds.has(attendanceStudentId)) return false;
         const d = parseISO(a.date);
         return (
           d.getFullYear() === today.getFullYear() &&
@@ -172,7 +185,7 @@ export const AdminDashboard: React.FC = () => {
         );
       })
       .map((a) => {
-        const student = students.find(
+        const student = activeStudents.find(
           (s) =>
             (s.id || s._id) === a.studentId ||
             (a.studentId as any)?._id === (s.id || s._id),
@@ -186,11 +199,11 @@ export const AdminDashboard: React.FC = () => {
           time: (a as any).classTime || a.date?.slice(11, 16) || "-",
         };
       });
-  }, [attendance, students]);
+  }, [attendance, activeStudents, activeStudentIds]);
 
   const graduationEvents = useMemo(() => {
     const events: Array<{ name: string; date: string; notes?: string }> = [];
-    students.forEach((s) => {
+    activeStudents.forEach((s) => {
       (s.specialDates || [])
         .filter((sd) => sd.type === "graduation")
         .forEach((sd) =>
@@ -200,7 +213,7 @@ export const AdminDashboard: React.FC = () => {
     // sort desc
     events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
     return events;
-  }, [students]);
+  }, [activeStudents]);
 
   const absentStudentsCount = absentStudents.length;
 
@@ -428,8 +441,29 @@ export const AdminDashboard: React.FC = () => {
               Total Alunos
             </span>
           </div>
-          <div className="text-3xl font-black text-gray-900">
-            {students.length}
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-3xl font-black text-gray-900">
+              {showTotalCount ? activeStudents.length : "•••"}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTotalCount((value) => !value);
+              }}
+              className="text-gray-500 hover:text-gray-900 transition-colors"
+              aria-label={
+                showTotalCount ? "Ocultar quantidade" : "Mostrar quantidade"
+              }
+              title={
+                showTotalCount ? "Ocultar quantidade" : "Mostrar quantidade"
+              }
+            >
+              {showTotalCount ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+          </div>
+          <div className="text-xs text-gray-500 mt-1 font-medium">
+            Alunos ativos
           </div>
         </div>
         <div
@@ -469,32 +503,14 @@ export const AdminDashboard: React.FC = () => {
           onClick={() => setShowAbsentModal(true)}
           className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
         >
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3">
-              <AlertCircle size={20} className="text-amber-600" />
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Ausentes +15 Dias
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAbsentCount((value) => !value);
-              }}
-              className="text-gray-500 hover:text-gray-900 transition-colors"
-              aria-label={
-                showAbsentCount ? "Ocultar quantidade" : "Mostrar quantidade"
-              }
-              title={
-                showAbsentCount ? "Ocultar quantidade" : "Mostrar quantidade"
-              }
-            >
-              {showAbsentCount ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
+          <div className="flex items-center gap-3 mb-2">
+            <AlertCircle size={20} className="text-amber-600" />
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Ausentes +15 Dias
+            </span>
           </div>
           <div className="text-3xl font-black text-amber-600">
-            {showAbsentCount ? absentStudentsCount : "•••"}
+            {absentStudentsCount}
           </div>
         </div>
       </div>

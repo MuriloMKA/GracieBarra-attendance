@@ -44,6 +44,7 @@ export interface Student {
   program: Program;
   belt: BeltColor;
   degrees: number;
+  active?: boolean;
   lastGraduationDate: string;
   nextDegreeDate: string;
   birthDate: string;
@@ -160,7 +161,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       // Normalizar IDs
-      setStudents(studentsData.map((s: any) => ({ ...s, id: s._id || s.id })));
+      setStudents(
+        studentsData.map((s: any) => ({
+          ...s,
+          active: s.active ?? true,
+          id: s._id || s.id,
+        })),
+      );
       setAttendance(
         attendanceData.map((a: any) => ({ ...a, id: a._id || a.id })),
       );

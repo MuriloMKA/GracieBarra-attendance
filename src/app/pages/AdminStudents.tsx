@@ -21,6 +21,7 @@ import {
   calculateProgram,
 } from "../components/BeltDisplay";
 import { StudentQRCode } from "../components/StudentQRCode";
+import { Switch } from "../components/ui/switch";
 import { toast } from "sonner";
 import { getDegreeProgress } from "../utils/degreeCalculator";
 
@@ -185,6 +186,10 @@ export const AdminStudents: React.FC = () => {
         a.confirmed,
     ).length;
 
+  const activeStudentsCount = students.filter(
+    (student) => student.active !== false,
+  ).length;
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingStudent) {
@@ -266,7 +271,7 @@ export const AdminStudents: React.FC = () => {
               Gerenciar Alunos
             </h1>
             <p className="text-gray-500 text-sm">
-              {students.length} alunos cadastrados
+              {activeStudentsCount} ativos · {students.length} cadastrados
             </p>
           </div>
         </div>
@@ -336,7 +341,7 @@ export const AdminStudents: React.FC = () => {
                 return (
                   <tr
                     key={student.id}
-                    className="hover:bg-blue-50/30 transition-colors"
+                    className={`hover:bg-blue-50/30 transition-colors ${student.active === false ? "opacity-60 bg-gray-50" : ""}`}
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -389,7 +394,35 @@ export const AdminStudents: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center gap-2 mr-2">
+                          <span
+                            className={`text-[11px] font-bold uppercase ${student.active === false ? "text-gray-500" : "text-green-700"}`}
+                          >
+                            {student.active === false ? "Inativo" : "Ativo"}
+                          </span>
+                          <Switch
+                            checked={student.active !== false}
+                            onCheckedChange={async (checked) => {
+                              try {
+                                await updateStudent({
+                                  ...student,
+                                  active: checked,
+                                });
+                                toast.success(
+                                  checked
+                                    ? `${student.name} reativado com sucesso!`
+                                    : `${student.name} inativado com sucesso!`,
+                                );
+                              } catch (error) {
+                                console.error(
+                                  "Erro ao alternar status do aluno:",
+                                  error,
+                                );
+                              }
+                            }}
+                          />
+                        </div>
                         <button
                           onClick={() => setEditingStudent({ ...student })}
                           className="p-2 text-[#003087] hover:bg-blue-100 rounded-lg transition-colors"

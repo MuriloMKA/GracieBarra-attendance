@@ -1,5 +1,5 @@
 import { BeltColor, Attendance } from "../context/DataContext";
-import { startOfWeek, endOfWeek, parseISO, differenceInWeeks, addWeeks, format } from "date-fns";
+import { startOfWeek, parseISO, addDays, format } from "date-fns";
 
 const isValidIsoDate = (value?: string | null): value is string => {
   return typeof value === "string" && value.trim().length > 0;
@@ -203,21 +203,22 @@ export const calculateNextDegreeDate = (
     return "Pronto para graduação!";
   }
 
-  let baselineDate = isValidIsoDate(lastGraduationDate) 
-    ? parseISO(lastGraduationDate) 
-    : parseISO(validAttendances.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0].date);
+  const addBusinessDays = (date: Date, businessDays: number) => {
+    let currentDate = new Date(date);
+    let remainingDays = Math.max(0, businessDays);
 
-  const now = new Date();
-  let realWeeksPassed = differenceInWeeks(now, baselineDate);
-  if (realWeeksPassed === 0) realWeeksPassed = 1; // minimum 1 week to avoid infinity
-  const progressRate = progressCompleted / realWeeksPassed;
+    while (remainingDays > 0) {
+      currentDate = addDays(currentDate, 1);
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        remainingDays -= 1;
+      }
+    }
 
-  if (progressRate <= 0) {
-    return "Sem previsão (sem treinos recentes)";
-  }
+    return currentDate;
+  };
 
-  const realWeeksNeeded = progressRemaining / progressRate;
-  const estimatedDate = addWeeks(now, Math.ceil(realWeeksNeeded));
+  const estimatedDate = addBusinessDays(new Date(), Math.ceil(progressRemaining));
 
   return format(estimatedDate, "dd/MM/yyyy");
 };
