@@ -702,13 +702,19 @@ app.post(
           .json({ error: "Titulo e mensagem sao obrigatorios" });
       }
 
+      const author = await mongoose
+        .model("User")
+        .findById(req.user.id)
+        .select("name")
+        .lean();
+
       const notification = new Notification({
         title: title.trim(),
         message: message.trim(),
         audience,
         targetStudentId,
         createdByUserId: req.user.id,
-        createdByName: req.user.name || null,
+        createdByName: author?.name || null,
         createdByRole: req.user.role || null,
       });
 
