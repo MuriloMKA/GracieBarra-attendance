@@ -83,6 +83,54 @@ const userSchema = new mongoose.Schema(
 const Student = mongoose.model("Student", studentSchema);
 const User = mongoose.model("User", userSchema);
 
+const decodeHtmlEntities = (value) =>
+  String(value || "").replace(/&#(\d+);/g, (_, code) =>
+    String.fromCharCode(Number(code)),
+  );
+
+const normalizeStudentName = (value) =>
+  decodeHtmlEntities(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const parseBrazilianDateToIso = (value) => {
+  if (!value || value === "sem graus") {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
+    const [day, month, year] = normalized.split("/");
+    return `${year}-${month}-${day}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  return null;
+};
+
+const mergeSpecialDates = (existingDates = [], importedDates = []) => {
+  const merged = [...(existingDates || [])];
+  const seen = new Set(
+    merged.map((entry) => `${entry.type || ""}|${entry.date || ""}`),
+  );
+
+  importedDates.forEach((entry) => {
+    const key = `${entry.type || ""}|${entry.date || ""}`;
+    if (!seen.has(key)) {
+      merged.push(entry);
+      seen.add(key);
+    }
+  });
+
+  return merged;
+};
+
 const formatBirthDatePassword = (birthDate) => {
   if (!birthDate || typeof birthDate !== "string") {
     return null;
@@ -146,17 +194,6 @@ async function bulkImportStudents() {
 
     for (const data of studentsData) {
       try {
-        // Verificar se aluno já existe por email
-        if (data.email) {
-          const existingStudent = await Student.findOne({ email: data.email });
-          if (existingStudent) {
-            console.log(`⏭️  Aluno já existe: ${data.name} (${data.email})`);
-            skipped++;
-            continue;
-          }
-        }
-
-        // Criar estudante
         const studentPayload = {
           name: data.name,
           program: data.program,
@@ -164,17 +201,39 @@ async function bulkImportStudents() {
           degrees: data.degrees,
           birthDate: data.birthDate,
           qrCode: data.qrCode,
+          specialDates: data.specialDates || [],
         };
+
+        if (data.lastGraduationDate) {
+          studentPayload.lastGraduationDate = data.lastGraduationDate;
+        }
 
         if (data.email) {
           studentPayload.email = data.email;
         }
 
-        const student = new Student(studentPayload);
+        const existingStudent = data.email
+          ? await Student.findOne({ email: data.email })
+          : await Student.findOne({ name: data.name });
 
-        const savedStudent = await student.save();
-        console.log(`✅ Aluno criado: ${data.name} (${data.program})`);
-        createdStudents++;
+        let savedStudent;
+        if (existingStudent) {
+          existingStudent.set({
+            ...studentPayload,
+            specialDates: mergeSpecialDates(
+              existingStudent.specialDates,
+              studentPayload.specialDates,
+            ),
+          });
+          savedStudent = await existingStudent.save();
+          console.log(`✅ Aluno atualizado: ${data.name} (${data.program})`);
+          skipped++;
+        } else {
+          const student = new Student(studentPayload);
+          savedStudent = await student.save();
+          console.log(`✅ Aluno criado: ${data.name} (${data.program})`);
+          createdStudents++;
+        }
 
         // Criar usuário de acesso SE tiver email e data de nascimento válida
         const derivedPassword = formatBirthDatePassword(data.birthDate);

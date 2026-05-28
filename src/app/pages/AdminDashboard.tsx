@@ -14,6 +14,9 @@ import {
   TrendingUp,
   AlertCircle,
   Bell,
+  X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -37,10 +40,19 @@ interface StudentReadyForDegree extends Student {
   progressUnit?: "semanas" | "treinos";
 }
 
+interface AbsentStudent extends Student {
+  lastAttendanceDate: string | null;
+  daysAbsent: number;
+}
+
 export const AdminDashboard: React.FC = () => {
   const { currentUser, students, attendance, classes, checkIn } = useData();
 
   const [showScanner, setShowScanner] = useState(false);
+  const [showConfirmedModal, setShowConfirmedModal] = useState(false);
+  const [showGraduationsModal, setShowGraduationsModal] = useState(false);
+  const [showAbsentModal, setShowAbsentModal] = useState(false);
+  const [showAbsentCount, setShowAbsentCount] = useState(true);
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
 
   const vibrate = (pattern: number | number[]) => {
@@ -91,6 +103,51 @@ export const AdminDashboard: React.FC = () => {
     return readyStudents;
   }, [attendance, students]);
 
+  const absentStudents = useMemo<AbsentStudent[]>(() => {
+    const now = new Date();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    return students
+      .map((student) => {
+        const studentId = student.id || student._id;
+        const confirmedAttendances = attendance
+          .filter((entry) => {
+            if (!entry.confirmed) return false;
+            const entryStudentId =
+              (entry.studentId as any)?._id || entry.studentId;
+            return entryStudentId === studentId;
+          })
+          .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+        const lastAttendanceDate = confirmedAttendances[0]?.date || null;
+        const lastAttendanceStart = lastAttendanceDate
+          ? new Date(
+              parseISO(lastAttendanceDate).getFullYear(),
+              parseISO(lastAttendanceDate).getMonth(),
+              parseISO(lastAttendanceDate).getDate(),
+            )
+          : null;
+        const daysAbsent = lastAttendanceStart
+          ? Math.floor(
+              (todayStart.getTime() - lastAttendanceStart.getTime()) /
+                (1000 * 60 * 60 * 24),
+            )
+          : Number.POSITIVE_INFINITY;
+
+        return {
+          ...student,
+          lastAttendanceDate,
+          daysAbsent,
+        };
+      })
+      .filter((student) => student.daysAbsent > 15)
+      .sort((a, b) => b.daysAbsent - a.daysAbsent);
+  }, [attendance, students]);
+
   const confirmedToday = attendance.filter((a) => {
     if (!a.confirmed) return false;
     const d = parseISO(a.date);
@@ -101,6 +158,51 @@ export const AdminDashboard: React.FC = () => {
       d.getDate() === today.getDate()
     );
   }).length;
+
+  const confirmedTodayList = useMemo(() => {
+    const today = new Date();
+    return attendance
+      .filter((a) => {
+        if (!a.confirmed) return false;
+        const d = parseISO(a.date);
+        return (
+          d.getFullYear() === today.getFullYear() &&
+          d.getMonth() === today.getMonth() &&
+          d.getDate() === today.getDate()
+        );
+      })
+      .map((a) => {
+        const student = students.find(
+          (s) =>
+            (s.id || s._id) === a.studentId ||
+            (a.studentId as any)?._id === (s.id || s._id),
+        );
+        return {
+          id: a._id || a.id,
+          name: student
+            ? student.name
+            : (a as any).name || "Aluno desconhecido",
+          className: (a as any).className || (a as any).classId || "-",
+          time: (a as any).classTime || a.date?.slice(11, 16) || "-",
+        };
+      });
+  }, [attendance, students]);
+
+  const graduationEvents = useMemo(() => {
+    const events: Array<{ name: string; date: string; notes?: string }> = [];
+    students.forEach((s) => {
+      (s.specialDates || [])
+        .filter((sd) => sd.type === "graduation")
+        .forEach((sd) =>
+          events.push({ name: s.name, date: sd.date, notes: sd.notes }),
+        );
+    });
+    // sort desc
+    events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    return events;
+  }, [students]);
+
+  const absentStudentsCount = absentStudents.length;
 
   // Aulas disponíveis hoje
   const today = new Date();
@@ -188,8 +290,137 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Confirmados Hoje Modal */}
+      {showConfirmedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-xl p-6 mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Confirmados Hoje</h3>
+              <button
+                onClick={() => setShowConfirmedModal(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                <X />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {confirmedTodayList.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  Nenhuma presença confirmada hoje.
+                </div>
+              ) : (
+                confirmedTodayList.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
+                  >
+                    <div>
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-xs text-gray-500">{c.className}</div>
+                    </div>
+                    <div className="text-sm text-gray-600">{c.time}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Graduações Modal */}
+      {showGraduationsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-2xl p-6 mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Graduações</h3>
+              <button
+                onClick={() => setShowGraduationsModal(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                <X />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {graduationEvents.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  Nenhuma graduação registrada.
+                </div>
+              ) : (
+                graduationEvents.map((g, idx) => (
+                  <div
+                    key={`${g.name}-${idx}`}
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
+                  >
+                    <div>
+                      <div className="font-medium truncate">{g.name}</div>
+                      {g.notes && (
+                        <div className="text-xs text-gray-500">{g.notes}</div>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {g.date
+                        ? format(parseISO(g.date), "dd/MM/yyyy")
+                        : "Sem data"}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ausentes Há Mais de 15 Dias Modal */}
+      {showAbsentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-2xl p-6 mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Ausentes Há Mais de 15 Dias</h3>
+              <button
+                onClick={() => setShowAbsentModal(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                <X />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {absentStudents.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  Nenhum aluno com mais de 15 dias sem vir.
+                </div>
+              ) : (
+                absentStudents.map((student) => (
+                  <div
+                    key={student._id || student.id}
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
+                  >
+                    <div>
+                      <div className="font-medium truncate">{student.name}</div>
+                      <div className="text-xs text-gray-500">
+                        Última presença:{" "}
+                        {student.lastAttendanceDate
+                          ? format(
+                              parseISO(student.lastAttendanceDate),
+                              "dd/MM/yyyy",
+                            )
+                          : "Sem registros"}
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {Number.isFinite(student.daysAbsent)
+                        ? `${student.daysAbsent} dias`
+                        : "Sem registros"}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <Users size={20} className="text-[#003087]" />
@@ -201,7 +432,10 @@ export const AdminDashboard: React.FC = () => {
             {students.length}
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <div
+          onClick={() => setShowConfirmedModal(true)}
+          className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+        >
           <div className="flex items-center gap-3 mb-2">
             <CheckSquare size={20} className="text-green-600" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -212,7 +446,10 @@ export const AdminDashboard: React.FC = () => {
             {confirmedToday}
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <div
+          onClick={() => setShowGraduationsModal(true)}
+          className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+        >
           <div className="flex items-center gap-3 mb-2">
             <Award size={20} className="text-[#D10A11]" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -226,6 +463,38 @@ export const AdminDashboard: React.FC = () => {
                 s.specialDates.filter((sd) => sd.type === "graduation").length,
               0,
             )}
+          </div>
+        </div>
+        <div
+          onClick={() => setShowAbsentModal(true)}
+          className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+        >
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} className="text-amber-600" />
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Ausentes +15 Dias
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAbsentCount((value) => !value);
+              }}
+              className="text-gray-500 hover:text-gray-900 transition-colors"
+              aria-label={
+                showAbsentCount ? "Ocultar quantidade" : "Mostrar quantidade"
+              }
+              title={
+                showAbsentCount ? "Ocultar quantidade" : "Mostrar quantidade"
+              }
+            >
+              {showAbsentCount ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+          </div>
+          <div className="text-3xl font-black text-amber-600">
+            {showAbsentCount ? absentStudentsCount : "•••"}
           </div>
         </div>
       </div>
@@ -308,9 +577,8 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {studentsReadyForDegree.map((student) => (
-              <Link
+              <div
                 key={student._id}
-                to={`/admin/students/${student._id}/card`}
                 className="bg-white rounded-lg border border-amber-200 p-4 hover:shadow-md transition-all group"
               >
                 <div className="flex items-start justify-between">
@@ -362,21 +630,53 @@ export const AdminDashboard: React.FC = () => {
                     <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
                       Pronto!
                     </div>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        try {
+                          const token = localStorage.getItem("gb_auth_token");
+                          const res = await fetch(
+                            `/api/students/${student._id}/confirm-degree`,
+                            {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: token ? `Bearer ${token}` : "",
+                              },
+                              body: JSON.stringify({
+                                notes: "Confirmado pelo professor via painel",
+                              }),
+                            },
+                          );
+                          if (!res.ok) throw new Error(await res.text());
+                          toast.success("Grau confirmado com sucesso");
+                          window.location.reload();
+                        } catch (err) {
+                          console.error(err);
+                          toast.error("Erro ao confirmar grau");
+                        }
+                      }}
+                      className="px-3 py-1 rounded-md bg-[#D10A11] text-white text-xs font-bold hover:opacity-90"
+                      title="Confirmar Grau"
+                    >
+                      Confirmar Grau
+                    </button>
                     <ArrowRight
                       size={16}
                       className="text-gray-400 group-hover:text-[#D10A11] group-hover:translate-x-1 transition-all"
                     />
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
 
           <div className="mt-4 p-3 bg-amber-100 rounded-lg">
             <p className="text-xs text-amber-800">
-              <strong>💡 Dica:</strong> Ao confirmar a presença desses alunos
-              hoje, o grau será automaticamente incrementado no cartão de
-              frequência!
+              <strong>💡 Dica:</strong> A presença já confirmada não confirma o
+              grau automaticamente. Use o botão de confirmação de grau para
+              registrar o grau quando desejar.
             </p>
           </div>
         </div>
