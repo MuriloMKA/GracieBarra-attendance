@@ -33,10 +33,9 @@ JWT_SECRET=sua_chave_secreta
 PORT=3001
 ```
 
-Opcional, se usar notificações por Firebase:
+Se for configurar envio de email, defina também:
 
 ```env
-FIREBASE_SERVICE_ACCOUNT_BASE64=...
 EMAIL_USER=...
 EMAIL_PASS=...
 ```
@@ -76,7 +75,7 @@ JWT_SECRET=...
 NODE_ENV=production
 ```
 
-Se usar email/Firebase, mantenha também as variáveis correspondentes.
+Se usar email, mantenha também as variáveis correspondentes.
 
 ## Domínio personalizado no Railway
 

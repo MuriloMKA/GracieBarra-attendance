@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useData } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -13,6 +13,7 @@ import {
   ArrowRight,
   CheckCircle2,
   X,
+  MessageSquareMore,
 } from "lucide-react";
 import {
   BeltDisplay,
@@ -22,9 +23,41 @@ import {
   getNextDegreeDisplayLabel,
 } from "../components/BeltDisplay";
 import { getDegreeProgress } from "../utils/degreeCalculator";
+import { notificationService } from "../services/api";
+
+interface SystemNotification {
+  _id?: string;
+  id?: string;
+  title: string;
+  message: string;
+  createdAt?: string;
+  createdByName?: string | null;
+}
 
 export const StudentDashboard: React.FC = () => {
   const { currentUser, students, attendance, classes } = useData();
+  const [recentNotifications, setRecentNotifications] = useState<
+    SystemNotification[]
+  >([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await notificationService.getRecent(5);
+        if (mounted) setRecentNotifications(data);
+      } catch (error) {
+        console.error("Erro ao carregar notificacoes do mural:", error);
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const student = students.find(
     (s) => (s.id || s._id) === currentUser?.studentId,
@@ -176,6 +209,51 @@ export const StudentDashboard: React.FC = () => {
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graduações
           </div>
+        </div>
+      </div>
+
+      {/* Mural de Notificações */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <MessageSquareMore size={18} className="text-[#003087]" />
+          Mural de Notificações
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Os últimos avisos publicados pela equipe aparecem aqui.
+        </p>
+
+        <div className="space-y-3">
+          {recentNotifications.length === 0 ? (
+            <div className="text-sm text-gray-500">
+              Nenhuma notificação recente.
+            </div>
+          ) : (
+            recentNotifications.map((item) => (
+              <div
+                key={item._id || item.id}
+                className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-bold text-gray-900">{item.title}</div>
+                    <div className="text-sm text-gray-700 mt-1">
+                      {item.message}
+                    </div>
+                  </div>
+                  <div className="text-[11px] font-bold uppercase text-[#003087] whitespace-nowrap">
+                    {item.createdAt
+                      ? format(parseISO(item.createdAt), "dd/MM HH:mm")
+                      : "Agora"}
+                  </div>
+                </div>
+                {item.createdByName && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    Por {item.createdByName}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 

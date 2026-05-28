@@ -5,9 +5,58 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const lastGraduationPath = path.join(__dirname, "ultimo_grau_alunos.json");
+
 // Ler o JSON de alunos
 const alunosPath = path.join(__dirname, "AlunosGB.json");
 const alunos = JSON.parse(fs.readFileSync(alunosPath, "utf-8"));
+
+const decodeHtmlEntities = (value) =>
+  String(value || "").replace(/&#(\d+);/g, (_, code) =>
+    String.fromCharCode(Number(code)),
+  );
+
+const normalizeStudentName = (value) =>
+  decodeHtmlEntities(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const parseBrazilianDateToIso = (value) => {
+  if (!value || value === "sem graus") {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
+    const [day, month, year] = normalized.split("/");
+    return `${year}-${month}-${day}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  return null;
+};
+
+const loadLastGraduationMap = () => {
+  if (!fs.existsSync(lastGraduationPath)) {
+    return new Map();
+  }
+
+  const rawDates = JSON.parse(fs.readFileSync(lastGraduationPath, "utf-8"));
+  return new Map(
+    Object.entries(rawDates).map(([name, date]) => [
+      normalizeStudentName(name),
+      parseBrazilianDateToIso(date),
+    ]),
+  );
+};
+
+const lastGraduationByName = loadLastGraduationMap();
 
 // Mapear faixas em português para inglês
 const beltMap = {
@@ -116,6 +165,9 @@ const studentsToImport = alunos
       aluno["Data de Nascimento"],
     );
 
+    const lastGraduationDate =
+      lastGraduationByName.get(normalizeStudentName(aluno.Nome)) || null;
+
     // Email e senha
     const email = aluno.Email && aluno.Email !== "N/A" ? aluno.Email : null;
     const password = formatBirthDatePassword(aluno["Data de Nascimento"]);
@@ -126,6 +178,16 @@ const studentsToImport = alunos
       program: program,
       belt: belt,
       degrees: graus,
+      lastGraduationDate: lastGraduationDate,
+      specialDates: lastGraduationDate
+        ? [
+            {
+              date: lastGraduationDate,
+              type: "grade",
+              notes: "Último grau importado",
+            },
+          ]
+        : [],
       birthDate:
         aluno["Data de Nascimento"] && aluno["Data de Nascimento"] !== "N/A"
           ? aluno["Data de Nascimento"]
@@ -168,6 +230,13 @@ Object.entries(beltCount).forEach(([belt, count]) => {
 const skipCount = studentsToImport.filter((s) => s.skipEmailPassword).length;
 console.log(
   `\n⚠️ Alunos sem email ou data de nascimento completos: ${skipCount}`,
+);
+
+const studentsWithLastGraduation = studentsToImport.filter(
+  (s) => s.lastGraduationDate,
+).length;
+console.log(
+  `📌 Alunos com data do último grau importada: ${studentsWithLastGraduation}`,
 );
 
 // Salvar arquivo de importação

@@ -4,7 +4,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
@@ -62,6 +61,35 @@ const requireAdmin = (req, res, next) => {
   }
   next();
 };
+
+const createRateLimiter = ({ windowMs, max, message }) => {
+  const requestCounts = new Map();
+
+  return (req, res, next) => {
+    const key =
+      req.user?.id || req.ip || req.socket?.remoteAddress || "anonymous";
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    const timestamps = (requestCounts.get(key) || []).filter(
+      (timestamp) => timestamp > windowStart,
+    );
+
+    if (timestamps.length >= max) {
+      return res.status(429).json({ error: message });
+    }
+
+    timestamps.push(now);
+    requestCounts.set(key, timestamps);
+    next();
+  };
+};
+
+const confirmDegreeRateLimit = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 5,
+  message:
+    "Muitas confirmações de grau em pouco tempo. Tente novamente em instantes.",
+});
 
 const formatBirthDatePassword = (birthDate) => {
   if (!birthDate || typeof birthDate !== "string") {
@@ -229,23 +257,23 @@ const classSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-const deviceTokenSchema = new mongoose.Schema(
+const notificationSchema = new mongoose.Schema(
   {
-    userId: {
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    audience: {
+      type: String,
+      enum: ["all", "students", "teachers", "admins"],
+      default: "students",
+    },
+    targetStudentId: { type: String, default: null },
+    createdByUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      index: true,
       required: true,
     },
-    studentId: { type: String, default: null },
-    token: { type: String, unique: true, required: true },
-    platform: {
-      type: String,
-      enum: ["android", "ios", "web", "unknown"],
-      default: "unknown",
-    },
-    active: { type: Boolean, default: true },
-    lastSeenAt: { type: Date, default: Date.now },
+    createdByName: { type: String, default: null },
+    createdByRole: { type: String, default: null },
   },
   { timestamps: true },
 );
@@ -255,172 +283,7 @@ const Student = mongoose.model("Student", studentSchema);
 const Attendance = mongoose.model("Attendance", attendanceSchema);
 const User = mongoose.model("User", userSchema);
 const Class = mongoose.model("Class", classSchema);
-const DeviceToken = mongoose.model("DeviceToken", deviceTokenSchema);
-
-let firebaseMessaging = null;
-
-const initializeFirebaseMessaging = () => {
-  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const base64ServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-
-  if (!rawServiceAccount && !base64ServiceAccount) {
-    console.warn(
-      "⚠️ Push desativado: configure FIREBASE_SERVICE_ACCOUNT_JSON ou FIREBASE_SERVICE_ACCOUNT_BASE64",
-    );
-    return;
-  }
-
-  try {
-    const serviceAccount = rawServiceAccount
-      ? JSON.parse(rawServiceAccount)
-      : JSON.parse(
-          Buffer.from(base64ServiceAccount, "base64").toString("utf8"),
-        );
-
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    }
-
-    firebaseMessaging = admin.messaging();
-    console.log("✅ Firebase Messaging inicializado");
-  } catch (error) {
-    console.error("❌ Erro ao inicializar Firebase Messaging:", error.message);
-    firebaseMessaging = null;
-  }
-};
-
-const sanitizePushData = (data = {}) => {
-  return Object.fromEntries(
-    Object.entries(data).map(([key, value]) => [key, String(value ?? "")]),
-  );
-};
-
-const sendPushToTokens = async (tokens, notification, data = {}) => {
-  const uniqueTokens = [...new Set(tokens.filter(Boolean))];
-
-  if (!firebaseMessaging || uniqueTokens.length === 0) {
-    return {
-      sentCount: 0,
-      failedCount: uniqueTokens.length,
-      invalidTokens: [],
-      configured: Boolean(firebaseMessaging),
-    };
-  }
-
-  const chunks = [];
-  for (let i = 0; i < uniqueTokens.length; i += 500) {
-    chunks.push(uniqueTokens.slice(i, i + 500));
-  }
-
-  let sentCount = 0;
-  let failedCount = 0;
-  const invalidTokens = [];
-
-  for (const chunk of chunks) {
-    const response = await firebaseMessaging.sendEachForMulticast({
-      tokens: chunk,
-      notification,
-      data: sanitizePushData(data),
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "default",
-          sound: "default",
-        },
-      },
-      apns: {
-        headers: { "apns-priority": "10" },
-        payload: { aps: { sound: "default" } },
-      },
-    });
-
-    sentCount += response.successCount;
-    failedCount += response.failureCount;
-
-    response.responses.forEach((result, index) => {
-      if (!result.success) {
-        const code = result.error?.code;
-        if (
-          code === "messaging/registration-token-not-registered" ||
-          code === "messaging/invalid-registration-token"
-        ) {
-          invalidTokens.push(chunk[index]);
-        }
-      }
-    });
-  }
-
-  if (invalidTokens.length > 0) {
-    await DeviceToken.updateMany(
-      { token: { $in: invalidTokens } },
-      { $set: { active: false } },
-    );
-  }
-
-  return { sentCount, failedCount, invalidTokens, configured: true };
-};
-
-// Helper Functions para cálculo de graus
-const getWeeksRequiredForNextDegree = (belt, currentDegree, program) => {
-  // GBK (Crianças/Adolescentes) - TODOS os graus levam 1 mês (4 semanas)
-  if (program === "GBK") {
-    const maxDegrees = belt === "White" || belt === "GreyWhite" ? 5 : 11;
-    if (currentDegree >= maxDegrees) return null;
-    return 4; // 1 mês = 4 semanas
-  }
-
-  // ADULTOS
-  if (belt !== "Black" && currentDegree >= 4) return null;
-  if (belt === "Black" && currentDegree >= 6) return null;
-
-  const nextDegree = currentDegree + 1;
-
-  // Faixa Branca
-  if (belt === "White") {
-    if (nextDegree === 1) return 4;
-    if (nextDegree === 2) return 4;
-    if (nextDegree === 3) return 8;
-    if (nextDegree === 4) return 16;
-  }
-
-  // Faixa Azul
-  if (belt === "Blue") {
-    if (nextDegree === 1) return 16;
-    if (nextDegree === 2) return 20;
-    if (nextDegree === 3) return 20;
-    if (nextDegree === 4) return 20;
-  }
-
-  // Faixa Roxa
-  if (belt === "Purple") {
-    if (nextDegree === 1) return 12;
-    if (nextDegree === 2) return 12;
-    if (nextDegree === 3) return 16;
-    if (nextDegree === 4) return 16;
-  }
-
-  // Faixa Marrom
-  if (belt === "Brown") {
-    if (nextDegree === 1) return 12;
-    if (nextDegree === 2) return 12;
-    if (nextDegree === 3) return 16;
-    if (nextDegree === 4) return 16;
-  }
-
-  // Faixa Preta
-  if (belt === "Black") {
-    if (nextDegree === 1) return 156;
-    if (nextDegree === 2) return 156;
-    if (nextDegree === 3) return 156;
-    if (nextDegree === 4) return 260;
-    if (nextDegree === 5) return 260;
-    if (nextDegree === 6) return 260;
-  }
-
-  return null;
-};
+const Notification = mongoose.model("Notification", notificationSchema);
 
 const calculateCompletedWeeks = (attendanceRecords, lastGraduationDate) => {
   const graduationDate = new Date(lastGraduationDate);
@@ -499,93 +362,6 @@ const getStudentDegreeProgress = async (student) => {
 const checkIfReadyForDegree = async (student) => {
   const progress = await getStudentDegreeProgress(student);
   return progress.isReadyForDegree;
-};
-
-const handleConfirmedAttendanceDegreeProgress = async (attendance) => {
-  if (!attendance?.confirmed) return;
-
-  try {
-    const student = await Student.findById(attendance.studentId);
-    if (!student) return;
-
-    const degreeProgress = await getStudentDegreeProgress(student);
-
-    if (!degreeProgress.isReadyForDegree) {
-      await notifyStudentNearDegree(student, degreeProgress);
-      return;
-    }
-
-    student.degrees += 1;
-    student.lastGraduationDate = attendance.date.toISOString().split("T")[0];
-    student.notificationState = {
-      nearDegreeTarget: null,
-      nearDegreeLastSentAt: null,
-    };
-
-    student.specialDates.push({
-      date: attendance.date.toISOString().split("T")[0],
-      type: "grade",
-      notes: `${student.degrees}° Grau - Confirmado automaticamente`,
-    });
-
-    await student.save();
-    console.log(
-      `✅ Grau auto-incrementado: ${student.name} - ${student.degrees}° grau`,
-    );
-  } catch (degreeError) {
-    console.error("Erro ao auto-incrementar grau:", degreeError);
-  }
-};
-
-const notifyStudentNearDegree = async (student, progress) => {
-  if (progress.isReadyForDegree)
-    return { notified: false, reason: "already-ready" };
-  if (progress.remainingTrainings <= 0 || progress.remainingTrainings > 4) {
-    return { notified: false, reason: "outside-threshold" };
-  }
-
-  const state = student.notificationState || {};
-  if (state.nearDegreeTarget === progress.nextDegree) {
-    return { notified: false, reason: "already-notified" };
-  }
-
-  const studentUsers = await User.find({
-    role: "student",
-    studentId: student._id.toString(),
-  }).select("_id");
-
-  const userIds = studentUsers.map((u) => u._id);
-  if (userIds.length === 0) return { notified: false, reason: "no-user" };
-
-  const tokens = await DeviceToken.find({
-    userId: { $in: userIds },
-    active: true,
-  }).distinct("token");
-
-  if (tokens.length === 0) return { notified: false, reason: "no-token" };
-
-  const notification = {
-    title: "Voce esta perto do proximo grau!",
-    body: `${student.name}, faltam ${progress.remainingTrainings} treino(s) para o ${progress.nextDegree}° grau. Continue firme!`,
-  };
-
-  const result = await sendPushToTokens(tokens, notification, {
-    type: "near_degree",
-    studentId: student._id,
-    nextDegree: progress.nextDegree,
-    remainingTrainings: progress.remainingTrainings,
-  });
-
-  if (result.sentCount > 0) {
-    student.notificationState = {
-      nearDegreeTarget: progress.nextDegree,
-      nearDegreeLastSentAt: new Date(),
-    };
-    await student.save();
-    return { notified: true, sentCount: result.sentCount };
-  }
-
-  return { notified: false, reason: "send-failed" };
 };
 
 // Routes
@@ -718,11 +494,6 @@ app.post("/api/attendance", authenticateToken, async (req, res) => {
   try {
     const attendance = new Attendance(req.body);
     await attendance.save();
-
-    if (attendance.confirmed) {
-      await handleConfirmedAttendanceDegreeProgress(attendance);
-    }
-
     res.status(201).json(attendance);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -739,10 +510,8 @@ app.patch("/api/attendance/:id", authenticateToken, async (req, res) => {
     if (!attendance)
       return res.status(404).json({ error: "Attendance not found" });
 
-    // Se a presença foi confirmada, verificar se é uma data de grau previsto
-    if (req.body.confirmed === true) {
-      await handleConfirmedAttendanceDegreeProgress(attendance);
-    }
+    // Nota: não acionamos mais a confirmação automática de grau ao confirmar presenças.
+    // A confirmação do grau agora deve ser feita explicitamente via endpoint dedicado.
 
     res.json(attendance);
   } catch (error) {
@@ -750,6 +519,60 @@ app.patch("/api/attendance/:id", authenticateToken, async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+
+// Permitir que professores ou administradores confirmem manualmente o grau de um aluno
+const requireTeacherOrAdmin = (req, res, next) => {
+  if (req.user?.role === "admin" || req.user?.role === "teacher") return next();
+  return res
+    .status(403)
+    .json({ error: "Acesso restrito a professores e administradores" });
+};
+
+// Confirmar grau manualmente sem alterar presenças
+app.post(
+  "/api/students/:id/confirm-degree",
+  authenticateToken,
+  requireTeacherOrAdmin,
+  confirmDegreeRateLimit,
+  async (req, res) => {
+    try {
+      const student = await Student.findById(req.params.id);
+      if (!student) return res.status(404).json({ error: "Student not found" });
+
+      // Data fornecida no corpo ou hoje
+      const providedDate = req.body?.date;
+      let isoDate;
+      if (providedDate) {
+        const d = new Date(providedDate);
+        isoDate = !Number.isNaN(d.getTime())
+          ? d.toISOString().split("T")[0]
+          : null;
+      }
+      if (!isoDate) isoDate = new Date().toISOString().split("T")[0];
+
+      student.degrees = (student.degrees || 0) + 1;
+      student.lastGraduationDate = isoDate;
+      student.notificationState = {
+        nearDegreeTarget: null,
+        nearDegreeLastSentAt: null,
+      };
+
+      student.specialDates = student.specialDates || [];
+      student.specialDates.push({
+        date: isoDate,
+        type: "grade",
+        notes: req.body?.notes || "Confirmado pelo professor",
+      });
+
+      await student.save();
+
+      res.json({ success: true, student });
+    } catch (error) {
+      console.error("Erro ao confirmar grau manualmente:", error);
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
 
 const rollbackAttendanceDerivedStudentState = async (attendance) => {
   if (!attendance?.studentId) return;
@@ -859,129 +682,79 @@ app.delete("/api/classes/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Notifications Routes
 app.post(
-  "/api/notifications/register-device",
+  "/api/notifications",
   authenticateToken,
+  requireTeacherOrAdmin,
+  confirmDegreeRateLimit,
   async (req, res) => {
     try {
-      const { token, platform } = req.body;
+      const {
+        title,
+        message,
+        audience = "students",
+        targetStudentId = null,
+      } = req.body;
 
-      if (!token) {
-        return res
-          .status(400)
-          .json({ error: "Token do dispositivo é obrigatório" });
-      }
-
-      await DeviceToken.findOneAndUpdate(
-        { token },
-        {
-          $set: {
-            userId: req.user.id,
-            studentId: req.user.studentId || null,
-            platform: platform || "unknown",
-            active: true,
-            lastSeenAt: new Date(),
-          },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      );
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Erro ao registrar device token:", error);
-      res.status(500).json({ error: error.message });
-    }
-  },
-);
-
-app.get(
-  "/api/notifications/status",
-  authenticateToken,
-  requireAdmin,
-  async (req, res) => {
-    try {
-      const activeDeviceTokens = await DeviceToken.countDocuments({
-        active: true,
-      });
-      res.json({
-        pushConfigured: Boolean(firebaseMessaging),
-        activeDeviceTokens,
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
-);
-
-app.post(
-  "/api/notifications/broadcast",
-  authenticateToken,
-  requireAdmin,
-  async (req, res) => {
-    try {
-      if (!firebaseMessaging) {
-        return res.status(400).json({
-          error:
-            "Firebase nao configurado. Defina FIREBASE_SERVICE_ACCOUNT_JSON no backend.",
-        });
-      }
-
-      const { title, message } = req.body;
-      if (!title || !message) {
+      if (!title?.trim() || !message?.trim()) {
         return res
           .status(400)
           .json({ error: "Titulo e mensagem sao obrigatorios" });
       }
 
-      const tokens = await DeviceToken.find({ active: true }).distinct("token");
-      const result = await sendPushToTokens(
-        tokens,
-        { title, body: message },
-        { type: "broadcast" },
-      );
+      const author = await mongoose
+        .model("User")
+        .findById(req.user.id)
+        .select("name")
+        .lean();
 
-      res.json({
-        sentCount: result.sentCount,
-        failedCount: result.failedCount,
-        totalTokens: tokens.length,
+      const notification = new Notification({
+        title: title.trim(),
+        message: message.trim(),
+        audience,
+        targetStudentId,
+        createdByUserId: req.user.id,
+        createdByName: author?.name || null,
+        createdByRole: req.user.role || null,
       });
+
+      const savedNotification = await notification.save();
+      res.status(201).json(savedNotification);
     } catch (error) {
-      console.error("Erro ao enviar notificacao global:", error);
+      console.error("Erro ao criar notificacao interna:", error);
       res.status(500).json({ error: error.message });
     }
   },
 );
 
-app.post(
-  "/api/notifications/check-near-degree",
-  authenticateToken,
-  requireAdmin,
-  async (req, res) => {
-    try {
-      if (!firebaseMessaging) {
-        return res.status(400).json({
-          error:
-            "Firebase nao configurado. Defina FIREBASE_SERVICE_ACCOUNT_JSON no backend.",
-        });
-      }
+app.get("/api/notifications/recent", authenticateToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || "5", 10) || 5, 20);
+    const userRole = req.user?.role;
+    const studentId = req.user?.studentId || null;
 
-      const students = await Student.find();
-      let notifiedStudents = 0;
+    const query =
+      userRole === "student"
+        ? {
+            $or: [
+              { audience: "all" },
+              { audience: "students" },
+              ...(studentId ? [{ targetStudentId: studentId }] : []),
+            ],
+          }
+        : {};
 
-      for (const student of students) {
-        const progress = await getStudentDegreeProgress(student);
-        const result = await notifyStudentNearDegree(student, progress);
-        if (result.notified) notifiedStudents += 1;
-      }
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
 
-      res.json({ notifiedStudents, totalStudents: students.length });
-    } catch (error) {
-      console.error("Erro ao analisar notificacoes de grau:", error);
-      res.status(500).json({ error: error.message });
-    }
-  },
-);
+    res.json(notifications);
+  } catch (error) {
+    console.error("Erro ao buscar notificacoes recentes:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // User/Auth Routes
 app.post("/api/auth/login", async (req, res) => {
@@ -1243,7 +1016,6 @@ connectDB().then(async () => {
     });
   }
 
-  initializeFirebaseMessaging();
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     console.log(`📱 Acesse pelo celular em http://SEU_IP_LOCAL:${PORT}`);
