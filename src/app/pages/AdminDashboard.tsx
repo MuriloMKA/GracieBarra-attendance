@@ -25,11 +25,7 @@ import {
   getDegreeDisplayLabel,
   getNextDegreeDisplayLabel,
 } from "../components/BeltDisplay";
-import {
-  getDegreeProgress,
-  getWeeksRequiredForNextDegree,
-  calculateCompletedWeeks,
-} from "../utils/degreeCalculator";
+import { getDegreeProgress } from "../utils/degreeCalculator";
 import { QRScanner } from "../components/QRScanner";
 
 interface StudentReadyForDegree extends Student {
@@ -37,7 +33,7 @@ interface StudentReadyForDegree extends Student {
   weeksRequired: number;
   nextDegree: number;
   confirmedAttendances: number;
-  progressUnit?: "semanas" | "treinos";
+  progressUnit?: "treinos";
 }
 
 interface AbsentStudent extends Student {
@@ -72,14 +68,6 @@ export const AdminDashboard: React.FC = () => {
     const readyStudents: StudentReadyForDegree[] = [];
 
     activeStudents.forEach((student) => {
-      const required = getWeeksRequiredForNextDegree(
-        student.belt,
-        student.degrees,
-        student.program,
-      );
-
-      if (!required) return;
-
       const studentAttendance = attendance.filter(
         (entry) =>
           entry.confirmed &&
@@ -88,10 +76,20 @@ export const AdminDashboard: React.FC = () => {
             (entry.studentId as any)?.id === student.id),
       );
 
-      const weeksCompleted = calculateCompletedWeeks(
+      const degreeProgress = getDegreeProgress(
         studentAttendance,
         student.lastGraduationDate,
+        student.belt,
+        student.degrees,
+        student.program,
+        student.birthDate,
       );
+
+      const required = degreeProgress.weeksRequired;
+
+      if (!required) return;
+
+      const weeksCompleted = degreeProgress.weeksCompleted;
 
       if (weeksCompleted >= required) {
         readyStudents.push({
@@ -100,7 +98,7 @@ export const AdminDashboard: React.FC = () => {
           weeksRequired: required,
           nextDegree: student.degrees + 1,
           confirmedAttendances: studentAttendance.length,
-          progressUnit: student.program === "GBK" ? "semanas" : "treinos",
+          progressUnit: "treinos",
         });
       }
     });
@@ -607,17 +605,13 @@ export const AdminDashboard: React.FC = () => {
                         {student.name}
                       </div>
                       {(() => {
-                        const progressUnit =
-                          student.progressUnit ||
-                          (student.program === "GBK" ? "semanas" : "treinos");
-                        const completed =
-                          progressUnit === "semanas"
-                            ? student.weeksCompleted.toFixed(1)
-                            : Math.round(student.weeksCompleted).toString();
-                        const required =
-                          progressUnit === "semanas"
-                            ? String(student.weeksRequired)
-                            : String(Math.round(student.weeksRequired));
+                        const progressUnit = student.progressUnit || "treinos";
+                        const completed = Math.round(
+                          student.weeksCompleted,
+                        ).toString();
+                        const required = String(
+                          Math.round(student.weeksRequired),
+                        );
 
                         return (
                           <div className="text-xs text-gray-600">

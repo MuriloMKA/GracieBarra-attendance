@@ -38,6 +38,37 @@ const getAdultTrainingsRequiredForNextDegree = (
   return null;
 };
 
+const calculateAge = (birthDate?: string): number | null => {
+  if (!isValidIsoDate(birthDate)) return null;
+
+  const date = parseISO(birthDate);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+
+  return age;
+};
+
+const getGBKTrainingsRequiredForNextDegree = (
+  belt: BeltColor,
+  currentDegree: number,
+  birthDate?: string,
+): number | null => {
+  const age = calculateAge(birthDate);
+  const isKids = age !== null ? age <= 7 : false;
+  const trainingsRequired = isKids ? 8 : 12;
+
+  const maxDegrees = getMaxDegreesForGBK(belt);
+  if (currentDegree >= maxDegrees) return null;
+
+  return trainingsRequired;
+};
+
 const countCompletedTrainings = (
   attendanceRecords: Attendance[],
   lastGraduationDate?: string,
@@ -46,7 +77,8 @@ const countCompletedTrainings = (
 
   if (isValidIsoDate(lastGraduationDate)) {
     const graduationDate = parseISO(lastGraduationDate);
-    records = records.filter((a) => parseISO(a.date) >= graduationDate);
+    const nextDayStart = addDays(graduationDate, 1);
+    records = records.filter((a) => parseISO(a.date) >= nextDayStart);
   }
 
   const map = new Map<string, number>();
@@ -101,13 +133,11 @@ const getMaxDegreesForGBK = (belt: BeltColor): number => {
 export const getWeeksRequiredForNextDegree = (
   belt: BeltColor,
   currentDegree: number,
-  program?: string
+  program?: string,
+  birthDate?: string,
 ): number | null => {
-  // GBK (Crianças/Adolescentes) - TODOS os graus levam 1 mês (4 semanas)
   if (program === "GBK") {
-    const maxDegrees = getMaxDegreesForGBK(belt);
-    if (currentDegree >= maxDegrees) return null;
-    return 4; // 1 mês = 4 semanas
+    return getGBKTrainingsRequiredForNextDegree(belt, currentDegree, birthDate);
   }
 
   // ADULTOS
@@ -133,8 +163,9 @@ export const calculateCompletedWeeks = (
 
   if (isValidIsoDate(lastGraduationDate)) {
     const graduationDate = parseISO(lastGraduationDate);
+    const nextDayStart = addDays(graduationDate, 1);
     validAttendances = validAttendances.filter(
-      (a) => parseISO(a.date) >= graduationDate
+      (a) => parseISO(a.date) >= nextDayStart
     );
   }
 
@@ -184,18 +215,24 @@ export const calculateNextDegreeDate = (
   lastGraduationDate: string,
   belt: BeltColor,
   currentDegree: number,
-  program?: string
+  program?: string,
+  birthDate?: string
 ): string | null => {
-  const isGBK = program === "GBK";
-  const progressRequired = getWeeksRequiredForNextDegree(belt, currentDegree, program);
+  const progressRequired = getWeeksRequiredForNextDegree(
+    belt,
+    currentDegree,
+    program,
+    birthDate,
+  );
   if (!progressRequired) return null;
 
   const validAttendances = attendanceRecords.filter((a) => a.confirmed);
   if (validAttendances.length === 0) return "Sem previsão (sem treinos)";
 
-  const progressCompleted = isGBK
-    ? calculateCompletedWeeks(attendanceRecords, lastGraduationDate)
-    : calculateCompletedTrainings(attendanceRecords, lastGraduationDate);
+  const progressCompleted = calculateCompletedTrainings(
+    attendanceRecords,
+    lastGraduationDate,
+  );
 
   const progressRemaining = progressRequired - progressCompleted;
 
@@ -231,19 +268,26 @@ export const getDegreeProgress = (
   lastGraduationDate: string,
   belt: BeltColor,
   currentDegree: number,
-  program?: string
+  program?: string,
+  birthDate?: string,
 ) => {
-  const weeksRequired = getWeeksRequiredForNextDegree(belt, currentDegree, program);
-  const isGBK = program === "GBK";
-  const weeksCompleted = isGBK
-    ? calculateCompletedWeeks(attendanceRecords, lastGraduationDate)
-    : calculateCompletedTrainings(attendanceRecords, lastGraduationDate);
+  const weeksRequired = getWeeksRequiredForNextDegree(
+    belt,
+    currentDegree,
+    program,
+    birthDate,
+  );
+  const weeksCompleted = calculateCompletedTrainings(
+    attendanceRecords,
+    lastGraduationDate,
+  );
   const estimatedDate = calculateNextDegreeDate(
     attendanceRecords,
     lastGraduationDate,
     belt,
     currentDegree,
-    program
+    program,
+    birthDate,
   );
 
   const progressPercentage = weeksRequired
@@ -260,7 +304,7 @@ export const getDegreeProgress = (
     estimatedDate,
     isReadyForGraduation,
     nextDegree: currentDegree + 1,
-    progressUnit: isGBK ? "semanas" : "treinos",
+    progressUnit: "treinos",
   };
 };
 
@@ -273,14 +317,16 @@ export const getNextDegreeDate = (
   lastGraduationDate: string,
   belt: BeltColor,
   currentDegree: number,
-  program?: string
+  program?: string,
+  birthDate?: string,
 ): string | null => {
   const progress = getDegreeProgress(
     attendanceRecords,
     lastGraduationDate,
     belt,
     currentDegree,
-    program
+    program,
+    birthDate,
   );
 
   // Se já está pronto, retorna hoje

@@ -65,6 +65,7 @@ interface AttendanceCardProps {
   onCellClick?: (
     date: string,
     existingType?: "graduation" | "attendance",
+    attendanceCount?: number,
   ) => void;
 }
 
@@ -140,6 +141,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
       student.belt,
       student.degrees,
       student.program,
+      student.birthDate,
     );
 
     // Se a data prevista é deste ano e não conflita com graduação já marcada
@@ -230,57 +232,25 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-xs font-semibold ${style.textSecondary} opacity-80`}
+                    className={`inline-block rounded-full border ${isCompact ? "w-3 h-3" : "w-4 h-4"}`}
+                    style={{
+                      backgroundColor: BELT_COLORS[student.belt] || "#FFFFFF",
+                      borderColor:
+                        student.belt === "White"
+                          ? "#9CA3AF"
+                          : BELT_COLORS[student.belt] || "#FFFFFF",
+                    }}
+                    aria-hidden
+                  />
+                  <span
+                    className={`text-white font-bold ml-1 ${isCompact ? "text-[10px]" : "text-xs"}`}
                   >
-                    FAIXA:
+                    {getDegreeDisplayLabel(
+                      actualProgram,
+                      student.belt,
+                      student.degrees,
+                    )}
                   </span>
-                  <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded">
-                    {/* Belt color boxes */}
-                    {[
-                      "White",
-                      "Grey",
-                      "Yellow",
-                      "Orange",
-                      "Green",
-                      "Blue",
-                      "Purple",
-                      "Brown",
-                      "Black",
-                    ].map((b, i) => {
-                      const colors: Record<string, string> = {
-                        White: "#FFFFFF",
-                        Grey: "#9CA3AF",
-                        Yellow: "#EAB308",
-                        Orange: "#F97316",
-                        Green: "#22C55E",
-                        Blue: "#2563EB",
-                        Purple: "#9333EA",
-                        Brown: "#92400E",
-                        Black: "#111827",
-                      };
-                      const isCurrent = b === student.belt;
-                      return (
-                        <div
-                          key={b}
-                          className={`${isCompact ? "h-3.5 w-3.5" : "h-4 w-4"} rounded-sm border ${isCurrent ? "ring-2 ring-white ring-offset-1" : "opacity-60"}`}
-                          style={{
-                            backgroundColor: colors[b],
-                            borderColor: b === "White" ? "#9CA3AF" : colors[b],
-                          }}
-                          title={b}
-                        />
-                      );
-                    })}
-                    <span
-                      className={`text-white font-bold ml-1 ${isCompact ? "text-[10px]" : "text-xs"}`}
-                    >
-                      {getDegreeDisplayLabel(
-                        actualProgram,
-                        student.belt,
-                        student.degrees,
-                      )}
-                    </span>
-                  </div>
                 </div>
                 {historyBeltOptions && historyBeltOptions.length > 0 && (
                   <div className="flex items-start gap-2 pt-1 flex-wrap">
@@ -447,13 +417,18 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                       : specialDate?.type === "graduation"
                                         ? "graduation"
                                         : undefined,
+                                    attendanceCount,
                                   );
                                 }
                               }}
                               title={
                                 isAttended
                                   ? canInteractWithCells
-                                    ? `Clique para remover presença: ${day}/${monthIdx + 1}`
+                                    ? attendanceCount === 1
+                                      ? `Clique para adicionar a segunda presença: ${day}/${monthIdx + 1}`
+                                      : attendanceCount >= 2
+                                        ? `Clique para remover as presenças: ${day}/${monthIdx + 1}`
+                                        : `Clique para remover presença: ${day}/${monthIdx + 1}`
                                     : `Presença: ${day}/${monthIdx + 1}`
                                   : specialDate?.type === "graduation"
                                     ? `Graduação: ${day}/${monthIdx + 1}`

@@ -4,7 +4,12 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, GraduationCap, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useData, BeltColor, Program } from "../context/DataContext";
+import {
+  useData,
+  BeltColor,
+  Program,
+  Attendance,
+} from "../context/DataContext";
 import { AttendanceCard } from "../components/AttendanceCard";
 import {
   BeltDisplay,
@@ -89,8 +94,21 @@ const extractBeltFromNotes = (notes?: string): BeltColor | null => {
 const cleanNotes = (notes?: string): string | undefined => {
   if (!notes) return undefined;
   return (
-    notes.replace(/^BELT:[A-Za-z]+(?:[A-Za-z]+)*\|?\s*/, "").trim() || undefined
+    notes
+      .replace(/^TRACK:[^|]+\|\s*/, "")
+      .replace(/^BELT:[A-Za-z]+(?:[A-Za-z]+)*\|?\s*/, "")
+      .trim() || undefined
   );
+};
+
+const buildGradeNotes = (
+  studentDegrees: number,
+  lastGraduationDate?: string,
+  notes?: string,
+): string => {
+  const metadata = `TRACK:DEG=${studentDegrees};GRAD=${lastGraduationDate || ""}`;
+  const trimmedNotes = notes?.trim();
+  return trimmedNotes ? `${metadata}|${trimmedNotes}` : metadata;
 };
 
 interface BeltHistorySegment {
@@ -136,6 +154,12 @@ export const AdminStudentCard: React.FC = () => {
       ),
     [attendance, studentId],
   );
+
+  const [displayAttendance, setDisplayAttendance] = useState<Attendance[]>([]);
+
+  useEffect(() => {
+    setDisplayAttendance(studentAttendance);
+  }, [studentAttendance]);
 
   const confirmedCount = useMemo(() => {
     const map = new Map<string, number>();
@@ -265,6 +289,10 @@ export const AdminStudentCard: React.FC = () => {
     isDateInSelectedHistory(a.date),
   );
 
+  const visibleAttendance = displayAttendance.filter((a) =>
+    isDateInSelectedHistory(a.date),
+  );
+
   const filteredSpecialDates = student.specialDates.filter((sd) =>
     isDateInSelectedHistory(sd.date),
   );
@@ -358,7 +386,11 @@ export const AdminStudentCard: React.FC = () => {
               {
                 date: isoDate,
                 type: "grade",
-                notes: manualNotes.trim() || undefined,
+                notes: buildGradeNotes(
+                  student.degrees,
+                  student.lastGraduationDate,
+                  manualNotes,
+                ),
               },
             ],
           });
@@ -419,27 +451,70 @@ export const AdminStudentCard: React.FC = () => {
   const handleCellClick = async (
     date: string,
     existingType?: "graduation" | "attendance",
+    attendanceCount = 0,
   ) => {
-    if (existingType === "attendance") {
-      const attendanceEntry = studentAttendance.find(
-        (a) => a.date.slice(0, 10) === date,
-      );
-
-      if (!attendanceEntry) {
-        toast.error("Presença não encontrada nesse dia.");
+    try {
+      if (existingType === "graduation") {
+        toast.info("Use o histórico abaixo para remover a graduação.");
         return;
       }
 
-      await rejectAttendance(attendanceEntry.id || attendanceEntry._id || "");
-      return;
-    }
+      if (attendanceCount >= 2) {
+        setDisplayAttendance((current) =>
+          current.filter((a) => a.date.slice(0, 10) !== date),
+        );
 
-    if (existingType === "graduation") {
-      toast.info("Use o histórico abaixo para remover a graduação.");
-      return;
-    }
+        const attendanceEntries = studentAttendance.filter(
+          (a) => a.date.slice(0, 10) === date,
+        );
 
-    toast.info("Esse dia não possui presença para remover.");
+        if (!attendanceEntries.length) {
+          toast.error("Presença não encontrada nesse dia.");
+          setDisplayAttendance(studentAttendance);
+          return;
+        }
+
+        await Promise.all(
+          attendanceEntries.map((entry) =>
+            rejectAttendance(entry.id || entry._id || ""),
+          ),
+        );
+        toast.success("Presenças do dia removidas.");
+        return;
+      }
+
+      const isoDateString = `${date}T12:00:00.000Z`;
+      const optimisticAttendance: Attendance = {
+        id: `local-${date}-${Date.now()}`,
+        studentId,
+        date: isoDateString,
+        classId: "manual-add",
+        className: "Presença Adicionada Manualmente",
+        classTime: "00:00",
+        confirmed: true,
+      };
+
+      setDisplayAttendance((current) => [...current, optimisticAttendance]);
+
+      await checkIn(
+        studentId,
+        "manual-add",
+        "Presença Adicionada Manualmente",
+        "00:00",
+        true,
+        isoDateString,
+      );
+
+      toast.success(
+        attendanceCount === 1
+          ? "Segunda presença adicionada com sucesso."
+          : "Presença adicionada com sucesso.",
+      );
+    } catch (error) {
+      console.error("Erro ao alterar presença no cartão:", error);
+      setDisplayAttendance(studentAttendance);
+      toast.error("Não foi possível atualizar a presença.");
+    }
   };
 
   return (
@@ -653,9 +728,10 @@ export const AdminStudentCard: React.FC = () => {
 
         <AttendanceCard
           student={displayStudent}
-          attendanceHistory={filteredAttendance}
+          attendanceHistory={visibleAttendance}
           year={year}
           adminMode={true}
+          onCellClick={handleCellClick}
           historyBeltOptions={beltHistory.map((segment) => ({
             key: segment.key,
             belt: segment.belt,

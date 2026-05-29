@@ -133,6 +133,11 @@ const getBirthDatePassword = (birthDate?: string) => {
 
 export const AdminStudents: React.FC = () => {
   const { students, attendance, updateStudent, addStudent } = useData();
+  const normalizeString = (v?: string) =>
+    (v || "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -156,12 +161,14 @@ export const AdminStudents: React.FC = () => {
     return format(parseISO(date), "dd/MM/yyyy");
   };
 
-  const filtered = students.filter(
-    (s) =>
-      (s.name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (s.email || "").toLowerCase().includes(search.toLowerCase()) ||
-      (s.belt || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = students.filter((s) => {
+    const q = normalizeString(search);
+    return (
+      normalizeString(s.name).includes(q) ||
+      normalizeString(s.email).includes(q) ||
+      normalizeString(s.belt).includes(q)
+    );
+  });
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPageStudents = filtered.slice(
@@ -502,18 +509,15 @@ export const AdminStudents: React.FC = () => {
             editingStudent.belt,
             editingStudent.degrees,
             editingStudent.program,
+            editingStudent.birthDate,
           );
-          const progressUnit =
-            degreeProgress.progressUnit ||
-            (editingStudent.program === "GBK" ? "semanas" : "treinos");
-          const progressValue =
-            progressUnit === "semanas"
-              ? degreeProgress.weeksCompleted.toFixed(1)
-              : Math.round(degreeProgress.weeksCompleted).toString();
-          const progressRequiredValue =
-            progressUnit === "semanas"
-              ? String(degreeProgress.weeksRequired || 0)
-              : String(Math.round(degreeProgress.weeksRequired || 0));
+          const progressUnit = degreeProgress.progressUnit || "treinos";
+          const progressValue = Math.round(
+            degreeProgress.weeksCompleted,
+          ).toString();
+          const progressRequiredValue = String(
+            Math.round(degreeProgress.weeksRequired || 0),
+          );
 
           return (
             <div

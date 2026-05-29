@@ -430,6 +430,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         (sd) => sd.id === specialDateId || sd._id === specialDateId,
       );
 
+      const gradeSnapshotMatch = specialDateToRemove?.notes?.match(
+        /TRACK:DEG=(\d+);GRAD=([^|]*)/,
+      );
+      const snapshotDegrees = gradeSnapshotMatch
+        ? Number.parseInt(gradeSnapshotMatch[1], 10)
+        : null;
+      const snapshotGraduationDate = gradeSnapshotMatch?.[2] || undefined;
+
       const updatedStudent = {
         ...student,
         specialDates: student.specialDates.filter(
@@ -437,8 +445,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ),
         degrees:
           specialDateToRemove?.type === "grade"
-            ? Math.max(0, student.degrees - 1)
+            ? (snapshotDegrees ?? Math.max(0, student.degrees - 1))
             : student.degrees,
+        lastGraduationDate:
+          specialDateToRemove?.type === "grade" && snapshotGraduationDate
+            ? snapshotGraduationDate
+            : student.lastGraduationDate,
       };
 
       await updateStudent(updatedStudent);

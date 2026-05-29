@@ -127,18 +127,13 @@ export const StudentDashboard: React.FC = () => {
     student.belt,
     student.degrees,
     student.program,
+    student.birthDate,
   );
-  const progressUnit =
-    degreeProgress.progressUnit ||
-    (student.program === "GBK" ? "semanas" : "treinos");
-  const progressValue =
-    progressUnit === "semanas"
-      ? degreeProgress.weeksCompleted.toFixed(1)
-      : Math.round(degreeProgress.weeksCompleted).toString();
-  const progressRequiredValue =
-    progressUnit === "semanas"
-      ? String(degreeProgress.weeksRequired || 0)
-      : String(Math.round(degreeProgress.weeksRequired || 0));
+  const progressUnit = degreeProgress.progressUnit || "treinos";
+  const progressValue = Math.round(degreeProgress.weeksCompleted).toString();
+  const progressRequiredValue = String(
+    Math.round(degreeProgress.weeksRequired || 0),
+  );
 
   // Recent confirmed attendance (last 5)
   const recentAttendance = myAllAttendance
