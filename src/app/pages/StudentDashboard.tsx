@@ -107,6 +107,7 @@ export const StudentDashboard: React.FC = () => {
     student.program,
     student.belt,
     student.degrees,
+    student.birthDate,
   );
 
   const cardStyle = getCardStyle(
@@ -185,7 +186,7 @@ export const StudentDashboard: React.FC = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-lg font-black text-[#003087]">
             {getDegreeDisplayLabel(
-              student.program,
+              actualProgram,
               student.belt,
               student.degrees,
             )}
@@ -272,7 +273,11 @@ export const StudentDashboard: React.FC = () => {
               <div>
                 <span className="font-medium">Programa:</span>{" "}
                 <span className="bg-gray-100 px-2 py-0.5 rounded font-bold text-gray-800">
-                  {actualProgram}
+                  {actualProgram === "GBKIDS"
+                    ? "GBK KIDS"
+                    : actualProgram === "GBKJUVENIL"
+                      ? "GBK JUVENIL"
+                      : actualProgram}
                 </span>
               </div>
               <div>
@@ -290,7 +295,7 @@ export const StudentDashboard: React.FC = () => {
                   <TrendingUp size={16} className="text-[#003087]" />
                   Progresso para{" "}
                   {getNextDegreeDisplayLabel(
-                    student.program,
+                    actualProgram,
                     student.belt,
                     student.degrees,
                   )}

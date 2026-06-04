@@ -54,14 +54,26 @@ const calculateAge = (birthDate?: string): number | null => {
   return age;
 };
 
+const resolveGbkProgram = (
+  program?: string,
+  birthDate?: string,
+): "GBKIDS" | "GBKJUVENIL" => {
+  if (program === "GBKIDS" || program === "GBKJUVENIL") {
+    return program;
+  }
+
+  const age = calculateAge(birthDate);
+  return age !== null && age <= 7 ? "GBKIDS" : "GBKJUVENIL";
+};
+
 const getGBKTrainingsRequiredForNextDegree = (
   belt: BeltColor,
   currentDegree: number,
   birthDate?: string,
+  program?: string,
 ): number | null => {
-  const age = calculateAge(birthDate);
-  const isKids = age !== null ? age <= 7 : false;
-  const trainingsRequired = isKids ? 8 : 12;
+  const resolvedProgram = resolveGbkProgram(program, birthDate);
+  const trainingsRequired = resolvedProgram === "GBKIDS" ? 8 : 12;
 
   const maxDegrees = getMaxDegreesForGBK(belt);
   if (currentDegree >= maxDegrees) return null;
@@ -136,8 +148,13 @@ export const getWeeksRequiredForNextDegree = (
   program?: string,
   birthDate?: string,
 ): number | null => {
-  if (program === "GBK") {
-    return getGBKTrainingsRequiredForNextDegree(belt, currentDegree, birthDate);
+  if (program === "GBK" || program === "GBKIDS" || program === "GBKJUVENIL") {
+    return getGBKTrainingsRequiredForNextDegree(
+      belt,
+      currentDegree,
+      birthDate,
+      program,
+    );
   }
 
   // ADULTOS

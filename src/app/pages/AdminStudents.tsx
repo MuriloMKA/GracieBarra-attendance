@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   TrendingUp,
   Printer,
+  Trash2,
 } from "lucide-react";
 import {
   BeltDisplay,
@@ -22,6 +23,7 @@ import {
 } from "../components/BeltDisplay";
 import { StudentQRCode } from "../components/StudentQRCode";
 import { Switch } from "../components/ui/switch";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { getDegreeProgress } from "../utils/degreeCalculator";
 
@@ -51,17 +53,24 @@ const ADULT_BELT_OPTIONS: BeltColor[] = [
   "Black",
 ];
 
-const PROGRAM_OPTIONS: Program[] = ["GBK", "GB1", "GB2", "GB3"];
+const PROGRAM_OPTIONS: Array<{ value: Program; label: string }> = [
+  { value: "GBK", label: "GBK (legado)" },
+  { value: "GBKIDS", label: "GBK Kids" },
+  { value: "GBKJUVENIL", label: "GBK Juvenil" },
+  { value: "GB1", label: "GB1" },
+  { value: "GB2", label: "GB2" },
+  { value: "GB3", label: "GB3" },
+];
 
 // Função que retorna as faixas corretas baseado no programa
 const getBeltOptionsForProgram = (program: Program): BeltColor[] => {
-  return program === "GBK" ? GBK_BELT_OPTIONS : ADULT_BELT_OPTIONS;
+  return program.startsWith("GBK") ? GBK_BELT_OPTIONS : ADULT_BELT_OPTIONS;
 };
 
 // Função que retorna o número máximo de graus baseado no programa e faixa
 const getMaxDegreesForBelt = (program: Program, belt: BeltColor): number => {
   // Adultos: máximo 4 graus (exceto faixa preta que tem até 6)
-  if (program !== "GBK") {
+  if (!program.startsWith("GBK")) {
     return belt === "Black" ? 6 : 4;
   }
 
@@ -93,8 +102,15 @@ const normalizeProgram = (
   program: Program,
   belt: BeltColor,
   degrees: number,
+  birthDate?: string,
 ): Program => {
-  return program === "GBK" ? "GBK" : calculateProgram(program, belt, degrees);
+  return calculateProgram(program, belt, degrees, birthDate);
+};
+
+const getProgramLabel = (program: Program): string => {
+  if (program === "GBKIDS") return "GBK Kids";
+  if (program === "GBKJUVENIL") return "GBK Juvenil";
+  return program;
 };
 
 const BELT_COLORS_CSS: Record<BeltColor, { bg: string; text: string }> = {
@@ -139,8 +155,13 @@ export const AdminStudents: React.FC = () => {
       .replace(/\p{Diacritic}/gu, "")
       .toLowerCase();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "active" | "inactive" | "all"
+  >("active");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [deletingStudent, setDeletingStudent] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newlyCreatedStudent, setNewlyCreatedStudent] =
     useState<Student | null>(null);
@@ -161,7 +182,10 @@ export const AdminStudents: React.FC = () => {
     return format(parseISO(date), "dd/MM/yyyy");
   };
 
-  const filtered = students.filter((s) => {
+  const visibleStudents = students.filter((s) => {
+    if (statusFilter === "active" && s.active === false) return false;
+    if (statusFilter === "inactive" && s.active !== false) return false;
+
     const q = normalizeString(search);
     return (
       normalizeString(s.name).includes(q) ||
@@ -170,15 +194,15 @@ export const AdminStudents: React.FC = () => {
     );
   });
   const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPageStudents = filtered.slice(
+  const totalPages = Math.max(1, Math.ceil(visibleStudents.length / pageSize));
+  const currentPageStudents = visibleStudents.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, statusFilter]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -204,6 +228,7 @@ export const AdminStudents: React.FC = () => {
         editingStudent.program,
         editingStudent.belt,
         editingStudent.degrees,
+        editingStudent.birthDate,
       );
       const normalizedStudent = {
         ...editingStudent,
@@ -229,6 +254,7 @@ export const AdminStudents: React.FC = () => {
       (newStudent.program as Program) || "GB1",
       ((newStudent.belt as BeltColor) || "White") as BeltColor,
       newStudent.degrees || 0,
+      newStudent.birthDate,
     );
 
     addStudent(
@@ -260,6 +286,26 @@ export const AdminStudents: React.FC = () => {
       birthDate: "",
       specialDates: [],
     });
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return;
+
+    try {
+      setDeletingStudent(true);
+      await updateStudent({
+        ...studentToDelete,
+        active: false,
+      });
+      toast.success(`${studentToDelete.name} foi inativado com sucesso.`);
+      setStudentToDelete(null);
+      setEditingStudent(null);
+    } catch (error) {
+      console.error("Erro ao inativar aluno:", error);
+      toast.error("Não foi possível inativar o aluno.");
+    } finally {
+      setDeletingStudent(false);
+    }
   };
 
   return (
@@ -311,6 +357,27 @@ export const AdminStudents: React.FC = () => {
           placeholder="Buscar por nome, email ou faixa..."
           className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#003087] text-sm"
         />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { key: "active", label: "Ativos" },
+          { key: "inactive", label: "Inativos" },
+          { key: "all", label: "Todos" },
+        ].map((filter) => (
+          <button
+            key={filter.key}
+            type="button"
+            onClick={() => setStatusFilter(filter.key as any)}
+            className={`px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${
+              statusFilter === filter.key
+                ? "bg-[#003087] text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
       </div>
 
       {/* Table */}
@@ -367,9 +434,9 @@ export const AdminStudents: React.FC = () => {
                     </td>
                     <td className="px-5 py-4">
                       <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold ${student.program === "GBK" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold ${student.program.startsWith("GBK") ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}
                       >
-                        {student.program}
+                        {getProgramLabel(student.program)}
                       </span>
                     </td>
                     <td className="px-5 py-4">
@@ -451,7 +518,7 @@ export const AdminStudents: React.FC = () => {
               })}
             </tbody>
           </table>
-          {filtered.length === 0 && (
+          {visibleStudents.length === 0 && (
             <div className="py-12 text-center text-gray-500">
               Nenhum aluno encontrado.
             </div>
@@ -459,12 +526,12 @@ export const AdminStudents: React.FC = () => {
         </div>
       </div>
 
-      {filtered.length > 0 && (
+      {visibleStudents.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
           <p className="text-sm text-gray-500">
             Mostrando {(currentPage - 1) * pageSize + 1} a{" "}
-            {Math.min(currentPage * pageSize, filtered.length)} de{" "}
-            {filtered.length} alunos
+            {Math.min(currentPage * pageSize, visibleStudents.length)} de{" "}
+            {visibleStudents.length} alunos
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -657,6 +724,7 @@ export const AdminStudents: React.FC = () => {
                             newProgram,
                             newBelt,
                             newDegrees,
+                            editingStudent.birthDate,
                           );
                           setEditingStudent({
                             ...editingStudent,
@@ -667,9 +735,9 @@ export const AdminStudents: React.FC = () => {
                         }}
                         className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
                       >
-                        {PROGRAM_OPTIONS.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
+                        {PROGRAM_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
                           </option>
                         ))}
                       </select>
@@ -695,6 +763,7 @@ export const AdminStudents: React.FC = () => {
                             editingStudent.program,
                             newBelt,
                             newDegrees,
+                            editingStudent.birthDate,
                           );
                           setEditingStudent({
                             ...editingStudent,
@@ -797,6 +866,14 @@ export const AdminStudents: React.FC = () => {
                   <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button
                       type="button"
+                      onClick={() => setStudentToDelete(editingStudent)}
+                      className="px-4 py-2.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors font-bold text-sm flex items-center gap-2"
+                    >
+                      <Trash2 size={16} />
+                      Deletar aluno
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setEditingStudent(null)}
                       className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
                     >
@@ -815,6 +892,19 @@ export const AdminStudents: React.FC = () => {
             </div>
           );
         })()}
+
+      <ConfirmDialog
+        open={!!studentToDelete}
+        title="Deletar aluno"
+        description="Esse aluno será inativado e deixará de aparecer na listagem. Os dados continuam salvos no banco."
+        confirmText="Deletar aluno"
+        danger
+        loading={deletingStudent}
+        onOpenChange={(open) => {
+          if (!open && !deletingStudent) setStudentToDelete(null);
+        }}
+        onConfirm={handleDeleteStudent}
+      />
 
       {/* Add Student Modal */}
       {showAddModal && (
@@ -844,9 +934,8 @@ export const AdminStudents: React.FC = () => {
 
             {/* Info sobre regras de programa */}
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
-              <strong>Regras de Programa:</strong> GB1 Fundamental = Faixa
-              branca 1-2 graus • GB2 Avançado = Faixa branca 3-4 graus • GB3 =
-              Faixa azul em diante • GBK
+              <strong>Regras de Programa:</strong> GB1 = Faixa branca 1-2 graus
+              • GB2 = Faixa branca 3-4 graus • GB3 = Faixa azul em diante • GBK
             </div>
 
             <form onSubmit={handleAdd} className="space-y-4">
@@ -908,6 +997,7 @@ export const AdminStudents: React.FC = () => {
                         newProgram,
                         (newBelt as BeltColor) || "White",
                         newDegrees || 0,
+                        newStudent.birthDate,
                       );
                       setNewStudent({
                         ...newStudent,
@@ -918,9 +1008,9 @@ export const AdminStudents: React.FC = () => {
                     }}
                     className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
                   >
-                    {PROGRAM_OPTIONS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                    {PROGRAM_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -946,6 +1036,7 @@ export const AdminStudents: React.FC = () => {
                         (newStudent.program as Program) || "GB1",
                         newBelt,
                         newDegrees || 0,
+                        newStudent.birthDate,
                       );
                       setNewStudent({
                         ...newStudent,
@@ -989,6 +1080,7 @@ export const AdminStudents: React.FC = () => {
                         ((newStudent.belt as BeltColor) ||
                           "White") as BeltColor,
                         newDegrees,
+                        newStudent.birthDate,
                       );
                       setNewStudent({
                         ...newStudent,

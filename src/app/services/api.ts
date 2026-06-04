@@ -152,6 +152,11 @@ export const notificationService = {
     return data;
   },
 
+  async delete(id: string) {
+    const { data } = await api.delete(`/notifications/${id}`);
+    return data;
+  },
+
   async getRecent(limit = 5) {
     const { data } = await api.get("/notifications/recent", {
       params: { limit },

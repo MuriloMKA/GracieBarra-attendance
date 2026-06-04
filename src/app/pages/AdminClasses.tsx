@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Domingo" },
@@ -26,8 +27,8 @@ const DAYS_OF_WEEK = [
 const CLASS_TYPES = [
   { value: "GBKIDS", label: "GBKIDS (até 6 anos)", program: "GBK" },
   { value: "JUVENIL", label: "Juvenil (7-15 anos)", program: "GBK" },
-  { value: "GB1", label: "GB1 Fundamental", program: "GB1" },
-  { value: "GB2", label: "GB2 Avançado", program: "GB2" },
+  { value: "GB1", label: "GB1", program: "GB1" },
+  { value: "GB2", label: "GB2", program: "GB2" },
   { value: "GB3", label: "GB3", program: "GB3" },
   { value: "ADULTO", label: "Adulto (Todas as faixas)", program: "ALL_ADULT" },
   { value: "OPEN_MAT", label: "Open Mat", program: "OPEN" },
@@ -36,6 +37,11 @@ const CLASS_TYPES = [
 export const AdminClasses: React.FC = () => {
   const { classes, updateClass, addClass, deleteClass } = useData();
   const [editingClass, setEditingClass] = useState<Class | null>(null);
+  const [classToDelete, setClassToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deletingClass, setDeletingClass] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newClass, setNewClass] = useState<Partial<Class>>({
     name: "",
@@ -71,11 +77,22 @@ export const AdminClasses: React.FC = () => {
   };
 
   const handleDelete = (classId: string, className: string) => {
-    if (
-      window.confirm(`Tem certeza que deseja excluir a aula "${className}"?`)
-    ) {
-      deleteClass(classId);
+    setClassToDelete({ id: classId, name: className });
+  };
+
+  const confirmDeleteClass = async () => {
+    if (!classToDelete) return;
+
+    try {
+      setDeletingClass(true);
+      await deleteClass(classToDelete.id);
       toast.success("Aula excluída com sucesso!");
+      setClassToDelete(null);
+    } catch (error) {
+      console.error("Erro ao excluir aula:", error);
+      toast.error("Não foi possível excluir a aula.");
+    } finally {
+      setDeletingClass(false);
     }
   };
 
@@ -416,6 +433,19 @@ export const AdminClasses: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!classToDelete}
+        title="Excluir aula"
+        description={`Tem certeza que deseja excluir a aula "${classToDelete?.name || ""}"?`}
+        confirmText="Excluir aula"
+        danger
+        loading={deletingClass}
+        onOpenChange={(open) => {
+          if (!open && !deletingClass) setClassToDelete(null);
+        }}
+        onConfirm={confirmDeleteClass}
+      />
 
       {/* Add Modal */}
       {showAddModal && (

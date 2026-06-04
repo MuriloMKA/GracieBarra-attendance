@@ -41,7 +41,7 @@ const getPreviousBelt = (
     "Brown",
     "Black",
   ];
-  const orderedBelts = program === "GBK" ? GBK_BELTS : ADULT_BELTS;
+  const orderedBelts = program.startsWith("GBK") ? GBK_BELTS : ADULT_BELTS;
   const currentIndex = orderedBelts.indexOf(belt);
   if (currentIndex <= 0) return undefined;
   return orderedBelts[currentIndex - 1];

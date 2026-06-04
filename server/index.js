@@ -189,7 +189,10 @@ const studentSchema = new mongoose.Schema(
   {
     name: String,
     email: { type: String, sparse: true, default: undefined },
-    program: { type: String, enum: ["GBK", "GB1", "GB2", "GB3"] },
+    program: {
+      type: String,
+      enum: ["GBK", "GBKIDS", "GBKJUVENIL", "GB1", "GB2", "GB3"],
+    },
     belt: {
       type: String,
       enum: [
@@ -481,35 +484,6 @@ app.put("/api/students/:id", authenticateToken, async (req, res) => {
 
 // Attendance Routes (protegidas)
 app.get("/api/attendance", authenticateToken, async (req, res) => {
-  app.patch(
-    "/api/students/:id/active",
-    authenticateToken,
-    requireAdmin,
-    async (req, res) => {
-      try {
-        const { active } = req.body;
-        if (typeof active !== "boolean") {
-          return res
-            .status(400)
-            .json({ error: "Campo active deve ser booleano" });
-        }
-
-        const student = await Student.findByIdAndUpdate(
-          req.params.id,
-          { active },
-          { new: true },
-        );
-
-        if (!student)
-          return res.status(404).json({ error: "Student not found" });
-
-        await syncStudentAccessUser(student);
-        res.json(student);
-      } catch (error) {
-        res.status(400).json({ error: error.message });
-      }
-    },
-  );
   try {
     const { studentId } = req.query;
     const query = studentId ? { studentId } : {};
@@ -519,6 +493,35 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.patch(
+  "/api/students/:id/active",
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { active } = req.body;
+      if (typeof active !== "boolean") {
+        return res
+          .status(400)
+          .json({ error: "Campo active deve ser booleano" });
+      }
+
+      const student = await Student.findByIdAndUpdate(
+        req.params.id,
+        { active },
+        { new: true },
+      );
+
+      if (!student) return res.status(404).json({ error: "Student not found" });
+
+      await syncStudentAccessUser(student);
+      res.json(student);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
 
 app.post("/api/attendance", authenticateToken, async (req, res) => {
   try {
@@ -785,6 +788,26 @@ app.get("/api/notifications/recent", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.delete(
+  "/api/notifications/:id",
+  authenticateToken,
+  requireTeacherOrAdmin,
+  async (req, res) => {
+    try {
+      const notification = await Notification.findByIdAndDelete(req.params.id);
+
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+
+      res.json({ success: true, notification });
+    } catch (error) {
+      console.error("Erro ao excluir notificacao:", error);
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
 
 // User/Auth Routes
 app.post("/api/auth/login", async (req, res) => {

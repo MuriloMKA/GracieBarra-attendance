@@ -91,6 +91,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     student.program,
     student.belt,
     student.degrees,
+    student.birthDate,
   );
 
   const style = getCardStyle(
@@ -151,7 +152,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
         map.set(nextDegreeDate, {
           type: "nextDegree",
           date: nextDegreeDate,
-          notes: `Próximo grau previsto (${getNextDegreeDisplayLabel(student.program, student.belt, student.degrees)})`,
+          notes: `Próximo grau previsto (${getNextDegreeDisplayLabel(actualProgram, student.belt, student.degrees)})`,
         });
       }
     }
@@ -163,6 +164,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     student.belt,
     student.degrees,
     student.program,
+    student.birthDate,
     attendanceHistory,
     year,
   ]);
@@ -299,10 +301,11 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
             <div
               className={`font-black tracking-wider ${style.textPrimary} ${isCompact ? "text-sm" : "text-2xl"}`}
             >
-              GB
-              {actualProgram === "GBK"
-                ? "[K]"
-                : actualProgram.replace("GB", "")}
+              {actualProgram === "GBKIDS"
+                ? "GBK KIDS"
+                : actualProgram === "GBKJUVENIL"
+                  ? "GBK JUVENIL"
+                  : actualProgram}
             </div>
           </div>
         </div>

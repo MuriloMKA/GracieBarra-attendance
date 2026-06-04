@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 
 export type UserRole = "student" | "admin" | "teacher";
-export type Program = "GBK" | "GB1" | "GB2" | "GB3";
+export type Program = "GBK" | "GBKIDS" | "GBKJUVENIL" | "GB1" | "GB2" | "GB3";
 export type BeltColor =
   | "White"
   | "GreyWhite"

@@ -9,12 +9,16 @@ import {
   MessageCircleMore,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { notificationService } from "../services/api";
 
 export const AdminNotifications: React.FC = () => {
   const [title, setTitle] = useState("Aviso da Gracie Barra");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [notificationToDelete, setNotificationToDelete] = useState<any | null>(
+    null,
+  );
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
 
   const loadRecentNotifications = async () => {
@@ -51,6 +55,27 @@ export const AdminNotifications: React.FC = () => {
       console.error("Erro ao enviar notificacao:", error);
       toast.error(
         error.response?.data?.error || "Erro ao publicar notificacao.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (!notificationToDelete) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await notificationService.delete(id);
+      toast.success("Notificação encerrada com sucesso.");
+      setNotificationToDelete(null);
+      await loadRecentNotifications();
+    } catch (error: any) {
+      console.error("Erro ao excluir notificacao:", error);
+      toast.error(
+        error.response?.data?.error || "Erro ao excluir notificacao.",
       );
     } finally {
       setLoading(false);
@@ -156,11 +181,37 @@ export const AdminNotifications: React.FC = () => {
                     {item.audience === "students" ? "Alunos" : item.audience}
                   </span>
                 </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setNotificationToDelete(item)}
+                    className="text-xs font-bold text-red-600 hover:text-red-700"
+                  >
+                    Encerrar / excluir
+                  </button>
+                </div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!notificationToDelete}
+        title="Encerrar notificação"
+        description="Essa notificação será removida do mural e deixará de aparecer para os alunos."
+        confirmText="Encerrar / excluir"
+        danger
+        loading={loading}
+        onOpenChange={(open) => {
+          if (!open && !loading) setNotificationToDelete(null);
+        }}
+        onConfirm={() =>
+          handleDeleteNotification(
+            notificationToDelete?._id || notificationToDelete?.id,
+          )
+        }
+      />
     </div>
   );
 };

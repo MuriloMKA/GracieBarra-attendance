@@ -35,7 +35,7 @@ const GBK_BELTS: BeltColor[] = [
 ];
 
 const getAvailableBelts = (program: Program): BeltColor[] =>
-  program === "GBK" ? GBK_BELTS : ADULT_BELTS;
+  program.startsWith("GBK") ? GBK_BELTS : ADULT_BELTS;
 
 const getGraduationBeltOptions = (
   program: Program,
@@ -47,7 +47,7 @@ const getGraduationBeltOptions = (
   const options = available.slice(currentIndex + 1);
 
   if (
-    program === "GBK" &&
+    program.startsWith("GBK") &&
     (belt === "Green" || belt === "GreenBlack") &&
     !options.includes("Blue")
   ) {
@@ -67,7 +67,7 @@ const getPreviousBelt = (
 };
 
 const getMaxDegreesForBelt = (program: Program, belt: BeltColor): number => {
-  if (program === "GBK") {
+  if (program.startsWith("GBK")) {
     if (belt === "White" || belt === "GreyWhite") return 5;
     return 11;
   }
@@ -304,6 +304,7 @@ export const AdminStudentCard: React.FC = () => {
       student.program,
       activeHistory?.belt || student.belt,
       student.degrees,
+      student.birthDate,
     ),
     specialDates: filteredSpecialDates,
   };
@@ -403,7 +404,7 @@ export const AdminStudentCard: React.FC = () => {
           : graduationNoteMetadata;
 
         const newProgram =
-          student.program === "GBK" && manualBelt === "Blue"
+          student.program.startsWith("GBK") && manualBelt === "Blue"
             ? "GB1"
             : student.program;
 
@@ -411,7 +412,12 @@ export const AdminStudentCard: React.FC = () => {
           ...student,
           belt: manualBelt,
           degrees: 0,
-          program: calculateProgram(newProgram, manualBelt, 0),
+          program: calculateProgram(
+            newProgram,
+            manualBelt,
+            0,
+            student.birthDate,
+          ),
           lastGraduationDate: isoDate,
           specialDates: [
             ...student.specialDates,

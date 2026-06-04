@@ -131,7 +131,7 @@ export function getDegreeDisplayLabel(
 ): string {
   if (degrees <= 0) return "";
 
-  if (program === "GBK") {
+  if (program.startsWith("GBK")) {
     const stage = getGBKDegreeStage(belt, degrees);
     return `${stage.degreeNumber}° grau${stage.degreeNumber > 1 ? "s" : ""} ${stage.colorName}`;
   }
@@ -144,7 +144,7 @@ export function getNextDegreeDisplayLabel(
   belt: BeltColor,
   currentDegrees: number,
 ): string {
-  if (program === "GBK") {
+  if (program.startsWith("GBK")) {
     const maxDegrees = getMaxDegreesForGBK(belt);
     if (currentDegrees >= maxDegrees) return "próxima faixa";
     const nextStage = getGBKDegreeStage(belt, currentDegrees + 1);
@@ -175,9 +175,20 @@ export function calculateProgram(
   program: Program,
   belt: BeltColor,
   degrees: number,
+  birthDate?: string,
 ): Program {
-  // Se for GBK (crianças/adolescentes), mantém GBK
-  if (program === "GBK") return "GBK";
+  if (program === "GBKIDS" || program === "GBKJUVENIL") {
+    return program;
+  }
+
+  if (program === "GBK") {
+    if (birthDate) {
+      const age = calculateAge(birthDate);
+      return age !== null && age <= 7 ? "GBKIDS" : "GBKJUVENIL";
+    }
+
+    return "GBKJUVENIL";
+  }
 
   // Adultos: sequência oficial
   // Faixa branca 1° e 2° grau = GB1
@@ -212,40 +223,23 @@ export function getCardStyle(
   degrees: number,
   birthDate?: string,
 ) {
-  // GBK para crianças e adolescentes (até 15 anos)
-  if (program === "GBK") {
-    // Calcular idade se birthDate estiver disponível
-    const age = birthDate ? calculateAge(birthDate) : null;
+  const actualProgram = calculateProgram(program, belt, degrees, birthDate);
 
-    // Mini Campeões: 2 a 7 anos (ficha azul clara)
-    if (age !== null && age >= 2 && age <= 7) {
-      return {
-        outerBg: "bg-gradient-to-r from-blue-300 to-blue-400",
-        outerBorder: "border-blue-400",
-        innerBg: "bg-blue-50",
-        textPrimary: "text-white",
-        textSecondary: "text-blue-100",
-        gridHeaderBg: "bg-blue-400",
-        label: "CARTÃO DE FREQUÊNCIA — MINI CAMPEÕES",
-        programLabel: "GBK",
-      };
-    }
+  // GBK Kids: ficha azul clara
+  if (actualProgram === "GBKIDS") {
+    return {
+      outerBg: "bg-gradient-to-r from-blue-300 to-blue-400",
+      outerBorder: "border-blue-400",
+      innerBg: "bg-blue-50",
+      textPrimary: "text-white",
+      textSecondary: "text-blue-100",
+      gridHeaderBg: "bg-blue-400",
+      label: "CARTÃO DE FREQUÊNCIA — GBK KIDS",
+      programLabel: "GBK KIDS",
+    };
+  }
 
-    // Juvenil: 8 a 15 anos (ficha verde clara)
-    if (age !== null && age >= 8 && age <= 15) {
-      return {
-        outerBg: "bg-gradient-to-r from-green-300 to-green-400",
-        outerBorder: "border-green-400",
-        innerBg: "bg-green-50",
-        textPrimary: "text-white",
-        textSecondary: "text-green-100",
-        gridHeaderBg: "bg-green-500",
-        label: "CARTÃO DE FREQUÊNCIA — JUVENIL",
-        programLabel: "GBK",
-      };
-    }
-
-    // Fallback para GBK sem idade definida (usa verde por padrão)
+  if (actualProgram === "GBKJUVENIL") {
     return {
       outerBg: "bg-gradient-to-r from-green-300 to-green-400",
       outerBorder: "border-green-400",
@@ -253,8 +247,21 @@ export function getCardStyle(
       textPrimary: "text-white",
       textSecondary: "text-green-100",
       gridHeaderBg: "bg-green-500",
-      label: "CARTÃO DE FREQUÊNCIA — JUVENIL",
-      programLabel: "GBK",
+      label: "CARTÃO DE FREQUÊNCIA — GBK JUVENIL",
+      programLabel: "GBK JUVENIL",
+    };
+  }
+
+  if (program === "GBK") {
+    return {
+      outerBg: "bg-gradient-to-r from-green-300 to-green-400",
+      outerBorder: "border-green-400",
+      innerBg: "bg-green-50",
+      textPrimary: "text-white",
+      textSecondary: "text-green-100",
+      gridHeaderBg: "bg-green-500",
+      label: "CARTÃO DE FREQUÊNCIA — GBK JUVENIL",
+      programLabel: "GBK JUVENIL",
     };
   }
 
@@ -267,7 +274,7 @@ export function getCardStyle(
       textPrimary: "text-white",
       textSecondary: "text-blue-100",
       gridHeaderBg: "bg-blue-700",
-      label: "CARTÃO DE FREQUÊNCIA — FUNDAMENTAL",
+      label: "CARTÃO DE FREQUÊNCIA — GB1",
       programLabel: "GB1",
     };
   }
@@ -281,7 +288,7 @@ export function getCardStyle(
       textPrimary: "text-white",
       textSecondary: "text-purple-200",
       gridHeaderBg: "bg-purple-800",
-      label: "CARTÃO DE FREQUÊNCIA — AVANÇADO",
+      label: "CARTÃO DE FREQUÊNCIA — GB2",
       programLabel: "GB2",
     };
   }
@@ -314,7 +321,7 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   const textSizes = { sm: "text-xs", md: "text-sm", lg: "text-base" };
 
   // Determina quantos slots de grau mostrar e suas cores
-  const isGBK = program === "GBK";
+  const isGBK = program.startsWith("GBK");
   const normalizedDegrees = Math.max(0, degrees);
   const visibleSlots = isGBK ? 4 : belt === "Black" ? 6 : 4;
 
