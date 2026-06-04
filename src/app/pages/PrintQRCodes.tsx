@@ -80,12 +80,8 @@ export const PrintQRCodes: React.FC = () => {
         <div className="grid grid-cols-4 gap-6 print:grid-cols-4 print:gap-4 justify-items-center">
           {sortedStudents.map((student) => {
             const studentId =
-              student.id || student._id || student.name.replace(/\s+/g, "-");
-            const qrData = JSON.stringify({
-              studentId: studentId,
-              name: student.name,
-              program: student.program,
-            });
+              student._id || student.id || student.name.replace(/\s+/g, "-");
+            const qrData = JSON.stringify({ studentId });
 
             return (
               <div

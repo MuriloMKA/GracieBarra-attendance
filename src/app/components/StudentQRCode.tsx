@@ -20,13 +20,9 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
   const qrWrapperRef = useRef<HTMLDivElement | null>(null);
   const qrSize = size === "sm" ? 150 : size === "md" ? 200 : 250;
   const studentId =
-    student.id || student._id || student.name.replace(/\s+/g, "-");
+    student._id || student.id || student.name.replace(/\s+/g, "-");
 
-  const qrData = JSON.stringify({
-    studentId: studentId,
-    name: student.name,
-    program: student.program,
-  });
+  const qrData = JSON.stringify({ studentId });
 
   const handleDownload = () => {
     const qrCanvas = qrWrapperRef.current?.querySelector("canvas");

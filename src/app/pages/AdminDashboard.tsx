@@ -48,8 +48,25 @@ export const AdminDashboard: React.FC = () => {
   const [showConfirmedModal, setShowConfirmedModal] = useState(false);
   const [showGraduationsModal, setShowGraduationsModal] = useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
-  const [showTotalCount, setShowTotalCount] = useState(true);
+  const [showTotalCount, setShowTotalCount] = useState(() => {
+    if (typeof window === "undefined") return true;
+
+    const storedValue = window.localStorage.getItem(
+      "gb_admin_dashboard_show_total_count",
+    );
+
+    return storedValue === null ? true : storedValue === "true";
+  });
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(
+      "gb_admin_dashboard_show_total_count",
+      String(showTotalCount),
+    );
+  }, [showTotalCount]);
 
   const vibrate = (pattern: number | number[]) => {
     if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
@@ -213,6 +230,28 @@ export const AdminDashboard: React.FC = () => {
     return events;
   }, [activeStudents]);
 
+  const formatGraduationNote = (notes?: string) => {
+    if (!notes) return null;
+
+    const parts = notes
+      .split("|")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const beltToken = parts.find((part) => part.startsWith("BELT:"));
+    const beltValue = beltToken?.split(":")[1] as BeltColor | undefined;
+    const beltLabel = beltValue ? BELT_NAMES_PT[beltValue] : null;
+
+    const extraNotes = parts.filter(
+      (part) => !part.startsWith("BELT:") && !part.startsWith("TRACK:"),
+    );
+
+    return {
+      beltLabel,
+      extraText: extraNotes.length > 0 ? extraNotes.join(" • ") : null,
+    };
+  };
+
   const absentStudentsCount = absentStudents.length;
 
   // Aulas disponíveis hoje
@@ -360,15 +399,26 @@ export const AdminDashboard: React.FC = () => {
                 graduationEvents.map((g, idx) => (
                   <div
                     key={`${g.name}-${idx}`}
-                    className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
+                    className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
                   >
-                    <div>
-                      <div className="font-medium truncate">{g.name}</div>
-                      {g.notes && (
-                        <div className="text-xs text-gray-500">{g.notes}</div>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-gray-900 truncate">
+                        {g.name}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {formatGraduationNote(g.notes)?.beltLabel && (
+                          <span className="inline-flex items-center rounded-full bg-[#003087]/10 px-2.5 py-1 text-[11px] font-bold text-[#003087]">
+                            {formatGraduationNote(g.notes)?.beltLabel}
+                          </span>
+                        )}
+                        {formatGraduationNote(g.notes)?.extraText && (
+                          <span className="text-xs text-gray-500">
+                            {formatGraduationNote(g.notes)?.extraText}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm font-medium text-gray-600 whitespace-nowrap">
                       {g.date
                         ? format(parseISO(g.date), "dd/MM/yyyy")
                         : "Sem data"}
