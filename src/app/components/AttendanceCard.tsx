@@ -247,6 +247,11 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                   <span
                     className={`text-white font-bold ml-1 ${isCompact ? "text-[10px]" : "text-xs"}`}
                   >
+                    {BELT_NAMES_PT[student.belt]}
+                  </span>
+                  <span
+                    className={`${style.textSecondary} opacity-70 ${isCompact ? "text-[10px]" : "text-xs"}`}
+                  >
                     {getDegreeDisplayLabel(
                       actualProgram,
                       student.belt,

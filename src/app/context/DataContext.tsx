@@ -71,6 +71,7 @@ export interface JJClass {
   daysOfWeek: number[];
   ageGroup?: string;
   program?: string;
+  programs?: string[]; // Programas permitidos (GB1, GB2, GB3, GBKIDS, GBKJUVENIL). Vazio = todos.
   closedDates?: string[]; // Datas em que a aula não acontece (YYYY-MM-DD)
 }
 

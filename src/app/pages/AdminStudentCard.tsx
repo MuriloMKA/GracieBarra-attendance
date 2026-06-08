@@ -182,6 +182,26 @@ export const AdminStudentCard: React.FC = () => {
     map.forEach((count) => (total += count));
     return total;
   }, [studentAttendance]);
+  const confirmedSinceGraduation = useMemo(() => {
+    const cutoff = student?.lastGraduationDate;
+    const map = new Map<string, number>();
+    studentAttendance.forEach((a) => {
+      if (!a.confirmed) return;
+      const dateStr = a.date.slice(0, 10);
+      // match degreeCalculator: only count from the day AFTER graduation
+      if (cutoff && dateStr <= cutoff) return;
+      const d = parseISO(a.date);
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        const current = map.get(dateStr) || 0;
+        if (current < 2) map.set(dateStr, current + 1);
+      }
+    });
+    let total = 0;
+    map.forEach((count) => (total += count));
+    return total;
+  }, [studentAttendance, student?.lastGraduationDate]);
+
   const gradeDates = (student?.specialDates || [])
     .filter((sd) => sd.type === "grade")
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -584,7 +604,13 @@ export const AdminStudentCard: React.FC = () => {
             <div className="text-2xl font-black text-[#003087]">
               {confirmedCount}
             </div>
-            <div className="text-xs text-gray-500">Aulas</div>
+            <div className="text-xs text-gray-500">Aulas no total</div>
+          </div>
+          <div>
+            <div className="text-2xl font-black text-indigo-600">
+              {confirmedSinceGraduation}
+            </div>
+            <div className="text-xs text-gray-500">Aulas nesse grau</div>
           </div>
           <div>
             <div className="text-2xl font-black text-[#D10A11]">
