@@ -73,10 +73,12 @@ export const StudentDashboard: React.FC = () => {
   const todayDOW = today.getDay();
   const todayStr = today.toISOString().split("T")[0];
 
-  // All classes that normally happen today
-  const allTodayClasses = classes.filter((c) =>
-    c.daysOfWeek.includes(todayDOW),
-  );
+  // All classes that normally happen today, filtered by student's program
+  const allTodayClasses = classes.filter((c) => {
+    if (!c.daysOfWeek.includes(todayDOW)) return false;
+    if (!c.programs || c.programs.length === 0) return true;
+    return c.programs.includes(actualProgram);
+  });
 
   // Separate open and closed classes
   const todayClasses = allTodayClasses.filter(
@@ -136,6 +138,26 @@ export const StudentDashboard: React.FC = () => {
     Math.round(degreeProgress.weeksRequired || 0),
   );
 
+  const confirmedSinceGraduation = (() => {
+    const cutoff = student.lastGraduationDate;
+    const map = new Map<string, number>();
+    myAllAttendance.forEach((a) => {
+      if (!a.confirmed) return;
+      const dateStr = a.date.slice(0, 10);
+      // match degreeCalculator: only count from the day AFTER graduation
+      if (cutoff && dateStr <= cutoff) return;
+      const d = parseISO(a.date);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const cur = map.get(dateStr) || 0;
+        if (cur < 2) map.set(dateStr, cur + 1);
+      }
+    });
+    let total = 0;
+    map.forEach((c) => (total += c));
+    return total;
+  })();
+
   // Recent confirmed attendance (last 5)
   const recentAttendance = myAllAttendance
     .filter((a) => a.confirmed)
@@ -174,13 +196,21 @@ export const StudentDashboard: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-2xl font-black text-[#D10A11]">
             {confirmedCount}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
-            Aulas Confirmadas
+            Aulas no total
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="text-2xl font-black text-indigo-600">
+            {confirmedSinceGraduation}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 font-medium">
+            Aulas nesse grau
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
@@ -364,10 +394,7 @@ export const StudentDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-600 mt-2 font-medium">
-                  {progressValue} de {progressRequiredValue} {progressUnit}{" "}
-                  concluídos
-                </div>
+
               </div>
 
               {/* Data Estimada */}

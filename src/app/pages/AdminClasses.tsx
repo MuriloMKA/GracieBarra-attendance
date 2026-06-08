@@ -24,6 +24,14 @@ const DAYS_OF_WEEK = [
   { value: 6, label: "Sábado" },
 ];
 
+const PROGRAM_OPTIONS = [
+  { value: "GB1", label: "GB1" },
+  { value: "GB2", label: "GB2" },
+  { value: "GB3", label: "GB3" },
+  { value: "GBKIDS", label: "GBK Kids" },
+  { value: "GBKJUVENIL", label: "GBK Juvenil" },
+];
+
 const CLASS_TYPES = [
   { value: "GBKIDS", label: "GBKIDS (até 6 anos)", program: "GBK" },
   { value: "JUVENIL", label: "Juvenil (7-15 anos)", program: "GBK" },
@@ -93,6 +101,18 @@ export const AdminClasses: React.FC = () => {
       toast.error("Não foi possível excluir a aula.");
     } finally {
       setDeletingClass(false);
+    }
+  };
+
+    const toggleProgram = (
+    prog: string,
+    current: string[],
+    setter: (p: string[]) => void,
+  ) => {
+    if (current.includes(prog)) {
+      setter(current.filter((p) => p !== prog));
+    } else {
+      setter([...current, prog]);
     }
   };
 
@@ -191,6 +211,9 @@ export const AdminClasses: React.FC = () => {
                 <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                   Dias da Semana
                 </th>
+                <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Programas
+                </th>
                 <th className="px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
                   Ações
                 </th>
@@ -216,6 +239,22 @@ export const AdminClasses: React.FC = () => {
                   <td className="px-5 py-4">
                     <div className="text-sm text-gray-600">
                       {formatDaysOfWeek(cls.daysOfWeek)}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {!cls.programs || cls.programs.length === 0 ? (
+                        <span className="text-xs text-gray-400 italic">Todos</span>
+                      ) : (
+                        cls.programs.map((p) => (
+                          <span
+                            key={p}
+                            className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[11px] font-bold"
+                          >
+                            {PROGRAM_OPTIONS.find((o) => o.value === p)?.label || p}
+                          </span>
+                        ))
+                      )}
                     </div>
                   </td>
                   <td className="px-5 py-4">
@@ -333,6 +372,35 @@ export const AdminClasses: React.FC = () => {
                       }`}
                     >
                       {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Programas permitidos
+                  <span className="ml-1 text-xs font-normal text-gray-400">(vazio = todos)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {PROGRAM_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        toggleProgram(
+                          opt.value,
+                          editingClass.programs || [],
+                          (p) => setEditingClass({ ...editingClass, programs: p }),
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        (editingClass.programs || []).includes(opt.value)
+                          ? "bg-[#003087] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>
@@ -528,6 +596,35 @@ export const AdminClasses: React.FC = () => {
                       }`}
                     >
                       {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Programas permitidos
+                  <span className="ml-1 text-xs font-normal text-gray-400">(vazio = todos)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {PROGRAM_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        toggleProgram(
+                          opt.value,
+                          newClass.programs || [],
+                          (p) => setNewClass({ ...newClass, programs: p }),
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        (newClass.programs || []).includes(opt.value)
+                          ? "bg-[#003087] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>
