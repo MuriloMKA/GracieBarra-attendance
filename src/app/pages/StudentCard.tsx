@@ -1,8 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useData, BeltColor } from "../context/DataContext";
 import { AttendanceCard } from "../components/AttendanceCard";
-import { BELT_NAMES_PT } from "../components/BeltDisplay";
+import {
+  BELT_NAMES_PT,
+  calculateProgram,
+  getDegreeDisplayLabel,
+} from "../components/BeltDisplay";
 import { ArrowLeft, Info } from "lucide-react";
 import { parseISO, format } from "date-fns";
 
@@ -63,9 +67,6 @@ interface BeltHistorySegment {
 
 export const StudentCard: React.FC = () => {
   const { currentUser, students, attendance } = useData();
-  const [selectedHistoryKey, setSelectedHistoryKey] = useState<
-    string | undefined
-  >(undefined);
 
   const student = students.find(
     (s) => (s.id || s._id) === currentUser?.studentId,
@@ -138,6 +139,22 @@ export const StudentCard: React.FC = () => {
     return segments;
   }, [graduationDates, student.belt, student.program]);
 
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState<
+    string | undefined
+  >(beltHistory[beltHistory.length - 1]?.key);
+
+  useEffect(() => {
+    const fallbackKey = beltHistory[beltHistory.length - 1]?.key;
+    if (!fallbackKey) return;
+    if (!selectedHistoryKey) {
+      setSelectedHistoryKey(fallbackKey);
+      return;
+    }
+    if (!beltHistory.some((segment) => segment.key === selectedHistoryKey)) {
+      setSelectedHistoryKey(fallbackKey);
+    }
+  }, [beltHistory, selectedHistoryKey]);
+
   const isDateInSelectedHistory = (dateInput: string): boolean => {
     if (!selectedHistoryKey) return true;
     const activeHistory = beltHistory.find(
@@ -158,6 +175,59 @@ export const StudentCard: React.FC = () => {
   const activeHistory =
     selectedHistoryKey &&
     beltHistory.find((segment) => segment.key === selectedHistoryKey);
+
+  const actualProgram = calculateProgram(
+    student.program,
+    student.belt,
+    student.degrees,
+    student.birthDate,
+  );
+
+  const confirmedCount = useMemo(() => {
+    const map = new Map<string, number>();
+    myAttendance.forEach((a) => {
+      if (!a.confirmed) return;
+      const d = parseISO(a.date);
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        const dateStr = a.date.slice(0, 10);
+        const current = map.get(dateStr) || 0;
+        if (current < 2) {
+          map.set(dateStr, current + 1);
+        }
+      }
+    });
+
+    let total = 0;
+    map.forEach((count) => (total += count));
+    return total;
+  }, [myAttendance]);
+
+  const confirmedSinceGraduation = useMemo(() => {
+    const cutoff = student.lastGraduationDate;
+    const map = new Map<string, number>();
+    myAttendance.forEach((a) => {
+      if (!a.confirmed) return;
+      const dateStr = a.date.slice(0, 10);
+      if (cutoff && dateStr <= cutoff) return;
+      const d = parseISO(a.date);
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        const current = map.get(dateStr) || 0;
+        if (current < 2) {
+          map.set(dateStr, current + 1);
+        }
+      }
+    });
+
+    let total = 0;
+    map.forEach((count) => (total += count));
+    return total;
+  }, [myAttendance, student.lastGraduationDate]);
+
+  const graduationCount = student.specialDates.filter(
+    (sd) => sd.type === "graduation",
+  ).length;
 
   const displayStudent = activeHistory
     ? {
@@ -189,11 +259,47 @@ export const StudentCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Info banner */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="text-2xl font-black text-[#D10A11]">
+            {confirmedCount}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 font-medium">
+            Aulas no total
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="text-2xl font-black text-indigo-600">
+            {confirmedSinceGraduation}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 font-medium">
+            Aulas no{" "}
+            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) ||
+              "grau atual"}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="text-lg font-black text-[#003087]">
+            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees)}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 font-medium">
+            Graus na Faixa
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="text-2xl font-black text-green-600">
+            {graduationCount}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 font-medium">
+            Graduações
+          </div>
+        </div>
+      </div>
+
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
         <Info size={18} className="text-[#003087] mt-0.5 shrink-0" />
         <div className="text-sm text-[#003087]">
-          <strong>Pontos pretos</strong> = aulas que você participou.{" "}
+          <strong>Pontos pretos</strong> = aulas que você participou no período exibido.{" "}
           <strong>Pontos vermelhos</strong> = datas de graduação (nova faixa).{" "}
           <strong>X azul</strong> = grau confirmado automaticamente.{" "}
           <strong>Pontos verdes</strong> = previsão do próximo grau.
