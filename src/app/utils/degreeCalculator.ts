@@ -261,10 +261,20 @@ export const calculateNextDegreeDate = (
     let currentDate = new Date(date);
     let remainingDays = Math.max(0, businessDays);
 
+    // Determine allowed class days based on resolved program
+    const resolvedProg = program === "GBK" || program === "GBKIDS" || program === "GBKJUVENIL"
+      ? resolveGbkProgram(program, birthDate)
+      : program;
+    const validDays: Set<number> =
+      resolvedProg === "GBKIDS"
+        ? new Set([1, 3])         // Mon, Wed only
+        : resolvedProg === "GBKJUVENIL"
+          ? new Set([1, 2, 3, 4]) // Mon–Thu only
+          : new Set([1, 2, 3, 4, 5]); // Mon–Fri (adults)
+
     while (remainingDays > 0) {
       currentDate = addDays(currentDate, 1);
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      if (validDays.has(currentDate.getDay())) {
         remainingDays -= 1;
       }
     }

@@ -66,6 +66,10 @@ export const authService = {
       throw error;
     }
   },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await api.post('/auth/change-password', { currentPassword, newPassword });
+  },
 };
 
 export const studentService = {

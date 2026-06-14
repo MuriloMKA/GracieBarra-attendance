@@ -169,6 +169,13 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     year,
   ]);
 
+  // Days of week allowed for class per program (0=Sun, 1=Mon ... 6=Sat)
+  const validClassDays = useMemo((): Set<number> => {
+    if (actualProgram === "GBKIDS") return new Set([1, 3]); // Mon, Wed only
+    if (actualProgram === "GBKJUVENIL") return new Set([1, 2, 3, 4]); // Mon–Thu only
+    return new Set([1, 2, 3, 4, 5]); // Mon–Fri (adults)
+  }, [actualProgram]);
+
   const beltColor = BELT_COLORS[student.belt];
 
   const gradeDates = student.specialDates
@@ -194,24 +201,13 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
         >
           <div className="flex items-center gap-3">
             <div
-              className={`bg-white rounded-full flex items-center justify-center shrink-0 shadow-md ${isCompact ? "p-1 h-11 w-11" : "p-1.5 h-14 w-14"}`}
+              className={`bg-white rounded-full flex items-center justify-center shrink-0 shadow-md overflow-hidden ${isCompact ? "p-0.5 h-11 w-11" : "p-1 h-14 w-14"}`}
             >
-              <svg
-                viewBox="0 0 100 100"
-                className="h-full w-full"
-                fill="currentColor"
-              >
-                <text
-                  x="50"
-                  y="60"
-                  fontSize="36"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  fill="#0EA5E9"
-                >
-                  GB
-                </text>
-              </svg>
+              <img
+                src="/images/logo.png"
+                alt="Gracie Barra Logo"
+                className="w-full h-full object-cover scale-110"
+              />
             </div>
             <div>
               <div
@@ -362,6 +358,10 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                           const isWeekendDay =
                             isValidDay &&
                             (dateObj.getDay() === 0 || dateObj.getDay() === 6);
+                          const isNonClassDay =
+                            isValidDay &&
+                            !isWeekendDay &&
+                            !validClassDays.has(dateObj.getDay());
                           const dateKey = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                           const attendanceCount =
                             isValidDay && !isWeekendDay
@@ -406,8 +406,8 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                               key={dayIdx}
                               className={`border-r border-gray-200 last:border-r-0 text-center align-middle relative ${isCompact ? "h-6" : "h-7"}
                                 ${!isValidDay ? "bg-gray-100" : ""}
-                                ${isWeekendDay ? "bg-gray-900" : ""}
-                                ${canInteractWithCells && isValidDay && !isWeekendDay ? "cursor-pointer hover:bg-yellow-50" : ""}
+                                ${(isWeekendDay || isNonClassDay) ? "bg-gray-900" : ""}
+                                ${canInteractWithCells && isValidDay && !isWeekendDay && !isNonClassDay ? "cursor-pointer hover:bg-yellow-50" : ""}
                                 ${isTodayColumn && isValidDay && !isWeekendDay ? "bg-amber-50/70" : ""}
                                 ${isTodayCell ? "ring-2 ring-inset ring-amber-400 bg-amber-100/90" : ""}
                               `}
@@ -416,6 +416,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                   canInteractWithCells &&
                                   isValidDay &&
                                   !isWeekendDay &&
+                                  !isNonClassDay &&
                                   onCellClick
                                 ) {
                                   onCellClick(
