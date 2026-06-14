@@ -102,7 +102,22 @@ export const StudentDashboard: React.FC = () => {
 
   // Stats
   const myAllAttendance = attendance.filter(matchStudentId);
-  const confirmedCount = myAllAttendance.filter((a) => a.confirmed).length;
+  const confirmedCount = (() => {
+    const map = new Map<string, number>();
+    myAllAttendance.forEach((a) => {
+      if (!a.confirmed) return;
+      const d = new Date(a.date);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const key = a.date.slice(0, 10);
+        const cur = map.get(key) || 0;
+        if (cur < 2) map.set(key, cur + 1);
+      }
+    });
+    let total = 0;
+    map.forEach((c) => (total += c));
+    return total;
+  })();
 
   // Calcula o programa real baseado na faixa e grau
   const actualProgram = calculateProgram(
