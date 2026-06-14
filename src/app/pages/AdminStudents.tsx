@@ -208,14 +208,23 @@ export const AdminStudents: React.FC = () => {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
-  const getStudentAttendance = (id: string) =>
-    attendance.filter(
-      (a) =>
-        (a.studentId === id ||
-          (a.studentId as any)?._id === id ||
-          (a.studentId as any)?.id === id) &&
-        a.confirmed,
-    ).length;
+  const getStudentAttendance = (id: string) => {
+    const map = new Map<string, number>();
+    attendance.forEach((a) => {
+      const sid = (a.studentId as any)?._id || (a.studentId as any)?.id || a.studentId;
+      if (sid !== id || !a.confirmed) return;
+      const d = new Date(a.date);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const key = a.date.slice(0, 10);
+        const cur = map.get(key) || 0;
+        if (cur < 2) map.set(key, cur + 1);
+      }
+    });
+    let total = 0;
+    map.forEach((c) => (total += c));
+    return total;
+  };
 
   const activeStudentsCount = students.filter(
     (student) => student.active !== false,

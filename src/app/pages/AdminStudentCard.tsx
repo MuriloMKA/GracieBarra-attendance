@@ -15,6 +15,7 @@ import {
   BeltDisplay,
   BELT_NAMES_PT,
   calculateProgram,
+  getDegreeDisplayLabel,
 } from "../components/BeltDisplay";
 
 const ADULT_BELTS: BeltColor[] = ["White", "Blue", "Purple", "Brown", "Black"];
@@ -610,7 +611,14 @@ export const AdminStudentCard: React.FC = () => {
             <div className="text-2xl font-black text-indigo-600">
               {confirmedSinceGraduation}
             </div>
-            <div className="text-xs text-gray-500">Aulas nesse grau</div>
+            <div className="text-xs text-gray-500">
+              Aulas no{" "}
+              {getDegreeDisplayLabel(
+                calculateProgram(student.program, student.belt, student.degrees, student.birthDate),
+                student.belt,
+                student.degrees,
+              ) || "grau atual"}
+            </div>
           </div>
           <div>
             <div className="text-2xl font-black text-[#D10A11]">
