@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link } from "react-router";
 import { useData, JJClass, Student, BeltColor } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -17,6 +17,7 @@ import {
   X,
   Eye,
   EyeOff,
+  ScanLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -48,6 +49,8 @@ export const AdminDashboard: React.FC = () => {
   const [showConfirmedModal, setShowConfirmedModal] = useState(false);
   const [showGraduationsModal, setShowGraduationsModal] = useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
+  const [pendingDegreeStudent, setPendingDegreeStudent] = useState<StudentReadyForDegree | null>(null);
+  const [confirmingDegree, setConfirmingDegree] = useState(false);
   const [showTotalCount, setShowTotalCount] = useState(() => {
     if (typeof window === "undefined") return true;
 
@@ -58,6 +61,9 @@ export const AdminDashboard: React.FC = () => {
     return storedValue === null ? true : storedValue === "true";
   });
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
+  const barcodeBufferRef = useRef<string>("");
+  const barcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleScanSuccessRef = useRef<(text: string) => void>(() => {});
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -68,13 +74,13 @@ export const AdminDashboard: React.FC = () => {
     );
   }, [showTotalCount]);
 
-  const vibrate = (pattern: number | number[]) => {
+  const vibrate = useCallback((pattern: number | number[]) => {
     if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
       return false;
     }
 
     return navigator.vibrate(pattern);
-  };
+  }, []);
 
   const activeStudents = useMemo(
     () => students.filter((student) => student.active !== false),
@@ -260,7 +266,7 @@ export const AdminDashboard: React.FC = () => {
     c.daysOfWeek.includes(today.getDay()),
   );
 
-  const handleScanSuccess = (decodedText: string) => {
+  const handleScanSuccess = useCallback((decodedText: string) => {
     try {
       const studentData = JSON.parse(decodedText);
       const studentId = studentData.studentId;
@@ -283,20 +289,60 @@ export const AdminDashboard: React.FC = () => {
 
       scannerCooldowns.current.set(studentId, now);
 
+      const todayStr = today.toISOString().split("T")[0];
       const alreadyConfirmed = attendance.some(
         (a) =>
           a.studentId === studentId &&
           a.classId === "manual-scan" &&
           a.confirmed &&
-          a.date.startsWith(today.toISOString().split("T")[0]),
+          a.date.startsWith(todayStr),
       );
 
       if (alreadyConfirmed) {
         toast.info(`Presença já confirmada para ${student.name} hoje!`);
+        // Even if already confirmed, check if ready for degree
+        const readyEntry = studentsReadyForDegree.find(
+          (s) => (s.id || s._id) === studentId,
+        );
+        if (readyEntry) {
+          setPendingDegreeStudent(readyEntry);
+        }
         return;
       }
 
       const currentTime = format(now, "HH:mm");
+
+      // Check degree readiness inline using current attendance + this new training
+      const studentCurrentAttendance = attendance.filter((a) => {
+        const sid = (a.studentId as any)?._id || (a.studentId as any)?.id || a.studentId;
+        return sid === studentId && a.confirmed;
+      });
+      const simulatedAttendance = [
+        ...studentCurrentAttendance,
+        {
+          studentId,
+          confirmed: true,
+          date: new Date().toISOString(),
+          classId: "manual-scan",
+          className: "Presença via QR Code",
+          classTime: currentTime,
+        } as any,
+      ];
+      const degreeProgressAfter = getDegreeProgress(
+        simulatedAttendance,
+        student.lastGraduationDate,
+        student.belt,
+        student.degrees,
+        student.program,
+        student.birthDate,
+      );
+      const isReadyAfterThisScan =
+        degreeProgressAfter.weeksRequired !== null &&
+        degreeProgressAfter.weeksCompleted >= (degreeProgressAfter.weeksRequired || Infinity);
+
+      const wasAlreadyReady = studentsReadyForDegree.some(
+        (s) => (s.id || s._id) === studentId,
+      );
 
       // Adiciona presença confirmada diretamente
       checkIn(
@@ -309,9 +355,98 @@ export const AdminDashboard: React.FC = () => {
         toast.success(
           `Check-in de ${student.name} concluído às ${currentTime}!`,
         );
+
+        // Show degree confirmation modal if student is (or just became) ready
+        if (isReadyAfterThisScan || wasAlreadyReady) {
+          const readyEntry = studentsReadyForDegree.find(
+            (s) => (s.id || s._id) === studentId,
+          );
+          setPendingDegreeStudent(
+            readyEntry || {
+              ...student,
+              weeksCompleted: degreeProgressAfter.weeksCompleted,
+              weeksRequired: degreeProgressAfter.weeksRequired || 0,
+              nextDegree: student.degrees + 1,
+              confirmedAttendances: simulatedAttendance.length,
+              progressUnit: "treinos",
+            } as StudentReadyForDegree,
+          );
+        }
       });
     } catch (error) {
       toast.error("QR Code inválido!");
+    }
+  }, [students, attendance, studentsReadyForDegree, checkIn, today, vibrate]);
+
+  // Keep ref in sync so the keyboard listener always calls the latest version
+  useEffect(() => {
+    handleScanSuccessRef.current = handleScanSuccess;
+  }, [handleScanSuccess]);
+
+  // Physical barcode/QR scanner keyboard listener
+  // USB barcode scanners act as keyboards: they type the content very fast, then press Enter
+  useEffect(() => {
+    const SCANNER_TIMEOUT_MS = 80;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "Enter") {
+        const buffer = barcodeBufferRef.current;
+        barcodeBufferRef.current = "";
+        if (barcodeTimerRef.current) {
+          clearTimeout(barcodeTimerRef.current);
+          barcodeTimerRef.current = null;
+        }
+        if (buffer.length > 10) {
+          handleScanSuccessRef.current(buffer);
+        }
+      } else if (e.key.length === 1) {
+        barcodeBufferRef.current += e.key;
+        if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current);
+        barcodeTimerRef.current = setTimeout(() => {
+          barcodeBufferRef.current = "";
+          barcodeTimerRef.current = null;
+        }, SCANNER_TIMEOUT_MS);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current);
+    };
+  }, []);
+
+  const handleConfirmDegree = async (student: StudentReadyForDegree) => {
+    try {
+      setConfirmingDegree(true);
+      const token = localStorage.getItem("gb_auth_token");
+      const studentId = student._id || student.id;
+      const res = await fetch(`/api/students/${studentId}/confirm-degree`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+        body: JSON.stringify({ notes: "Confirmado pelo professor via leitura QR" }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success(`Grau de ${student.name} confirmado!`);
+      setPendingDegreeStudent(null);
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao confirmar grau");
+    } finally {
+      setConfirmingDegree(false);
     }
   };
 
@@ -749,25 +884,46 @@ export const AdminDashboard: React.FC = () => {
           Leitor de QR Code
         </h2>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="text-center max-w-sm mx-auto">
-            <div className="mb-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#D10A11]/10 rounded-full mb-3">
-                <QrCode size={32} className="text-[#D10A11]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Camera scanner */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="text-center max-w-sm mx-auto">
+              <div className="mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-[#D10A11]/10 rounded-full mb-3">
+                  <QrCode size={28} className="text-[#D10A11]" />
+                </div>
+                <h3 className="font-bold text-gray-900 mb-1">Câmera (Celular)</h3>
+                <p className="text-gray-500 text-sm">
+                  Aponte a câmera para os QR Codes dos alunos.
+                </p>
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">Leitor Contínuo</h3>
-              <p className="text-gray-500 text-sm">
-                Aponte a câmera para os QR Codes dos alunos. O horário da
-                confirmação será registrado automaticamente.
-              </p>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="w-full py-3 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <QrCode size={18} />
+                Iniciar Câmera
+              </button>
             </div>
-            <button
-              onClick={() => setShowScanner(true)}
-              className="w-full py-3 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center justify-center gap-2 mx-auto"
-            >
-              <QrCode size={20} />
-              Iniciar Leitor
-            </button>
+          </div>
+
+          {/* Physical scanner (USB/Bluetooth HID) */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="text-center max-w-sm mx-auto">
+              <div className="mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-full mb-3">
+                  <ScanLine size={28} className="text-green-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 mb-1">Leitor Físico (USB/BT)</h3>
+                <p className="text-gray-500 text-sm">
+                  Conecte seu leitor de código de barras ou QR Code. Ele funciona automaticamente — basta apontar para o código do aluno.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-semibold">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                Ativo e aguardando leitura
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -778,6 +934,60 @@ export const AdminDashboard: React.FC = () => {
           onScanSuccess={handleScanSuccess}
           onClose={() => setShowScanner(false)}
         />
+      )}
+
+      {/* Degree Confirmation Modal - shown when scanning a student ready for degree */}
+      {pendingDegreeStudent && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <Award size={24} className="text-white" />
+                </div>
+                <div>
+                  <div className="text-white font-black text-lg">Grau Disponível!</div>
+                  <div className="text-amber-100 text-sm">
+                    {pendingDegreeStudent.name}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-gray-700 text-sm mb-1">
+                Este aluno completou os requisitos para receber o{" "}
+                <strong>
+                  {getNextDegreeDisplayLabel(
+                    pendingDegreeStudent.program,
+                    pendingDegreeStudent.belt,
+                    pendingDegreeStudent.degrees,
+                  )}
+                </strong>{" "}
+                ({BELT_NAMES_PT[pendingDegreeStudent.belt]}).
+              </p>
+              <p className="text-gray-500 text-xs mb-5">
+                {Math.round(pendingDegreeStudent.weeksCompleted)} de{" "}
+                {Math.round(pendingDegreeStudent.weeksRequired)} treinos completados.
+                Deseja confirmar o grau agora?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPendingDegreeStudent(null)}
+                  className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl font-semibold text-sm transition-colors"
+                >
+                  Agora não
+                </button>
+                <button
+                  onClick={() => handleConfirmDegree(pendingDegreeStudent)}
+                  disabled={confirmingDegree}
+                  className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-sm shadow transition-colors disabled:opacity-60"
+                >
+                  {confirmingDegree ? "Confirmando..." : "Confirmar Grau"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

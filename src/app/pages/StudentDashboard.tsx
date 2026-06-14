@@ -210,7 +210,8 @@ export const StudentDashboard: React.FC = () => {
             {confirmedSinceGraduation}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
-            Aulas nesse grau
+            Aulas no{" "}
+            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) || "grau atual"}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
