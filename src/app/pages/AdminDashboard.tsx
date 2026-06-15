@@ -87,6 +87,36 @@ export const AdminDashboard: React.FC = () => {
     [students],
   );
 
+  const todayStart = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
+  const getValidDegreeQueueDays = (student: Student) => {
+    const actualProgram = calculateProgram(
+      student.program,
+      student.belt,
+      student.degrees,
+      student.birthDate,
+    );
+
+    if (actualProgram === "GBKIDS") return new Set([1, 3]);
+    if (actualProgram === "GBKJUVENIL") return new Set([1, 2, 3, 4]);
+    return new Set([1, 2, 3, 4, 5]);
+  };
+
+  const getNextEligibleDegreeQueueDate = (student: Student, date: Date) => {
+    const validDays = getValidDegreeQueueDays(student);
+    const currentDate = new Date(date);
+    currentDate.setHours(0, 0, 0, 0);
+
+    do {
+      currentDate.setDate(currentDate.getDate() + 1);
+    } while (!validDays.has(currentDate.getDay()));
+
+    return currentDate;
+  };
+
   const studentsReadyForDegree = useMemo<StudentReadyForDegree[]>(() => {
     const readyStudents: StudentReadyForDegree[] = [];
 
@@ -113,8 +143,25 @@ export const AdminDashboard: React.FC = () => {
       if (!required) return;
 
       const weeksCompleted = degreeProgress.weeksCompleted;
+      const remainingTrainings = Math.max(0, required - weeksCompleted);
+      const cycleAttendances = studentAttendance
+        .filter((entry) => {
+          const dateStr = entry.date?.slice(0, 10);
+          return !student.lastGraduationDate || dateStr > student.lastGraduationDate;
+        })
+        .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
-      if (weeksCompleted >= required) {
+      const latestCycleAttendanceDate = cycleAttendances[0]?.date
+        ? parseISO(cycleAttendances[0].date)
+        : null;
+
+      const shouldAppearOnDegreeQueueDay =
+        remainingTrainings === 1 &&
+        latestCycleAttendanceDate &&
+        todayStart.getTime() >=
+          getNextEligibleDegreeQueueDate(student, latestCycleAttendanceDate).getTime();
+
+      if (weeksCompleted >= required || shouldAppearOnDegreeQueueDay) {
         readyStudents.push({
           ...student,
           weeksCompleted: Math.floor(weeksCompleted * 10) / 10,
@@ -127,7 +174,7 @@ export const AdminDashboard: React.FC = () => {
     });
 
     return readyStudents;
-  }, [attendance, activeStudents]);
+  }, [attendance, activeStudents, todayStart]);
 
   const absentStudents = useMemo<AbsentStudent[]>(() => {
     const now = new Date();

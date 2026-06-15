@@ -73,6 +73,29 @@ export const StudentDashboard: React.FC = () => {
   const todayDOW = today.getDay();
   const todayStr = today.toISOString().split("T")[0];
 
+  // Calcula o programa real baseado na faixa e grau
+  const actualProgram = calculateProgram(
+    student.program,
+    student.belt,
+    student.degrees,
+    student.birthDate,
+  );
+
+  const isClassStillAvailableToday = (classTime?: string) => {
+    if (!classTime) return true;
+
+    const [hours, minutes] = classTime.split(":").map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return true;
+
+    const classStart = new Date(today);
+    classStart.setHours(hours, minutes, 0, 0);
+
+    const classEnd = new Date(classStart);
+    classEnd.setHours(classEnd.getHours() + 1);
+
+    return today.getTime() <= classEnd.getTime();
+  };
+
   // All classes that normally happen today, filtered by student's program
   const allTodayClasses = classes.filter((c) => {
     if (!c.daysOfWeek.includes(todayDOW)) return false;
@@ -82,7 +105,9 @@ export const StudentDashboard: React.FC = () => {
 
   // Separate open and closed classes
   const todayClasses = allTodayClasses.filter(
-    (c) => !(c.closedDates || []).includes(todayStr),
+    (c) =>
+      !(c.closedDates || []).includes(todayStr) &&
+      isClassStillAvailableToday(c.time),
   );
 
   const closedTodayClasses = allTodayClasses.filter((c) =>
@@ -118,14 +143,6 @@ export const StudentDashboard: React.FC = () => {
     map.forEach((c) => (total += c));
     return total;
   })();
-
-  // Calcula o programa real baseado na faixa e grau
-  const actualProgram = calculateProgram(
-    student.program,
-    student.belt,
-    student.degrees,
-    student.birthDate,
-  );
 
   const cardStyle = getCardStyle(
     student.program,
