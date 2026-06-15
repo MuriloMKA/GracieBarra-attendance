@@ -312,6 +312,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error("Erro no check-in:", error);
       toast.error(error.response?.data?.error || "Erro ao fazer check-in");
+      throw error;
     }
   };
 

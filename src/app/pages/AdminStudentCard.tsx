@@ -164,7 +164,7 @@ export const AdminStudentCard: React.FC = () => {
 
   const confirmedCount = useMemo(() => {
     const map = new Map<string, number>();
-    studentAttendance.forEach((a) => {
+    displayAttendance.forEach((a) => {
       if (a.confirmed) {
         const d = parseISO(a.date);
         const dayOfWeek = d.getDay();
@@ -182,11 +182,11 @@ export const AdminStudentCard: React.FC = () => {
     let total = 0;
     map.forEach((count) => (total += count));
     return total;
-  }, [studentAttendance]);
+  }, [displayAttendance]);
   const confirmedSinceGraduation = useMemo(() => {
     const cutoff = student?.lastGraduationDate;
     const map = new Map<string, number>();
-    studentAttendance.forEach((a) => {
+    displayAttendance.forEach((a) => {
       if (!a.confirmed) return;
       const dateStr = a.date.slice(0, 10);
       // match degreeCalculator: only count from the day AFTER graduation
@@ -201,7 +201,7 @@ export const AdminStudentCard: React.FC = () => {
     let total = 0;
     map.forEach((count) => (total += count));
     return total;
-  }, [studentAttendance, student?.lastGraduationDate]);
+  }, [displayAttendance, student?.lastGraduationDate]);
 
   const gradeDates = (student?.specialDates || [])
     .filter((sd) => sd.type === "grade")
@@ -403,6 +403,8 @@ export const AdminStudentCard: React.FC = () => {
           await updateStudent({
             ...student,
             degrees: student.degrees + 1,
+            // Atualiza a data de referência para não manter o aluno no bloco de "pronto para grau"
+            lastGraduationDate: isoDate,
             specialDates: [
               ...student.specialDates,
               {
@@ -545,7 +547,7 @@ export const AdminStudentCard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-[1600px] mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <Link
@@ -635,7 +637,7 @@ export const AdminStudentCard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[440px_minmax(0,1fr)] gap-4">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
           <div>
             <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">

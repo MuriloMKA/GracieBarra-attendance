@@ -43,7 +43,7 @@ interface AbsentStudent extends Student {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, checkIn } = useData();
+  const { currentUser, students, attendance, classes, checkIn, refreshData } = useData();
 
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmedModal, setShowConfirmedModal] = useState(false);
@@ -460,7 +460,7 @@ export const AdminDashboard: React.FC = () => {
       if (!res.ok) throw new Error(await res.text());
       toast.success(`Grau de ${student.name} confirmado!`);
       setPendingDegreeStudent(null);
-      window.location.reload();
+      await refreshData();
     } catch (err) {
       console.error(err);
       toast.error("Erro ao confirmar grau");
@@ -865,7 +865,7 @@ export const AdminDashboard: React.FC = () => {
                           );
                           if (!res.ok) throw new Error(await res.text());
                           toast.success("Grau confirmado com sucesso");
-                          window.location.reload();
+                          await refreshData();
                         } catch (err) {
                           console.error(err);
                           toast.error("Erro ao confirmar grau");
