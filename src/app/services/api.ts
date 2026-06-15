@@ -1,9 +1,17 @@
 import axios from 'axios';
 
-// Em produção mobile, usa Railway por padrão caso VITE_API_URL não seja injetada no build.
+const configuredApiUrl = (import.meta as any).env?.VITE_API_URL;
+const isLocalHost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1');
+
+// Localhost usa API local por padrão; produção continua no Railway quando VITE_API_URL não vier definido.
 const API_URL =
-  (import.meta as any).env?.VITE_API_URL ||
-  'https://graciebarra-attendance-production.up.railway.app/api';
+  configuredApiUrl ||
+  (isLocalHost
+    ? 'http://localhost:3001/api'
+    : 'https://graciebarra-attendance-production.up.railway.app/api');
 
 const api = axios.create({
   baseURL: API_URL,
@@ -26,8 +34,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const url: string = error.config?.url || '';
+    const isLoginRoute = url.includes('/auth/login') || url.includes('/auth/change-password');
     // 401 = Token não fornecido, 403 = Token inválido/expirado
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    // Não redireciona em rotas de autenticação para que o erro apareça na tela
+    if (!isLoginRoute && (error.response?.status === 401 || error.response?.status === 403)) {
       localStorage.removeItem('gb_auth_token');
       localStorage.removeItem('gb_current_user');
       window.location.href = '/';

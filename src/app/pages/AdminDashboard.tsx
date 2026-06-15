@@ -271,6 +271,11 @@ export const AdminDashboard: React.FC = () => {
       const studentData = JSON.parse(decodedText);
       const studentId = studentData.studentId;
 
+      if (!studentId) {
+        toast.error(`Leitura inválida: sem studentId. Conteúdo: ${decodedText.slice(0, 60)}`);
+        return;
+      }
+
       const now = Date.now();
       const lastScan = scannerCooldowns.current.get(studentId) || 0;
       if (now - lastScan < 5000) {
@@ -384,9 +389,32 @@ export const AdminDashboard: React.FC = () => {
   }, [handleScanSuccess]);
 
   // Physical barcode/QR scanner keyboard listener
-  // USB barcode scanners act as keyboards: they type the content very fast, then press Enter
+  // USB barcode scanners act as keyboards: they type the content very fast, then press Enter/CR
   useEffect(() => {
-    const SCANNER_TIMEOUT_MS = 80;
+    const SCANNER_TIMEOUT_MS = 200; // increased to 200ms to handle slower scanners
+
+    const flushBuffer = () => {
+      const buffer = barcodeBufferRef.current;
+      barcodeBufferRef.current = "";
+      if (barcodeTimerRef.current) {
+        clearTimeout(barcodeTimerRef.current);
+        barcodeTimerRef.current = null;
+      }
+      if (buffer.length < 5) return;
+
+      // Try to parse as JSON first (our QR format: {"studentId":"xxx"})
+      // Fallback: treat raw string as studentId directly
+      let payload: string;
+      try {
+        JSON.parse(buffer);
+        payload = buffer;
+      } catch {
+        // Scanner may have stripped { or " — try wrapping as studentId
+        payload = JSON.stringify({ studentId: buffer.trim() });
+      }
+
+      handleScanSuccessRef.current(payload);
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -398,23 +426,14 @@ export const AdminDashboard: React.FC = () => {
         return;
       }
 
-      if (e.key === "Enter") {
-        const buffer = barcodeBufferRef.current;
-        barcodeBufferRef.current = "";
-        if (barcodeTimerRef.current) {
-          clearTimeout(barcodeTimerRef.current);
-          barcodeTimerRef.current = null;
-        }
-        if (buffer.length > 10) {
-          handleScanSuccessRef.current(buffer);
-        }
+      // Enter OR CR (\r) fires end-of-scan
+      if (e.key === "Enter" || e.key === "\r") {
+        flushBuffer();
       } else if (e.key.length === 1) {
         barcodeBufferRef.current += e.key;
         if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current);
-        barcodeTimerRef.current = setTimeout(() => {
-          barcodeBufferRef.current = "";
-          barcodeTimerRef.current = null;
-        }, SCANNER_TIMEOUT_MS);
+        // Auto-flush after timeout in case scanner doesn't send Enter
+        barcodeTimerRef.current = setTimeout(flushBuffer, SCANNER_TIMEOUT_MS);
       }
     };
 

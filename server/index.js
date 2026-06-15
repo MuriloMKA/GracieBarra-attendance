@@ -17,6 +17,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_development";
 const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
+const DEFAULT_ADMIN_EMAIL =
+  (process.env.DEFAULT_ADMIN_EMAIL || "Gabriel.recreio@gmail.com")
+    .trim()
+    .toLowerCase();
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "961433";
 
 // Configuração do nodemailer (use variáveis de ambiente EMAIL_USER e EMAIL_PASS no .env ou railway)
 const transporter = nodemailer.createTransport({
@@ -167,6 +172,39 @@ const syncExistingStudentAccessUsers = async () => {
   return syncedCount;
 };
 
+const syncPrimaryAdminCredentials = async () => {
+  if (!DEFAULT_ADMIN_EMAIL || !DEFAULT_ADMIN_PASSWORD) {
+    return "skipped";
+  }
+
+  const admins = await User.find({ role: "admin" });
+  const targetAdmin =
+    admins.find((admin) => admin.email?.toLowerCase() === DEFAULT_ADMIN_EMAIL) ||
+    admins.find((admin) => admin.email === "admin@graciebarra.com") ||
+    admins[0];
+
+  const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+
+  if (targetAdmin) {
+    targetAdmin.email = DEFAULT_ADMIN_EMAIL;
+    targetAdmin.password = hashedPassword;
+    if (!targetAdmin.name) {
+      targetAdmin.name = "Professor Gabriel";
+    }
+    await targetAdmin.save();
+    return "updated";
+  }
+
+  const created = new User({
+    email: DEFAULT_ADMIN_EMAIL,
+    password: hashedPassword,
+    role: "admin",
+    name: "Professor Gabriel",
+  });
+  await created.save();
+  return "created";
+};
+
 // MongoDB Connection
 const connectDB = async () => {
   try {
@@ -255,6 +293,13 @@ const classSchema = new mongoose.Schema(
     name: String,
     time: String,
     instructor: String,
+    program: String,
+    programs: [
+      {
+        type: String,
+        enum: ["GB1", "GB2", "GB3", "GBKIDS", "GBKJUVENIL"],
+      },
+    ],
     daysOfWeek: [Number],
     closedDates: [String],
   },
@@ -848,9 +893,14 @@ app.post("/api/auth/change-password", authenticateToken, async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = `${email || ""}`.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({ error: "Email e senha sao obrigatorios" });
+    }
 
     // Busca TODOS os usuários com este email
-    const users = await User.find({ email });
+    const users = await User.find({ email: normalizedEmail });
 
     if (users.length === 0) {
       return res.status(401).json({ error: "Credenciais inválidas" });
@@ -1016,10 +1066,10 @@ app.post("/api/setup/init", async (req, res) => {
     // Criar usuários
     const users = [
       {
-        email: "admin@graciebarra.com",
-        password: await bcrypt.hash("admin123", 10),
+        email: "gabriel.recreio@gmail.com",
+        password: await bcrypt.hash("961433", 10),
         role: "admin",
-        name: "Professor Admin",
+        name: "Professor Gabriel",
       },
       {
         email: "joao@example.com",
@@ -1080,7 +1130,7 @@ app.post("/api/setup/init", async (req, res) => {
     res.json({
       message: "Dados iniciais criados com sucesso!",
       users: {
-        admin: "admin@graciebarra.com / admin123",
+        admin: "gabriel.recreio@gmail.com / 961433",
         students:
           "joao@example.com, maria@example.com, carlos@example.com, pedro@example.com / data de nascimento (ddmmaaaa)",
       },
@@ -1099,6 +1149,9 @@ connectDB().then(async () => {
 
     const syncedCount = await syncExistingStudentAccessUsers();
     console.log(`🔄 Perfis de alunos sincronizados: ${syncedCount}`);
+
+    const adminSyncStatus = await syncPrimaryAdminCredentials();
+    console.log(`👤 Perfil admin sincronizado: ${adminSyncStatus}`);
   } catch (e) {
     console.log("Not possible to drop indexes, might not exist.");
   }
