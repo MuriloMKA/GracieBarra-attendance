@@ -363,12 +363,17 @@ export const StudentDashboard: React.FC = () => {
                     student.degrees,
                   )}
                 </h3>
-                {degreeProgress.isReadyForGraduation && (
+                {degreeProgress.isReadyForGraduation ? (
                   <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
                     <CheckCircle2 size={14} />
                     Pronto!
                   </span>
-                )}
+                ) : degreeProgress.isPenultimate ? (
+                  <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <CheckCircle2 size={14} />
+                    Falta 1!
+                  </span>
+                ) : null}
               </div>
 
               {/* Barra de Progresso */}
@@ -378,7 +383,9 @@ export const StudentDashboard: React.FC = () => {
                     className={`h-full rounded-full transition-all duration-500 ${
                       degreeProgress.isReadyForGraduation
                         ? "bg-green-500"
-                        : "bg-[#003087]"
+                        : degreeProgress.isPenultimate
+                          ? "bg-amber-500"
+                          : "bg-[#003087]"
                     }`}
                     style={{ width: `${degreeProgress.progressPercentage}%` }}
                   />

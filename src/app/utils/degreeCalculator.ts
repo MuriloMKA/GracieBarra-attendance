@@ -323,6 +323,13 @@ export const getDegreeProgress = (
 
   const isReadyForGraduation = weeksRequired ? weeksCompleted >= weeksRequired : false;
 
+  // Penúltimo: concluiu exatamente 1 treino a menos do necessário (já está na fila do próximo grau)
+  const isPenultimate =
+    weeksRequired !== null &&
+    !isReadyForGraduation &&
+    weeksCompleted > 0 &&
+    weeksRequired - weeksCompleted <= 1;
+
   return {
     weeksRequired,
     weeksCompleted: Math.floor(weeksCompleted * 10) / 10, // Arredonda para 1 casa decimal
@@ -330,6 +337,7 @@ export const getDegreeProgress = (
     progressPercentage,
     estimatedDate,
     isReadyForGraduation,
+    isPenultimate,
     nextDegree: currentDegree + 1,
     progressUnit: "treinos",
   };

@@ -35,6 +35,7 @@ interface StudentReadyForDegree extends Student {
   nextDegree: number;
   confirmedAttendances: number;
   progressUnit?: "treinos";
+  isPenultimate?: boolean;
 }
 
 interface AbsentStudent extends Student {
@@ -92,31 +93,6 @@ export const AdminDashboard: React.FC = () => {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }, []);
 
-  const getValidDegreeQueueDays = (student: Student) => {
-    const actualProgram = calculateProgram(
-      student.program,
-      student.belt,
-      student.degrees,
-      student.birthDate,
-    );
-
-    if (actualProgram === "GBKIDS") return new Set([1, 3]);
-    if (actualProgram === "GBKJUVENIL") return new Set([1, 2, 3, 4]);
-    return new Set([1, 2, 3, 4, 5]);
-  };
-
-  const getNextEligibleDegreeQueueDate = (student: Student, date: Date) => {
-    const validDays = getValidDegreeQueueDays(student);
-    const currentDate = new Date(date);
-    currentDate.setHours(0, 0, 0, 0);
-
-    do {
-      currentDate.setDate(currentDate.getDate() + 1);
-    } while (!validDays.has(currentDate.getDay()));
-
-    return currentDate;
-  };
-
   const studentsReadyForDegree = useMemo<StudentReadyForDegree[]>(() => {
     const readyStudents: StudentReadyForDegree[] = [];
 
@@ -143,25 +119,12 @@ export const AdminDashboard: React.FC = () => {
       if (!required) return;
 
       const weeksCompleted = degreeProgress.weeksCompleted;
-      const remainingTrainings = Math.max(0, required - weeksCompleted);
-      const cycleAttendances = studentAttendance
-        .filter((entry) => {
-          const dateStr = entry.date?.slice(0, 10);
-          return !student.lastGraduationDate || dateStr > student.lastGraduationDate;
-        })
-        .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      // Aparece no bloco ao completar o penúltimo treino (remaining === 1) OU ao completar todos
+      const remaining = required - weeksCompleted;
+      const isReady = weeksCompleted >= required;
+      const isPenultimate = !isReady && remaining <= 1 && weeksCompleted > 0;
 
-      const latestCycleAttendanceDate = cycleAttendances[0]?.date
-        ? parseISO(cycleAttendances[0].date)
-        : null;
-
-      const shouldAppearOnDegreeQueueDay =
-        remainingTrainings === 1 &&
-        latestCycleAttendanceDate &&
-        todayStart.getTime() >=
-          getNextEligibleDegreeQueueDate(student, latestCycleAttendanceDate).getTime();
-
-      if (weeksCompleted >= required || shouldAppearOnDegreeQueueDay) {
+      if (isReady || isPenultimate) {
         readyStudents.push({
           ...student,
           weeksCompleted: Math.floor(weeksCompleted * 10) / 10,
@@ -169,12 +132,13 @@ export const AdminDashboard: React.FC = () => {
           nextDegree: student.degrees + 1,
           confirmedAttendances: studentAttendance.length,
           progressUnit: "treinos",
+          isPenultimate,
         });
       }
     });
 
     return readyStudents;
-  }, [attendance, activeStudents, todayStart]);
+  }, [attendance, activeStudents]);
 
   const absentStudents = useMemo<AbsentStudent[]>(() => {
     const now = new Date();
@@ -265,9 +229,16 @@ export const AdminDashboard: React.FC = () => {
             : (a as any).name || "Aluno desconhecido",
           className: (a as any).className || (a as any).classId || "-",
           time: (a as any).classTime || a.date?.slice(11, 16) || "-",
+          date: a.date || "",
         };
-      });
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [attendance, activeStudents, activeStudentIds]);
+
+  const latestConfirmedToday = useMemo(
+    () => confirmedTodayList.slice(0, 5),
+    [confirmedTodayList],
+  );
 
   const graduationEvents = useMemo(() => {
     const events: Array<{ name: string; date: string; notes?: string }> = [];
@@ -352,9 +323,9 @@ export const AdminDashboard: React.FC = () => {
 
       if (alreadyConfirmed) {
         toast.info(`Presença já confirmada para ${student.name} hoje!`);
-        // Even if already confirmed, check if ready for degree
+        // Only prompt degree confirmation if student is fully done (not penultimate)
         const readyEntry = studentsReadyForDegree.find(
-          (s) => (s.id || s._id) === studentId,
+          (s) => (s.id || s._id) === studentId && !s.isPenultimate,
         );
         if (readyEntry) {
           setPendingDegreeStudent(readyEntry);
@@ -392,8 +363,9 @@ export const AdminDashboard: React.FC = () => {
         degreeProgressAfter.weeksRequired !== null &&
         degreeProgressAfter.weeksCompleted >= (degreeProgressAfter.weeksRequired || Infinity);
 
-      const wasAlreadyReady = studentsReadyForDegree.some(
-        (s) => (s.id || s._id) === studentId,
+      // Show degree confirmation modal only when student is fully done
+      const wasAlreadyFullyReady = studentsReadyForDegree.some(
+        (s) => (s.id || s._id) === studentId && !s.isPenultimate,
       );
 
       // Adiciona presença confirmada diretamente
@@ -408,10 +380,10 @@ export const AdminDashboard: React.FC = () => {
           `Check-in de ${student.name} concluído às ${currentTime}!`,
         );
 
-        // Show degree confirmation modal if student is (or just became) ready
-        if (isReadyAfterThisScan || wasAlreadyReady) {
+        // Show degree confirmation modal if student is (or just became) fully ready
+        if (isReadyAfterThisScan || wasAlreadyFullyReady) {
           const readyEntry = studentsReadyForDegree.find(
-            (s) => (s.id || s._id) === studentId,
+            (s) => (s.id || s._id) === studentId && !s.isPenultimate,
           );
           setPendingDegreeStudent(
             readyEntry || {
@@ -421,6 +393,7 @@ export const AdminDashboard: React.FC = () => {
               nextDegree: student.degrees + 1,
               confirmedAttendances: simulatedAttendance.length,
               progressUnit: "treinos",
+              isPenultimate: false,
             } as StudentReadyForDegree,
           );
         }
@@ -888,9 +861,15 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                      Pronto!
-                    </div>
+                    {student.isPenultimate ? (
+                      <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">
+                        Falta 1!
+                      </div>
+                    ) : (
+                      <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                        Pronto!
+                      </div>
+                    )}
                     <button
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -975,19 +954,49 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Physical scanner (USB/Bluetooth HID) */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <div className="text-center max-w-sm mx-auto">
-              <div className="mb-4">
+            <div className="max-w-sm mx-auto">
+              <div className="mb-4 text-center">
                 <div className="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-full mb-3">
                   <ScanLine size={28} className="text-green-600" />
                 </div>
                 <h3 className="font-bold text-gray-900 mb-1">Leitor Físico (USB/BT)</h3>
                 <p className="text-gray-500 text-sm">
-                  Conecte seu leitor de código de barras ou QR Code. Ele funciona automaticamente — basta apontar para o código do aluno.
+                  Conecte seu leitor e acompanhe abaixo os últimos alunos confirmados em tempo real.
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-semibold">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                Ativo e aguardando leitura
+
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Rastreamento ao vivo
+                  </div>
+                  <span className="text-xs text-green-700/80 font-medium">
+                    Últimos 5
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {latestConfirmedToday.length === 0 ? (
+                    <div className="text-xs text-green-800/80 py-2">
+                      Nenhuma confirmação hoje ainda.
+                    </div>
+                  ) : (
+                    latestConfirmedToday.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between gap-3 px-2.5 py-2 rounded-lg bg-white/70 border border-green-100"
+                      >
+                        <div className="text-sm font-medium text-gray-800 truncate">
+                          {entry.name}
+                        </div>
+                        <div className="text-xs font-semibold text-green-700 shrink-0">
+                          {entry.time}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>

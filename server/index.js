@@ -456,7 +456,11 @@ app.get(
           student.lastGraduationDate,
         );
 
-        if (weeksCompleted >= weeksRequired) {
+        const remaining = weeksRequired - weeksCompleted;
+        const isReady = weeksCompleted >= weeksRequired;
+        const isPenultimate = !isReady && remaining <= 1 && weeksCompleted > 0;
+
+        if (isReady || isPenultimate) {
           const confirmedCount = allAttendances.length;
           const studentObj = student.toJSON
             ? student.toJSON()
@@ -467,6 +471,7 @@ app.get(
             weeksRequired,
             nextDegree: student.degrees + 1,
             confirmedAttendances: confirmedCount,
+            isPenultimate,
           });
         }
       }
