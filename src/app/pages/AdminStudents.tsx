@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useData, Student, BeltColor, Program } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
 import {
   Search,
-  Edit2,
   CreditCard,
   X,
   UserPlus,
@@ -149,6 +148,8 @@ const getBirthDatePassword = (birthDate?: string) => {
 
 export const AdminStudents: React.FC = () => {
   const { students, attendance, updateStudent, addStudent } = useData();
+  const location = useLocation();
+  const navigate = useNavigate();
   const normalizeString = (v?: string) =>
     (v || "")
       .normalize("NFD")
@@ -160,6 +161,7 @@ export const AdminStudents: React.FC = () => {
   >("active");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editReturnTo, setEditReturnTo] = useState<string | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [deletingStudent, setDeletingStudent] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -208,6 +210,41 @@ export const AdminStudents: React.FC = () => {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const editId = params.get("edit");
+    const returnTo = params.get("returnTo");
+    if (!editId) return;
+
+    const studentToEdit = students.find(
+      (s) => (s.id || s._id) === editId,
+    );
+    if (!studentToEdit) return;
+
+    setEditingStudent({ ...studentToEdit });
+    setEditReturnTo(returnTo || null);
+
+    params.delete("edit");
+    params.delete("returnTo");
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: "/admin/students",
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
+      { replace: true },
+    );
+  }, [location.search, navigate, students]);
+
+  const closeEditModal = useCallback(() => {
+    setEditingStudent(null);
+
+    if (editReturnTo) {
+      navigate(editReturnTo, { replace: true });
+      setEditReturnTo(null);
+    }
+  }, [editReturnTo, navigate]);
+
   const getStudentAttendance = (id: string) => {
     const map = new Map<string, number>();
     attendance.forEach((a) => {
@@ -230,7 +267,7 @@ export const AdminStudents: React.FC = () => {
     (student) => student.active !== false,
   ).length;
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingStudent) {
       const normalizedProgram = normalizeProgram(
@@ -244,9 +281,9 @@ export const AdminStudents: React.FC = () => {
         program: normalizedProgram,
       };
 
-      updateStudent(normalizedStudent);
+      await updateStudent(normalizedStudent);
       toast.success(`${normalizedStudent.name} atualizado com sucesso!`);
-      setEditingStudent(null);
+      closeEditModal();
     }
   };
 
@@ -308,7 +345,7 @@ export const AdminStudents: React.FC = () => {
       });
       toast.success(`${studentToDelete.name} foi inativado com sucesso.`);
       setStudentToDelete(null);
-      setEditingStudent(null);
+      closeEditModal();
     } catch (error) {
       console.error("Erro ao inativar aluno:", error);
       toast.error("Não foi possível inativar o aluno.");
@@ -506,15 +543,8 @@ export const AdminStudents: React.FC = () => {
                             }}
                           />
                         </div>
-                        <button
-                          onClick={() => setEditingStudent({ ...student })}
-                          className="p-2 text-[#003087] hover:bg-blue-100 rounded-lg transition-colors"
-                          title="Editar aluno"
-                        >
-                          <Edit2 size={16} />
-                        </button>
                         <Link
-                          to={`/admin/students/${student.id}/card`}
+                          to={`/admin/students/${student.id || student._id}/card`}
                           className="p-2 text-[#D10A11] hover:bg-red-100 rounded-lg transition-colors"
                           title="Ver cartão de frequência"
                         >
@@ -598,7 +628,7 @@ export const AdminStudents: React.FC = () => {
           return (
             <div
               className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-              onClick={() => setEditingStudent(null)}
+              onClick={closeEditModal}
             >
               <div
                 className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
@@ -609,7 +639,7 @@ export const AdminStudents: React.FC = () => {
                     Editar Aluno
                   </h2>
                   <button
-                    onClick={() => setEditingStudent(null)}
+                    onClick={closeEditModal}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     <X size={24} />
@@ -883,7 +913,7 @@ export const AdminStudents: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditingStudent(null)}
+                      onClick={closeEditModal}
                       className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
                     >
                       Cancelar

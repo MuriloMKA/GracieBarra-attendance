@@ -28,6 +28,7 @@ import {
 } from "../components/BeltDisplay";
 import { getDegreeProgress } from "../utils/degreeCalculator";
 import { QRScanner } from "../components/QRScanner";
+import api from "../services/api";
 
 interface StudentReadyForDegree extends Student {
   weeksCompleted: number;
@@ -467,17 +468,13 @@ export const AdminDashboard: React.FC = () => {
   const handleConfirmDegree = async (student: StudentReadyForDegree) => {
     try {
       setConfirmingDegree(true);
-      const token = localStorage.getItem("gb_auth_token");
       const studentId = student._id || student.id;
-      const res = await fetch(`/api/students/${studentId}/confirm-degree`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-        body: JSON.stringify({ notes: "Confirmado pelo professor via leitura QR" }),
+      if (!studentId) throw new Error("Aluno sem identificador válido");
+
+      await api.post(`/students/${studentId}/confirm-degree`, {
+        notes: "Confirmado pelo professor via leitura QR",
       });
-      if (!res.ok) throw new Error(await res.text());
+
       toast.success(`Grau de ${student.name} confirmado!`);
       setPendingDegreeStudent(null);
       await refreshData();
@@ -819,8 +816,8 @@ export const AdminDashboard: React.FC = () => {
                 key={student._id}
                 className="bg-white rounded-lg border border-amber-200 p-4 hover:shadow-md transition-all group"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3 flex-1">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-[#003087] text-white flex items-center justify-center font-black shrink-0">
                       {student.name.charAt(0)}
                     </div>
@@ -860,13 +857,13 @@ export const AdminDashboard: React.FC = () => {
                       })()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto sm:justify-end flex-wrap sm:flex-nowrap">
                     {student.isPenultimate ? (
-                      <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">
+                      <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold whitespace-nowrap">
                         Falta 1!
                       </div>
                     ) : (
-                      <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                      <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold whitespace-nowrap">
                         Pronto!
                       </div>
                     )}
@@ -875,21 +872,14 @@ export const AdminDashboard: React.FC = () => {
                         e.stopPropagation();
                         e.preventDefault();
                         try {
-                          const token = localStorage.getItem("gb_auth_token");
-                          const res = await fetch(
-                            `/api/students/${student._id}/confirm-degree`,
-                            {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                                Authorization: token ? `Bearer ${token}` : "",
-                              },
-                              body: JSON.stringify({
-                                notes: "Confirmado pelo professor via painel",
-                              }),
-                            },
-                          );
-                          if (!res.ok) throw new Error(await res.text());
+                          const studentId = student._id || student.id;
+                          if (!studentId) {
+                            throw new Error("Aluno sem identificador válido");
+                          }
+                          await api.post(`/students/${studentId}/confirm-degree`, {
+                            notes: "Confirmado pelo professor via painel",
+                          });
+
                           toast.success("Grau confirmado com sucesso");
                           await refreshData();
                         } catch (err) {
@@ -897,14 +887,14 @@ export const AdminDashboard: React.FC = () => {
                           toast.error("Erro ao confirmar grau");
                         }
                       }}
-                      className="px-3 py-1 rounded-md bg-[#D10A11] text-white text-xs font-bold hover:opacity-90"
+                      className="ml-auto sm:ml-0 px-3 py-1 rounded-md bg-[#D10A11] text-white text-xs font-bold hover:opacity-90 whitespace-nowrap"
                       title="Confirmar Grau"
                     >
                       Confirmar Grau
                     </button>
                     <ArrowRight
                       size={16}
-                      className="text-gray-400 group-hover:text-[#D10A11] group-hover:translate-x-1 transition-all"
+                      className="hidden sm:block text-gray-400 group-hover:text-[#D10A11] group-hover:translate-x-1 transition-all"
                     />
                   </div>
                 </div>

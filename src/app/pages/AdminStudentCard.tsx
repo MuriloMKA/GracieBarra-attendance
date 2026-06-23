@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, GraduationCap, Trash2 } from "lucide-react";
+import { ArrowLeft, GraduationCap, SquarePen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useData,
@@ -561,7 +561,6 @@ export const AdminStudentCard: React.FC = () => {
             <h1 className="text-xl font-black text-gray-900">
               Cartão de Frequência
             </h1>
-            <p className="text-gray-500 text-sm">{student.name}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -602,7 +601,19 @@ export const AdminStudentCard: React.FC = () => {
             size="md"
           />
         </div>
-        <div className="flex gap-4 text-center">
+        <div className="w-full sm:w-auto sm:ml-auto">
+          <div className="flex items-center justify-end gap-2 mb-2 text-xs text-gray-500 font-medium">
+        
+            <Link
+              to={`/admin/students?edit=${studentId}&returnTo=${encodeURIComponent(`/admin/students/${studentId}/card`)}`}
+              className="inline-flex items-center justify-center p-1.5 rounded-md text-[#003087] hover:bg-blue-100 transition-colors"
+              title="Editar aluno"
+              aria-label="Editar aluno"
+            >
+              <SquarePen size={14} />
+            </Link>
+          </div>
+          <div className="flex gap-4 text-center justify-end">
           <div>
             <div className="text-2xl font-black text-[#003087]">
               {confirmedCount}
@@ -633,6 +644,7 @@ export const AdminStudentCard: React.FC = () => {
               {displayStudent.degrees}
             </div>
             <div className="text-xs text-gray-500">Graus</div>
+          </div>
           </div>
         </div>
       </div>
