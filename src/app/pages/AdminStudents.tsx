@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Printer,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   BeltDisplay,
@@ -178,6 +180,8 @@ export const AdminStudents: React.FC = () => {
     birthDate: "",
     specialDates: [],
   });
+
+  const [showActiveCount, setShowActiveCount] = useState(true);
 
   const formatGraduationDate = (date?: string) => {
     if (!date) return "Sem data";
@@ -369,9 +373,21 @@ export const AdminStudents: React.FC = () => {
             <h1 className="text-2xl font-black text-gray-900">
               Gerenciar Alunos
             </h1>
-            <p className="text-gray-500 text-sm">
-              {activeStudentsCount} ativos · {students.length} cadastrados
-            </p>
+            <div className="flex items-center gap-2 text-gray-500 text-sm">
+              <span>
+                {showActiveCount
+                  ? `${activeStudentsCount} ativos · ${students.length} cadastrados`
+                  : "••• ativos · ••• cadastrados"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowActiveCount((v) => !v)}
+                className="text-gray-400 hover:text-gray-700 transition-colors"
+                aria-label={showActiveCount ? "Ocultar contagem" : "Mostrar contagem"}
+              >
+                {showActiveCount ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">

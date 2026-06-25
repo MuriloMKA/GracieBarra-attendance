@@ -10,18 +10,18 @@ interface BeltDisplayProps {
 
 export const BELT_COLORS: Record<BeltColor, string> = {
   White: "#FFFFFF",
-  GreyWhite: "#D1D5DB",
+  GreyWhite: "#9CA3AF",   // grey base + white stripe
   Grey: "#9CA3AF",
-  GreyBlack: "#6B7280",
-  YellowWhite: "#FEF3C7",
+  GreyBlack: "#9CA3AF",   // grey base + black stripe
+  YellowWhite: "#EAB308", // yellow base + white stripe
   Yellow: "#EAB308",
-  YellowBlack: "#CA8A04",
-  OrangeWhite: "#FED7AA",
+  YellowBlack: "#EAB308", // yellow base + black stripe
+  OrangeWhite: "#F97316", // orange base + white stripe
   Orange: "#F97316",
-  OrangeBlack: "#EA580C",
-  GreenWhite: "#BBF7D0",
+  OrangeBlack: "#F97316", // orange base + black stripe
+  GreenWhite: "#22C55E",  // green base + white stripe
   Green: "#22C55E",
-  GreenBlack: "#15803D",
+  GreenBlack: "#22C55E",  // green base + black stripe
   Blue: "#2563EB",
   Purple: "#9333EA",
   Brown: "#92400E",
@@ -313,7 +313,10 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   size = "md",
 }) => {
   const beltColor = BELT_COLORS[belt];
-  const isLight = belt === "White" || belt === "Yellow" || belt === "Grey";
+  const isLight =
+    belt === "White" ||
+    belt === "Yellow" || belt === "YellowWhite" || belt === "YellowBlack" ||
+    belt === "Grey" || belt === "GreyWhite" || belt === "GreyBlack";
 
   const heights = { sm: "h-5", md: "h-7", lg: "h-9" };
   const stripeWidths = { sm: "w-[10px]", md: "w-[14px]", lg: "w-[18px]" };
@@ -350,16 +353,42 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
     return belt === "White" ? "#D10A11" : "#FFFFFF";
   };
 
+  // Dual-color belts: XWhite gets a white horizontal stripe, XBlack gets a black stripe
+  const dualStripeColor: string | null = (() => {
+    const map: Partial<Record<BeltColor, string>> = {
+      GreyWhite: "#FFFFFF",
+      YellowWhite: "#FFFFFF",
+      OrangeWhite: "#FFFFFF",
+      GreenWhite: "#FFFFFF",
+      GreyBlack: "#111827",
+      YellowBlack: "#111827",
+      OrangeBlack: "#111827",
+      GreenBlack: "#111827",
+    };
+    return map[belt] ?? null;
+  })();
+
   return (
     <div className="flex items-center gap-2">
       <div
-        className={`flex-1 ${heights[size]} rounded-sm flex items-center overflow-hidden border`}
+        className={`flex-1 ${heights[size]} rounded-sm flex items-center overflow-hidden border relative`}
         style={{
           backgroundColor: beltColor,
           borderColor: isLight ? "#9CA3AF" : beltColor,
           minWidth: size === "sm" ? 60 : size === "md" ? 80 : 100,
         }}
       >
+        {/* Horizontal stripe for dual-color belts */}
+        {dualStripeColor && (
+          <div
+            className="absolute left-0 right-0 top-1/2 -translate-y-1/2 pointer-events-none z-10"
+            style={{
+              height: size === "sm" ? 2 : size === "md" ? 3 : 4,
+              backgroundColor: dualStripeColor,
+              opacity: dualStripeColor === "#FFFFFF" ? 0.85 : 0.7,
+            }}
+          />
+        )}
         {/* Stripe area on the right */}
         <div className="flex-1" />
         <div className="flex items-center gap-1 pr-1.5">

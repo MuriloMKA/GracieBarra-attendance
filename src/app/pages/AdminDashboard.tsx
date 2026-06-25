@@ -4,13 +4,11 @@ import { useData, JJClass, Student, BeltColor } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Users,
   CheckSquare,
   Award,
   ArrowRight,
   Shield,
   QrCode,
-  Check,
   TrendingUp,
   AlertCircle,
   Bell,
@@ -53,28 +51,14 @@ export const AdminDashboard: React.FC = () => {
   const [showAbsentModal, setShowAbsentModal] = useState(false);
   const [pendingDegreeStudent, setPendingDegreeStudent] = useState<StudentReadyForDegree | null>(null);
   const [confirmingDegree, setConfirmingDegree] = useState(false);
-  const [showTotalCount, setShowTotalCount] = useState(() => {
-    if (typeof window === "undefined") return true;
-
-    const storedValue = window.localStorage.getItem(
-      "gb_admin_dashboard_show_total_count",
-    );
-
-    return storedValue === null ? true : storedValue === "true";
-  });
+  const [confirmedProgramFilter, setConfirmedProgramFilter] = useState("all");
+  const [gradPeriodFilter, setGradPeriodFilter] = useState<"all" | "week" | "month" | "3months" | "6months" | "year">("all");
+  const [gradTypeFilter, setGradTypeFilter] = useState<"all" | "graduation" | "grade">("all");
+  const [gradProgramFilter, setGradProgramFilter] = useState("all");
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
   const barcodeBufferRef = useRef<string>("");
   const barcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleScanSuccessRef = useRef<(text: string) => void>(() => {});
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    window.localStorage.setItem(
-      "gb_admin_dashboard_show_total_count",
-      String(showTotalCount),
-    );
-  }, [showTotalCount]);
 
   const vibrate = useCallback((pattern: number | number[]) => {
     if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
@@ -88,11 +72,6 @@ export const AdminDashboard: React.FC = () => {
     () => students.filter((student) => student.active !== false),
     [students],
   );
-
-  const todayStart = useMemo(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }, []);
 
   const studentsReadyForDegree = useMemo<StudentReadyForDegree[]>(() => {
     const readyStudents: StudentReadyForDegree[] = [];
@@ -231,6 +210,7 @@ export const AdminDashboard: React.FC = () => {
           className: (a as any).className || (a as any).classId || "-",
           time: (a as any).classTime || a.date?.slice(11, 16) || "-",
           date: a.date || "",
+          program: student?.program || "",
         };
       })
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -242,18 +222,48 @@ export const AdminDashboard: React.FC = () => {
   );
 
   const graduationEvents = useMemo(() => {
-    const events: Array<{ name: string; date: string; notes?: string }> = [];
+    const events: Array<{
+      name: string;
+      date: string;
+      notes?: string;
+      type: "graduation" | "grade";
+      program: string;
+    }> = [];
     activeStudents.forEach((s) => {
       (s.specialDates || [])
-        .filter((sd) => sd.type === "graduation")
+        .filter((sd) => sd.type === "graduation" || sd.type === "grade")
         .forEach((sd) =>
-          events.push({ name: s.name, date: sd.date, notes: sd.notes }),
+          events.push({
+            name: s.name,
+            date: sd.date,
+            notes: sd.notes,
+            type: sd.type as "graduation" | "grade",
+            program: s.program,
+          }),
         );
     });
-    // sort desc
     events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
     return events;
   }, [activeStudents]);
+
+  const filteredGraduationEvents = useMemo(() => {
+    return graduationEvents.filter((g) => {
+      if (gradTypeFilter !== "all" && g.type !== gradTypeFilter) return false;
+      if (gradProgramFilter !== "all") {
+        if (gradProgramFilter === "GBK") {
+          if (g.program !== "GBK" && g.program !== "GBKIDS" && g.program !== "GBKJUVENIL") return false;
+        } else if (g.program !== gradProgramFilter) {
+          return false;
+        }
+      }
+      if (gradPeriodFilter !== "all" && g.date) {
+        const diffDays = (new Date().getTime() - parseISO(g.date).getTime()) / (1000 * 60 * 60 * 24);
+        const limits: Record<string, number> = { week: 7, month: 30, "3months": 90, "6months": 180, year: 365 };
+        if (diffDays > (limits[gradPeriodFilter] ?? Infinity)) return false;
+      }
+      return true;
+    });
+  }, [graduationEvents, gradTypeFilter, gradProgramFilter, gradPeriodFilter]);
 
   const formatGraduationNote = (notes?: string) => {
     if (!notes) return null;
@@ -524,13 +534,48 @@ export const AdminDashboard: React.FC = () => {
                 <X />
               </button>
             </div>
+            {/* Program filter */}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {[
+                { value: "all", label: "Todos" },
+                { value: "GBKIDS", label: "GBK Kids" },
+                { value: "GBKJUVENIL", label: "GBK Juvenil" },
+                { value: "GBK", label: "GBK" },
+                { value: "GB1", label: "GB1" },
+                { value: "GB2", label: "GB2" },
+                { value: "GB3", label: "GB3" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setConfirmedProgramFilter(opt.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${
+                    confirmedProgramFilter === opt.value
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div className="space-y-2 max-h-72 overflow-y-auto">
-              {confirmedTodayList.length === 0 ? (
-                <div className="text-sm text-gray-500">
-                  Nenhuma presença confirmada hoje.
-                </div>
-              ) : (
-                confirmedTodayList.map((c) => (
+              {(() => {
+                const filtered =
+                  confirmedProgramFilter === "all"
+                    ? confirmedTodayList
+                    : confirmedTodayList.filter(
+                        (c) => c.program === confirmedProgramFilter,
+                      );
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-sm text-gray-500">
+                      {confirmedTodayList.length === 0
+                        ? "Nenhuma presença confirmada hoje."
+                        : "Nenhum aluno desse programa confirmado hoje."}
+                    </div>
+                  );
+                }
+                return filtered.map((c) => (
                   <div
                     key={c.id}
                     className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50"
@@ -541,8 +586,8 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                     <div className="text-sm text-gray-600">{c.time}</div>
                   </div>
-                ))
-              )}
+                ));
+              })()}
             </div>
           </div>
         </div>
@@ -550,10 +595,10 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Graduações Modal */}
       {showGraduationsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-2xl p-6 mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg">Graduações</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
+              <h3 className="font-bold text-lg">Histórico de Graduações</h3>
               <button
                 onClick={() => setShowGraduationsModal(false)}
                 className="text-gray-500 hover:text-gray-800"
@@ -561,41 +606,140 @@ export const AdminDashboard: React.FC = () => {
                 <X />
               </button>
             </div>
-            <div className="space-y-2 max-h-72 overflow-y-auto">
-              {graduationEvents.length === 0 ? (
-                <div className="text-sm text-gray-500">
-                  Nenhuma graduação registrada.
+
+            {/* Filters */}
+            <div className="px-6 py-4 space-y-3 border-b border-gray-100 shrink-0">
+              {/* Period */}
+              <div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Período</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { value: "all", label: "Tudo" },
+                      { value: "week", label: "Última semana" },
+                      { value: "month", label: "Último mês" },
+                      { value: "3months", label: "3 meses" },
+                      { value: "6months", label: "6 meses" },
+                      { value: "year", label: "Último ano" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setGradPeriodFilter(opt.value)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${
+                        gradPeriodFilter === opt.value
+                          ? "bg-[#D10A11] text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Type */}
+              <div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Tipo</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { value: "all", label: "Todos" },
+                      { value: "graduation", label: "Nova Faixa" },
+                      { value: "grade", label: "Grau na Faixa" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setGradTypeFilter(opt.value)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${
+                        gradTypeFilter === opt.value
+                          ? "bg-[#003087] text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Program */}
+              <div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Programa</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { value: "all", label: "Todos" },
+                    { value: "GBKIDS", label: "GBK Kids" },
+                    { value: "GBKJUVENIL", label: "GBK Juvenil" },
+                    { value: "GBK", label: "GBK" },
+                    { value: "GB1", label: "GB1" },
+                    { value: "GB2", label: "GB2" },
+                    { value: "GB3", label: "GB3" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setGradProgramFilter(opt.value)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${
+                        gradProgramFilter === opt.value
+                          ? "bg-amber-500 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="text-xs text-gray-400 mb-3">
+                {filteredGraduationEvents.length} evento{filteredGraduationEvents.length !== 1 ? "s" : ""} encontrado{filteredGraduationEvents.length !== 1 ? "s" : ""}
+              </div>
+              {filteredGraduationEvents.length === 0 ? (
+                <div className="text-sm text-gray-500 py-4 text-center">
+                  Nenhum evento encontrado para os filtros selecionados.
                 </div>
               ) : (
-                graduationEvents.map((g, idx) => (
-                  <div
-                    key={`${g.name}-${idx}`}
-                    className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-gray-900 truncate">
-                        {g.name}
+                <div className="space-y-2">
+                  {filteredGraduationEvents.map((g, idx) => (
+                    <div
+                      key={`${g.name}-${g.date}-${idx}`}
+                      className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-gray-900 truncate">{g.name}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                              g.type === "graduation"
+                                ? "bg-[#D10A11]/10 text-[#D10A11]"
+                                : "bg-[#003087]/10 text-[#003087]"
+                            }`}
+                          >
+                            {g.type === "graduation" ? "Nova Faixa" : "Grau"}
+                          </span>
+                          {g.type === "graduation" && formatGraduationNote(g.notes)?.beltLabel && (
+                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
+                              {formatGraduationNote(g.notes)?.beltLabel}
+                            </span>
+                          )}
+                          {formatGraduationNote(g.notes)?.extraText && (
+                            <span className="text-xs text-gray-500">
+                              {formatGraduationNote(g.notes)?.extraText}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-400">{g.program}</span>
+                        </div>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {formatGraduationNote(g.notes)?.beltLabel && (
-                          <span className="inline-flex items-center rounded-full bg-[#003087]/10 px-2.5 py-1 text-[11px] font-bold text-[#003087]">
-                            {formatGraduationNote(g.notes)?.beltLabel}
-                          </span>
-                        )}
-                        {formatGraduationNote(g.notes)?.extraText && (
-                          <span className="text-xs text-gray-500">
-                            {formatGraduationNote(g.notes)?.extraText}
-                          </span>
-                        )}
+                      <div className="text-sm font-medium text-gray-600 whitespace-nowrap">
+                        {g.date ? format(parseISO(g.date), "dd/MM/yyyy") : "Sem data"}
                       </div>
                     </div>
-                    <div className="text-sm font-medium text-gray-600 whitespace-nowrap">
-                      {g.date
-                        ? format(parseISO(g.date), "dd/MM/yyyy")
-                        : "Sem data"}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -652,39 +796,7 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <Users size={20} className="text-[#003087]" />
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Total Alunos
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-3xl font-black text-gray-900">
-              {showTotalCount ? activeStudents.length : "•••"}
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowTotalCount((value) => !value);
-              }}
-              className="text-gray-500 hover:text-gray-900 transition-colors"
-              aria-label={
-                showTotalCount ? "Ocultar quantidade" : "Mostrar quantidade"
-              }
-              title={
-                showTotalCount ? "Ocultar quantidade" : "Mostrar quantidade"
-              }
-            >
-              {showTotalCount ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
-          </div>
-          <div className="text-xs text-gray-500 mt-1 font-medium">
-            Alunos ativos
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div
           onClick={() => setShowConfirmedModal(true)}
           className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
@@ -709,13 +821,9 @@ export const AdminDashboard: React.FC = () => {
               Graduações
             </span>
           </div>
-          <div className="text-3xl font-black text-[#D10A11]">
-            {students.reduce(
-              (acc, s) =>
-                acc +
-                s.specialDates.filter((sd) => sd.type === "graduation").length,
-              0,
-            )}
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-base font-bold text-[#D10A11]">Ver histórico</span>
+            <ArrowRight size={14} className="text-[#D10A11]" />
           </div>
         </div>
         <div
