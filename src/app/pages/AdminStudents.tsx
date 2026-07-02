@@ -148,6 +148,23 @@ const getBirthDatePassword = (birthDate?: string) => {
   return value.replace(/\D/g, "").slice(0, 8);
 };
 
+const STUDENTS_PAGE_STORAGE_KEY = "admin-students.current-page";
+const STUDENTS_COUNT_STORAGE_KEY = "admin-students.show-active-count";
+
+const readStoredNumber = (key: string, fallback: number) => {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  const parsed = Number.parseInt(raw || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const readStoredBoolean = (key: string, fallback: boolean) => {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (raw === null) return fallback;
+  return raw === "true";
+};
+
 export const AdminStudents: React.FC = () => {
   const { students, attendance, updateStudent, addStudent } = useData();
   const location = useLocation();
@@ -161,7 +178,15 @@ export const AdminStudents: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<
     "active" | "inactive" | "all"
   >("active");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = new URLSearchParams(location.search).get("page");
+    const requestedPage = Number.parseInt(pageParam || "", 10);
+    if (Number.isFinite(requestedPage) && requestedPage > 0) {
+      return requestedPage;
+    }
+
+    return readStoredNumber(STUDENTS_PAGE_STORAGE_KEY, 1);
+  });
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [editReturnTo, setEditReturnTo] = useState<string | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
@@ -181,7 +206,10 @@ export const AdminStudents: React.FC = () => {
     specialDates: [],
   });
 
-  const [showActiveCount, setShowActiveCount] = useState(true);
+  const [showActiveCount, setShowActiveCount] = useState(() =>
+    readStoredBoolean(STUDENTS_COUNT_STORAGE_KEY, true),
+  );
+  const didMountRef = React.useRef(false);
 
   const formatGraduationDate = (date?: string) => {
     if (!date) return "Sem data";
@@ -207,6 +235,47 @@ export const AdminStudents: React.FC = () => {
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STUDENTS_PAGE_STORAGE_KEY, String(currentPage));
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      STUDENTS_COUNT_STORAGE_KEY,
+      String(showActiveCount),
+    );
+  }, [showActiveCount]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (currentPage > 1) {
+      params.set("page", String(currentPage));
+    } else {
+      params.delete("page");
+    }
+    const nextSearch = params.toString();
+    const currentSearch = location.search.startsWith("?")
+      ? location.search.slice(1)
+      : location.search;
+
+    if (nextSearch !== currentSearch) {
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+        },
+        { replace: true },
+      );
+    }
+  }, [currentPage, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
     setCurrentPage(1);
   }, [search, statusFilter]);
 
@@ -220,9 +289,7 @@ export const AdminStudents: React.FC = () => {
     const returnTo = params.get("returnTo");
     if (!editId) return;
 
-    const studentToEdit = students.find(
-      (s) => (s.id || s._id) === editId,
-    );
+    const studentToEdit = students.find((s) => (s.id || s._id) === editId);
     if (!studentToEdit) return;
 
     setEditingStudent({ ...studentToEdit });
@@ -252,7 +319,8 @@ export const AdminStudents: React.FC = () => {
   const getStudentAttendance = (id: string) => {
     const map = new Map<string, number>();
     attendance.forEach((a) => {
-      const sid = (a.studentId as any)?._id || (a.studentId as any)?.id || a.studentId;
+      const sid =
+        (a.studentId as any)?._id || (a.studentId as any)?.id || a.studentId;
       if (sid !== id || !a.confirmed) return;
       const d = new Date(a.date);
       const dow = d.getDay();
@@ -270,6 +338,24 @@ export const AdminStudents: React.FC = () => {
   const activeStudentsCount = students.filter(
     (student) => student.active !== false,
   ).length;
+
+  const listReturnTo = `${location.pathname}${location.search || (currentPage > 1 ? `?page=${currentPage}` : "")}`;
+
+  const goToPage = useCallback(
+    (page: number) => {
+      const safePage = Math.min(Math.max(1, page), totalPages);
+      setCurrentPage(safePage);
+    },
+    [totalPages],
+  );
+
+  const [pageInput, setPageInput] = useState(() =>
+    String(readStoredNumber(STUDENTS_PAGE_STORAGE_KEY, 1)),
+  );
+
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -383,7 +469,9 @@ export const AdminStudents: React.FC = () => {
                 type="button"
                 onClick={() => setShowActiveCount((v) => !v)}
                 className="text-gray-400 hover:text-gray-700 transition-colors"
-                aria-label={showActiveCount ? "Ocultar contagem" : "Mostrar contagem"}
+                aria-label={
+                  showActiveCount ? "Ocultar contagem" : "Mostrar contagem"
+                }
               >
                 {showActiveCount ? <Eye size={14} /> : <EyeOff size={14} />}
               </button>
@@ -560,7 +648,7 @@ export const AdminStudents: React.FC = () => {
                           />
                         </div>
                         <Link
-                          to={`/admin/students/${student.id || student._id}/card`}
+                          to={`/admin/students/${student.id || student._id}/card?returnTo=${encodeURIComponent(listReturnTo)}`}
                           className="p-2 text-[#D10A11] hover:bg-red-100 rounded-lg transition-colors"
                           title="Ver cartão de frequência"
                         >
@@ -588,10 +676,10 @@ export const AdminStudents: React.FC = () => {
             {Math.min(currentPage * pageSize, visibleStudents.length)} de{" "}
             {visibleStudents.length} alunos
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage === 1}
               className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -602,14 +690,46 @@ export const AdminStudents: React.FC = () => {
             </span>
             <button
               type="button"
-              onClick={() =>
-                setCurrentPage((page) => Math.min(totalPages, page + 1))
-              }
+              onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage === totalPages}
               className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Próxima
             </button>
+            <div className="flex items-center gap-2 ml-1">
+              <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">
+                Ir para página
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const nextPage = Number.parseInt(pageInput, 10);
+                    if (Number.isFinite(nextPage)) {
+                      goToPage(nextPage);
+                    }
+                  }
+                }}
+                className="w-20 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#003087]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const nextPage = Number.parseInt(pageInput, 10);
+                  if (Number.isFinite(nextPage)) {
+                    goToPage(nextPage);
+                  }
+                }}
+                className="px-3 py-2 rounded-lg bg-[#003087] text-white text-sm font-bold hover:bg-blue-900 transition-colors"
+              >
+                Ir
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,7 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { Link } from "react-router";
 import { useData, JJClass, Student, BeltColor } from "../context/DataContext";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CheckSquare,
@@ -12,6 +18,7 @@ import {
   TrendingUp,
   AlertCircle,
   Bell,
+  Gift,
   X,
   Eye,
   EyeOff,
@@ -42,18 +49,31 @@ interface AbsentStudent extends Student {
   daysAbsent: number;
 }
 
+interface BirthdayStudent extends Student {
+  birthdayDate: string;
+  daysUntilBirthday: number;
+  birthdayAge: number;
+}
+
 export const AdminDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, checkIn, refreshData } = useData();
+  const { currentUser, students, attendance, classes, checkIn, refreshData } =
+    useData();
 
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmedModal, setShowConfirmedModal] = useState(false);
   const [showGraduationsModal, setShowGraduationsModal] = useState(false);
+  const [showBirthdaysModal, setShowBirthdaysModal] = useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
-  const [pendingDegreeStudent, setPendingDegreeStudent] = useState<StudentReadyForDegree | null>(null);
+  const [pendingDegreeStudent, setPendingDegreeStudent] =
+    useState<StudentReadyForDegree | null>(null);
   const [confirmingDegree, setConfirmingDegree] = useState(false);
   const [confirmedProgramFilter, setConfirmedProgramFilter] = useState("all");
-  const [gradPeriodFilter, setGradPeriodFilter] = useState<"all" | "week" | "month" | "3months" | "6months" | "year">("all");
-  const [gradTypeFilter, setGradTypeFilter] = useState<"all" | "graduation" | "grade">("all");
+  const [gradPeriodFilter, setGradPeriodFilter] = useState<
+    "all" | "week" | "month" | "3months" | "6months" | "year"
+  >("all");
+  const [gradTypeFilter, setGradTypeFilter] = useState<
+    "all" | "graduation" | "grade"
+  >("all");
   const [gradProgramFilter, setGradProgramFilter] = useState("all");
   const scannerCooldowns = useRef<Map<string, number>>(new Map());
   const barcodeBufferRef = useRef<string>("");
@@ -66,6 +86,24 @@ export const AdminDashboard: React.FC = () => {
     }
 
     return navigator.vibrate(pattern);
+  }, []);
+
+  const parseFlexibleDate = useCallback((value?: string | null) => {
+    if (typeof value !== "string" || value.trim().length === 0) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    const isoDate = parseISO(trimmed);
+    if (!Number.isNaN(isoDate.getTime())) return isoDate;
+
+    const brazilianDate = parse(trimmed, "dd/MM/yyyy", new Date());
+    if (!Number.isNaN(brazilianDate.getTime())) return brazilianDate;
+
+    const fallbackDate = new Date(trimmed);
+    if (!Number.isNaN(fallbackDate.getTime())) return fallbackDate;
+
+    return null;
   }, []);
 
   const activeStudents = useMemo(
@@ -165,6 +203,68 @@ export const AdminDashboard: React.FC = () => {
       .sort((a, b) => b.daysAbsent - a.daysAbsent);
   }, [attendance, activeStudents]);
 
+  const birthdayStudents = useMemo<BirthdayStudent[]>(() => {
+    const today = new Date();
+    const todayStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+    const dayMs = 1000 * 60 * 60 * 24;
+
+    return activeStudents
+      .map((student) => {
+        const birthDate = parseFlexibleDate(student.birthDate);
+        if (!birthDate) return null;
+
+        const nextBirthday = new Date(
+          todayStart.getFullYear(),
+          birthDate.getMonth(),
+          birthDate.getDate(),
+        );
+
+        if (nextBirthday < todayStart) {
+          nextBirthday.setFullYear(nextBirthday.getFullYear() + 1);
+        }
+
+        const daysUntilBirthday = Math.round(
+          (nextBirthday.getTime() - todayStart.getTime()) / dayMs,
+        );
+
+        return {
+          ...student,
+          birthdayDate: format(nextBirthday, "yyyy-MM-dd"),
+          daysUntilBirthday,
+          birthdayAge: nextBirthday.getFullYear() - birthDate.getFullYear(),
+        };
+      })
+      .filter((student): student is BirthdayStudent => student !== null)
+      .sort((a, b) => a.daysUntilBirthday - b.daysUntilBirthday);
+  }, [activeStudents, parseFlexibleDate]);
+
+  const birthdaysToday = useMemo(
+    () => birthdayStudents.filter((student) => student.daysUntilBirthday === 0),
+    [birthdayStudents],
+  );
+
+  const birthdaysThisWeek = useMemo(
+    () =>
+      birthdayStudents.filter(
+        (student) =>
+          student.daysUntilBirthday >= 0 && student.daysUntilBirthday < 7,
+      ),
+    [birthdayStudents],
+  );
+
+  const birthdaysThisMonth = useMemo(
+    () =>
+      birthdayStudents.filter(
+        (student) =>
+          student.daysUntilBirthday >= 0 && student.daysUntilBirthday < 31,
+      ),
+    [birthdayStudents],
+  );
+
   const activeStudentIds = new Set(
     activeStudents.map((student) => student.id || student._id),
   );
@@ -251,14 +351,27 @@ export const AdminDashboard: React.FC = () => {
       if (gradTypeFilter !== "all" && g.type !== gradTypeFilter) return false;
       if (gradProgramFilter !== "all") {
         if (gradProgramFilter === "GBK") {
-          if (g.program !== "GBK" && g.program !== "GBKIDS" && g.program !== "GBKJUVENIL") return false;
+          if (
+            g.program !== "GBK" &&
+            g.program !== "GBKIDS" &&
+            g.program !== "GBKJUVENIL"
+          )
+            return false;
         } else if (g.program !== gradProgramFilter) {
           return false;
         }
       }
       if (gradPeriodFilter !== "all" && g.date) {
-        const diffDays = (new Date().getTime() - parseISO(g.date).getTime()) / (1000 * 60 * 60 * 24);
-        const limits: Record<string, number> = { week: 7, month: 30, "3months": 90, "6months": 180, year: 365 };
+        const diffDays =
+          (new Date().getTime() - parseISO(g.date).getTime()) /
+          (1000 * 60 * 60 * 24);
+        const limits: Record<string, number> = {
+          week: 7,
+          month: 30,
+          "3months": 90,
+          "6months": 180,
+          year: 365,
+        };
         if (diffDays > (limits[gradPeriodFilter] ?? Infinity)) return false;
       }
       return true;
@@ -295,124 +408,134 @@ export const AdminDashboard: React.FC = () => {
     c.daysOfWeek.includes(today.getDay()),
   );
 
-  const handleScanSuccess = useCallback((decodedText: string) => {
-    try {
-      const studentData = JSON.parse(decodedText);
-      const studentId = studentData.studentId;
+  const handleScanSuccess = useCallback(
+    (decodedText: string) => {
+      try {
+        const studentData = JSON.parse(decodedText);
+        const studentId = studentData.studentId;
 
-      if (!studentId) {
-        toast.error(`Leitura inválida: sem studentId. Conteúdo: ${decodedText.slice(0, 60)}`);
-        return;
-      }
-
-      const now = Date.now();
-      const lastScan = scannerCooldowns.current.get(studentId) || 0;
-      if (now - lastScan < 5000) {
-        // Ignora leituras repetidas do mesmo aluno por 5 segundos
-        return;
-      }
-
-      const student = students.find((s) => (s.id || s._id) === studentId);
-
-      if (!student) {
-        toast.error("Aluno não encontrado!");
-        return;
-      }
-
-      vibrate([80, 40, 120]);
-
-      scannerCooldowns.current.set(studentId, now);
-
-      const todayStr = today.toISOString().split("T")[0];
-      const alreadyConfirmed = attendance.some(
-        (a) =>
-          a.studentId === studentId &&
-          a.classId === "manual-scan" &&
-          a.confirmed &&
-          a.date.startsWith(todayStr),
-      );
-
-      if (alreadyConfirmed) {
-        toast.info(`Presença já confirmada para ${student.name} hoje!`);
-        // Only prompt degree confirmation if student is fully done (not penultimate)
-        const readyEntry = studentsReadyForDegree.find(
-          (s) => (s.id || s._id) === studentId && !s.isPenultimate,
-        );
-        if (readyEntry) {
-          setPendingDegreeStudent(readyEntry);
+        if (!studentId) {
+          toast.error(
+            `Leitura inválida: sem studentId. Conteúdo: ${decodedText.slice(0, 60)}`,
+          );
+          return;
         }
-        return;
-      }
 
-      const currentTime = format(now, "HH:mm");
+        const now = Date.now();
+        const lastScan = scannerCooldowns.current.get(studentId) || 0;
+        if (now - lastScan < 5000) {
+          // Ignora leituras repetidas do mesmo aluno por 5 segundos
+          return;
+        }
 
-      // Check degree readiness inline using current attendance + this new training
-      const studentCurrentAttendance = attendance.filter((a) => {
-        const sid = (a.studentId as any)?._id || (a.studentId as any)?.id || a.studentId;
-        return sid === studentId && a.confirmed;
-      });
-      const simulatedAttendance = [
-        ...studentCurrentAttendance,
-        {
-          studentId,
-          confirmed: true,
-          date: new Date().toISOString(),
-          classId: "manual-scan",
-          className: "Presença via QR Code",
-          classTime: currentTime,
-        } as any,
-      ];
-      const degreeProgressAfter = getDegreeProgress(
-        simulatedAttendance,
-        student.lastGraduationDate,
-        student.belt,
-        student.degrees,
-        student.program,
-        student.birthDate,
-      );
-      const isReadyAfterThisScan =
-        degreeProgressAfter.weeksRequired !== null &&
-        degreeProgressAfter.weeksCompleted >= (degreeProgressAfter.weeksRequired || Infinity);
+        const student = students.find((s) => (s.id || s._id) === studentId);
 
-      // Show degree confirmation modal only when student is fully done
-      const wasAlreadyFullyReady = studentsReadyForDegree.some(
-        (s) => (s.id || s._id) === studentId && !s.isPenultimate,
-      );
+        if (!student) {
+          toast.error("Aluno não encontrado!");
+          return;
+        }
 
-      // Adiciona presença confirmada diretamente
-      checkIn(
-        studentId,
-        "manual-scan",
-        "Presença via QR Code",
-        currentTime,
-        true, // Já confirmado
-      ).then(async () => {
-        toast.success(
-          `Check-in de ${student.name} concluído às ${currentTime}!`,
+        vibrate([80, 40, 120]);
+
+        scannerCooldowns.current.set(studentId, now);
+
+        const todayStr = today.toISOString().split("T")[0];
+        const alreadyConfirmed = attendance.some(
+          (a) =>
+            a.studentId === studentId &&
+            a.classId === "manual-scan" &&
+            a.confirmed &&
+            a.date.startsWith(todayStr),
         );
 
-        // Show degree confirmation modal if student is (or just became) fully ready
-        if (isReadyAfterThisScan || wasAlreadyFullyReady) {
+        if (alreadyConfirmed) {
+          toast.info(`Presença já confirmada para ${student.name} hoje!`);
+          // Only prompt degree confirmation if student is fully done (not penultimate)
           const readyEntry = studentsReadyForDegree.find(
             (s) => (s.id || s._id) === studentId && !s.isPenultimate,
           );
-          setPendingDegreeStudent(
-            readyEntry || {
-              ...student,
-              weeksCompleted: degreeProgressAfter.weeksCompleted,
-              weeksRequired: degreeProgressAfter.weeksRequired || 0,
-              nextDegree: student.degrees + 1,
-              confirmedAttendances: simulatedAttendance.length,
-              progressUnit: "treinos",
-              isPenultimate: false,
-            } as StudentReadyForDegree,
-          );
+          if (readyEntry) {
+            setPendingDegreeStudent(readyEntry);
+          }
+          return;
         }
-      });
-    } catch (error) {
-      toast.error("QR Code inválido!");
-    }
-  }, [students, attendance, studentsReadyForDegree, checkIn, today, vibrate]);
+
+        const currentTime = format(now, "HH:mm");
+
+        // Check degree readiness inline using current attendance + this new training
+        const studentCurrentAttendance = attendance.filter((a) => {
+          const sid =
+            (a.studentId as any)?._id ||
+            (a.studentId as any)?.id ||
+            a.studentId;
+          return sid === studentId && a.confirmed;
+        });
+        const simulatedAttendance = [
+          ...studentCurrentAttendance,
+          {
+            studentId,
+            confirmed: true,
+            date: new Date().toISOString(),
+            classId: "manual-scan",
+            className: "Presença via QR Code",
+            classTime: currentTime,
+          } as any,
+        ];
+        const degreeProgressAfter = getDegreeProgress(
+          simulatedAttendance,
+          student.lastGraduationDate,
+          student.belt,
+          student.degrees,
+          student.program,
+          student.birthDate,
+        );
+        const isReadyAfterThisScan =
+          degreeProgressAfter.weeksRequired !== null &&
+          degreeProgressAfter.weeksCompleted >=
+            (degreeProgressAfter.weeksRequired || Infinity);
+
+        // Show degree confirmation modal only when student is fully done
+        const wasAlreadyFullyReady = studentsReadyForDegree.some(
+          (s) => (s.id || s._id) === studentId && !s.isPenultimate,
+        );
+
+        // Adiciona presença confirmada diretamente
+        checkIn(
+          studentId,
+          "manual-scan",
+          "Presença via QR Code",
+          currentTime,
+          true, // Já confirmado
+        ).then(async () => {
+          toast.success(
+            `Check-in de ${student.name} concluído às ${currentTime}!`,
+          );
+
+          // Show degree confirmation modal if student is (or just became) fully ready
+          if (isReadyAfterThisScan || wasAlreadyFullyReady) {
+            const readyEntry = studentsReadyForDegree.find(
+              (s) => (s.id || s._id) === studentId && !s.isPenultimate,
+            );
+            setPendingDegreeStudent(
+              readyEntry ||
+                ({
+                  ...student,
+                  weeksCompleted: degreeProgressAfter.weeksCompleted,
+                  weeksRequired: degreeProgressAfter.weeksRequired || 0,
+                  nextDegree: student.degrees + 1,
+                  confirmedAttendances: simulatedAttendance.length,
+                  progressUnit: "treinos",
+                  isPenultimate: false,
+                } as StudentReadyForDegree),
+            );
+          }
+        });
+      } catch (error) {
+        toast.error("QR Code inválido!");
+      }
+    },
+    [students, attendance, studentsReadyForDegree, checkIn, today, vibrate],
+  );
 
   // Keep ref in sync so the keyboard listener always calls the latest version
   useEffect(() => {
@@ -422,7 +545,7 @@ export const AdminDashboard: React.FC = () => {
   // Physical barcode/QR scanner keyboard listener
   // USB barcode scanners act as keyboards: they type the content very fast, then press Enter/CR
   useEffect(() => {
-    const SCANNER_TIMEOUT_MS = 200; // increased to 200ms to handle slower scanners
+    const SCANNER_TIMEOUT_MS = 500; // longer window for slower HID scanners
 
     const flushBuffer = () => {
       const buffer = barcodeBufferRef.current;
@@ -611,7 +734,9 @@ export const AdminDashboard: React.FC = () => {
             <div className="px-6 py-4 space-y-3 border-b border-gray-100 shrink-0">
               {/* Period */}
               <div>
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Período</div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Período
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
@@ -640,7 +765,9 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Type */}
               <div>
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Tipo</div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Tipo
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
@@ -666,7 +793,9 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Program */}
               <div>
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Programa</div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Programa
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { value: "all", label: "Todos" },
@@ -696,7 +825,9 @@ export const AdminDashboard: React.FC = () => {
             {/* List */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="text-xs text-gray-400 mb-3">
-                {filteredGraduationEvents.length} evento{filteredGraduationEvents.length !== 1 ? "s" : ""} encontrado{filteredGraduationEvents.length !== 1 ? "s" : ""}
+                {filteredGraduationEvents.length} evento
+                {filteredGraduationEvents.length !== 1 ? "s" : ""} encontrado
+                {filteredGraduationEvents.length !== 1 ? "s" : ""}
               </div>
               {filteredGraduationEvents.length === 0 ? (
                 <div className="text-sm text-gray-500 py-4 text-center">
@@ -710,7 +841,9 @@ export const AdminDashboard: React.FC = () => {
                       className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-gray-900 truncate">{g.name}</div>
+                        <div className="font-semibold text-gray-900 truncate">
+                          {g.name}
+                        </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <span
                             className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
@@ -721,26 +854,167 @@ export const AdminDashboard: React.FC = () => {
                           >
                             {g.type === "graduation" ? "Nova Faixa" : "Grau"}
                           </span>
-                          {g.type === "graduation" && formatGraduationNote(g.notes)?.beltLabel && (
-                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
-                              {formatGraduationNote(g.notes)?.beltLabel}
-                            </span>
-                          )}
+                          {g.type === "graduation" &&
+                            formatGraduationNote(g.notes)?.beltLabel && (
+                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
+                                {formatGraduationNote(g.notes)?.beltLabel}
+                              </span>
+                            )}
                           {formatGraduationNote(g.notes)?.extraText && (
                             <span className="text-xs text-gray-500">
                               {formatGraduationNote(g.notes)?.extraText}
                             </span>
                           )}
-                          <span className="text-xs text-gray-400">{g.program}</span>
+                          <span className="text-xs text-gray-400">
+                            {g.program}
+                          </span>
                         </div>
                       </div>
                       <div className="text-sm font-medium text-gray-600 whitespace-nowrap">
-                        {g.date ? format(parseISO(g.date), "dd/MM/yyyy") : "Sem data"}
+                        {g.date
+                          ? format(parseISO(g.date), "dd/MM/yyyy")
+                          : "Sem data"}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aniversariantes Modal */}
+      {showBirthdaysModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
+              <h3 className="font-bold text-lg">Aniversariantes</h3>
+              <button
+                onClick={() => setShowBirthdaysModal(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                <X />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-3 border-b border-gray-100 shrink-0">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <div className="flex items-center gap-2 text-rose-800 font-semibold text-sm">
+                  <Gift size={16} />
+                  {birthdaysToday.length > 0
+                    ? birthdaysToday.length === 1
+                      ? "Hoje temos 1 aniversariante."
+                      : `Hoje temos ${birthdaysToday.length} aniversariantes.`
+                    : "Nenhum aniversário hoje."}
+                </div>
+                <div className="text-xs text-rose-700 mt-1">
+                  {birthdaysThisWeek.length} na semana e{" "}
+                  {birthdaysThisMonth.length} neste mês.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Hoje
+                </div>
+                {birthdaysToday.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-3 border border-dashed border-gray-200 rounded-xl text-center">
+                    Nenhum aniversariante hoje.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {birthdaysToday.map((student) => (
+                      <div
+                        key={student._id || student.id}
+                        className="flex items-center justify-between gap-4 p-3 rounded-xl border border-rose-100 bg-rose-50"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-900 truncate">
+                            {student.name}
+                          </div>
+                          <div className="text-xs text-rose-700">
+                            Faz {student.birthdayAge} anos hoje
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center rounded-full bg-rose-500 px-2.5 py-1 text-[11px] font-black text-white whitespace-nowrap">
+                          Hoje
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Próximos 7 dias
+                </div>
+                {birthdaysThisWeek.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-3 border border-dashed border-gray-200 rounded-xl text-center">
+                    Nenhum aniversariante nesta semana.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {birthdaysThisWeek.map((student) => (
+                      <div
+                        key={`${student._id || student.id}-week`}
+                        className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-900 truncate">
+                            {student.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {student.daysUntilBirthday === 0
+                              ? "Hoje"
+                              : `${student.daysUntilBirthday} dia${student.daysUntilBirthday > 1 ? "s" : ""}`}
+                          </div>
+                        </div>
+                        <div className="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                          {format(parseISO(student.birthdayDate), "dd/MM")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Neste mês
+                </div>
+                {birthdaysThisMonth.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-3 border border-dashed border-gray-200 rounded-xl text-center">
+                    Nenhum aniversariante neste mês.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {birthdaysThisMonth.map((student) => (
+                      <div
+                        key={`${student._id || student.id}-month`}
+                        className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-900 truncate">
+                            {student.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {student.daysUntilBirthday === 0
+                              ? "Hoje"
+                              : `Faltam ${student.daysUntilBirthday} dias`}
+                          </div>
+                        </div>
+                        <div className="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                          {format(parseISO(student.birthdayDate), "dd/MM")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -796,7 +1070,7 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div
           onClick={() => setShowConfirmedModal(true)}
           className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
@@ -822,8 +1096,32 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="text-base font-bold text-[#D10A11]">Ver histórico</span>
+            <span className="text-base font-bold text-[#D10A11]">
+              Ver histórico
+            </span>
             <ArrowRight size={14} className="text-[#D10A11]" />
+          </div>
+        </div>
+        <div
+          onClick={() => setShowBirthdaysModal(true)}
+          className="relative bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+        >
+          {birthdaysToday.length > 0 && (
+            <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-rose-500 shadow animate-pulse" />
+          )}
+          <div className="flex items-center gap-3 mb-2">
+            <Gift size={20} className="text-rose-600" />
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Aniversariantes
+            </span>
+          </div>
+          <div className="text-3xl font-black text-rose-600">
+            {birthdaysThisMonth.length}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {birthdaysToday.length > 0
+              ? `${birthdaysToday.length} hoje`
+              : `${birthdaysThisWeek.length} na semana`}
           </div>
         </div>
         <div
@@ -984,9 +1282,12 @@ export const AdminDashboard: React.FC = () => {
                           if (!studentId) {
                             throw new Error("Aluno sem identificador válido");
                           }
-                          await api.post(`/students/${studentId}/confirm-degree`, {
-                            notes: "Confirmado pelo professor via painel",
-                          });
+                          await api.post(
+                            `/students/${studentId}/confirm-degree`,
+                            {
+                              notes: "Confirmado pelo professor via painel",
+                            },
+                          );
 
                           toast.success("Grau confirmado com sucesso");
                           await refreshData();
@@ -1035,7 +1336,9 @@ export const AdminDashboard: React.FC = () => {
                 <div className="inline-flex items-center justify-center w-14 h-14 bg-[#D10A11]/10 rounded-full mb-3">
                   <QrCode size={28} className="text-[#D10A11]" />
                 </div>
-                <h3 className="font-bold text-gray-900 mb-1">Câmera (Celular)</h3>
+                <h3 className="font-bold text-gray-900 mb-1">
+                  Câmera (Celular)
+                </h3>
                 <p className="text-gray-500 text-sm">
                   Aponte a câmera para os QR Codes dos alunos.
                 </p>
@@ -1057,9 +1360,12 @@ export const AdminDashboard: React.FC = () => {
                 <div className="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-full mb-3">
                   <ScanLine size={28} className="text-green-600" />
                 </div>
-                <h3 className="font-bold text-gray-900 mb-1">Leitor Físico (USB/BT)</h3>
+                <h3 className="font-bold text-gray-900 mb-1">
+                  Leitor Físico (USB/BT)
+                </h3>
                 <p className="text-gray-500 text-sm">
-                  Conecte seu leitor e acompanhe abaixo os últimos alunos confirmados em tempo real.
+                  Conecte seu leitor e acompanhe abaixo os últimos alunos
+                  confirmados em tempo real.
                 </p>
               </div>
 
@@ -1119,7 +1425,9 @@ export const AdminDashboard: React.FC = () => {
                   <Award size={24} className="text-white" />
                 </div>
                 <div>
-                  <div className="text-white font-black text-lg">Grau Disponível!</div>
+                  <div className="text-white font-black text-lg">
+                    Grau Disponível!
+                  </div>
                   <div className="text-amber-100 text-sm">
                     {pendingDegreeStudent.name}
                   </div>
@@ -1140,8 +1448,8 @@ export const AdminDashboard: React.FC = () => {
               </p>
               <p className="text-gray-500 text-xs mb-5">
                 {Math.round(pendingDegreeStudent.weeksCompleted)} de{" "}
-                {Math.round(pendingDegreeStudent.weeksRequired)} treinos completados.
-                Deseja confirmar o grau agora?
+                {Math.round(pendingDegreeStudent.weeksRequired)} treinos
+                completados. Deseja confirmar o grau agora?
               </p>
               <div className="flex gap-3">
                 <button

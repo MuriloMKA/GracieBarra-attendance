@@ -1,8 +1,24 @@
 import { BeltColor, Attendance } from "../context/DataContext";
-import { startOfWeek, parseISO, addDays, format } from "date-fns";
+import { startOfWeek, parseISO, addDays, format, parse } from "date-fns";
 
 const isValidIsoDate = (value?: string | null): value is string => {
   return typeof value === "string" && value.trim().length > 0;
+};
+
+const parseFlexibleDate = (value?: string | null): Date | null => {
+  if (!isValidIsoDate(value)) return null;
+
+  const trimmed = value.trim();
+  const isoDate = parseISO(trimmed);
+  if (!Number.isNaN(isoDate.getTime())) return isoDate;
+
+  const brazilianDate = parse(trimmed, "dd/MM/yyyy", new Date());
+  if (!Number.isNaN(brazilianDate.getTime())) return brazilianDate;
+
+  const fallbackDate = new Date(trimmed);
+  if (!Number.isNaN(fallbackDate.getTime())) return fallbackDate;
+
+  return null;
 };
 
 const getAdultTrainingsRequiredForNextDegree = (
@@ -39,10 +55,8 @@ const getAdultTrainingsRequiredForNextDegree = (
 };
 
 const calculateAge = (birthDate?: string): number | null => {
-  if (!isValidIsoDate(birthDate)) return null;
-
-  const date = parseISO(birthDate);
-  if (Number.isNaN(date.getTime())) return null;
+  const date = parseFlexibleDate(birthDate);
+  if (!date) return null;
 
   const today = new Date();
   let age = today.getFullYear() - date.getFullYear();

@@ -1,4 +1,5 @@
 import React from "react";
+import { parse, parseISO } from "date-fns";
 import { BeltColor, Program } from "../context/DataContext";
 
 interface BeltDisplayProps {
@@ -10,18 +11,18 @@ interface BeltDisplayProps {
 
 export const BELT_COLORS: Record<BeltColor, string> = {
   White: "#FFFFFF",
-  GreyWhite: "#9CA3AF",   // grey base + white stripe
+  GreyWhite: "#9CA3AF", // grey base + white stripe
   Grey: "#9CA3AF",
-  GreyBlack: "#9CA3AF",   // grey base + black stripe
+  GreyBlack: "#9CA3AF", // grey base + black stripe
   YellowWhite: "#EAB308", // yellow base + white stripe
   Yellow: "#EAB308",
   YellowBlack: "#EAB308", // yellow base + black stripe
   OrangeWhite: "#F97316", // orange base + white stripe
   Orange: "#F97316",
   OrangeBlack: "#F97316", // orange base + black stripe
-  GreenWhite: "#22C55E",  // green base + white stripe
+  GreenWhite: "#22C55E", // green base + white stripe
   Green: "#22C55E",
-  GreenBlack: "#22C55E",  // green base + black stripe
+  GreenBlack: "#22C55E", // green base + black stripe
   Blue: "#2563EB",
   Purple: "#9333EA",
   Brown: "#92400E",
@@ -161,7 +162,19 @@ export function getNextDegreeDisplayLabel(
 // Função para calcular idade em anos
 export function calculateAge(birthDate: string): number {
   const today = new Date();
-  const birth = new Date(birthDate);
+  const trimmed = birthDate.trim();
+  const parsedIso = parseISO(trimmed);
+  const parsedBrazilian = parse(trimmed, "dd/MM/yyyy", new Date());
+  const birth = !Number.isNaN(parsedIso.getTime())
+    ? parsedIso
+    : !Number.isNaN(parsedBrazilian.getTime())
+      ? parsedBrazilian
+      : new Date(trimmed);
+
+  if (Number.isNaN(birth.getTime())) {
+    return 0;
+  }
+
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -315,8 +328,12 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   const beltColor = BELT_COLORS[belt];
   const isLight =
     belt === "White" ||
-    belt === "Yellow" || belt === "YellowWhite" || belt === "YellowBlack" ||
-    belt === "Grey" || belt === "GreyWhite" || belt === "GreyBlack";
+    belt === "Yellow" ||
+    belt === "YellowWhite" ||
+    belt === "YellowBlack" ||
+    belt === "Grey" ||
+    belt === "GreyWhite" ||
+    belt === "GreyBlack";
 
   const heights = { sm: "h-5", md: "h-7", lg: "h-9" };
   const stripeWidths = { sm: "w-[10px]", md: "w-[14px]", lg: "w-[18px]" };
@@ -396,20 +413,29 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
             const stripeColor = isGBK
               ? getGBKSlotColor(i)
               : getAdultSlotColor(i);
-            const needsBorder =
-              stripeColor === "transparent" || stripeColor === "#FFFFFF";
+            const slotBorderColor =
+              belt === "GreyWhite" || belt === "Grey" || belt === "GreyBlack"
+                ? "#6B7280"
+                : isLight
+                  ? "#9CA3AF"
+                  : "rgba(255,255,255,0.35)";
 
             return (
               <div
                 key={i}
-                className={`${stripeWidths[size]} ${stripeHeights[size]} rounded-sm`}
+                className={`${stripeWidths[size]} ${stripeHeights[size]} rounded-[4px] border`}
                 style={{
-                  backgroundColor: stripeColor,
-                  border: needsBorder
-                    ? `1px solid ${isLight ? "#9CA3AF" : "rgba(255,255,255,0.3)"}`
-                    : "none",
+                  backgroundColor:
+                    stripeColor === "transparent" ? "transparent" : stripeColor,
+                  borderColor: slotBorderColor,
+                  boxSizing: "border-box",
+                  boxShadow:
+                    stripeColor === "#FFFFFF" &&
+                    (belt === "White" || belt === "GreyWhite")
+                      ? "0 0 0 1px rgba(255,255,255,0.45) inset"
+                      : undefined,
                 }}
-              />
+              ></div>
             );
           })}
         </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, GraduationCap, SquarePen, Trash2 } from "lucide-react";
@@ -122,6 +122,7 @@ interface BeltHistorySegment {
 
 export const AdminStudentCard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const {
     students,
     attendance,
@@ -144,6 +145,11 @@ export const AdminStudentCard: React.FC = () => {
   const student = students.find((s) => (s.id || s._id) === id);
 
   const studentId = student ? ((student.id || student._id) as string) : "";
+  const returnTo = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const target = params.get("returnTo");
+    return target ? decodeURIComponent(target) : "/admin/students";
+  }, [location.search]);
 
   const studentAttendance = useMemo(
     () =>
@@ -285,7 +291,7 @@ export const AdminStudentCard: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 py-8 text-center text-gray-500">
         <p>Aluno não encontrado.</p>
         <Link
-          to="/admin/students"
+          to={returnTo}
           className="text-[#003087] hover:underline mt-2 block"
         >
           Voltar para lista
@@ -551,7 +557,7 @@ export const AdminStudentCard: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <Link
-            to="/admin/students"
+            to={returnTo}
             className="flex items-center gap-2 text-gray-500 hover:text-[#D10A11] transition-colors text-sm font-medium"
           >
             <ArrowLeft size={18} />
@@ -603,7 +609,6 @@ export const AdminStudentCard: React.FC = () => {
         </div>
         <div className="w-full sm:w-auto sm:ml-auto">
           <div className="flex items-center justify-end gap-2 mb-2 text-xs text-gray-500 font-medium">
-        
             <Link
               to={`/admin/students?edit=${studentId}&returnTo=${encodeURIComponent(`/admin/students/${studentId}/card`)}`}
               className="inline-flex items-center justify-center p-1.5 rounded-md text-[#003087] hover:bg-blue-100 transition-colors"
@@ -614,37 +619,42 @@ export const AdminStudentCard: React.FC = () => {
             </Link>
           </div>
           <div className="flex gap-4 text-center justify-end">
-          <div>
-            <div className="text-2xl font-black text-[#003087]">
-              {confirmedCount}
+            <div>
+              <div className="text-2xl font-black text-[#003087]">
+                {confirmedCount}
+              </div>
+              <div className="text-xs text-gray-500">Aulas no total</div>
             </div>
-            <div className="text-xs text-gray-500">Aulas no total</div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-indigo-600">
-              {confirmedSinceGraduation}
+            <div>
+              <div className="text-2xl font-black text-indigo-600">
+                {confirmedSinceGraduation}
+              </div>
+              <div className="text-xs text-gray-500">
+                Aulas no{" "}
+                {getDegreeDisplayLabel(
+                  calculateProgram(
+                    student.program,
+                    student.belt,
+                    student.degrees,
+                    student.birthDate,
+                  ),
+                  student.belt,
+                  student.degrees,
+                ) || "grau atual"}
+              </div>
             </div>
-            <div className="text-xs text-gray-500">
-              Aulas no{" "}
-              {getDegreeDisplayLabel(
-                calculateProgram(student.program, student.belt, student.degrees, student.birthDate),
-                student.belt,
-                student.degrees,
-              ) || "grau atual"}
+            <div>
+              <div className="text-2xl font-black text-[#D10A11]">
+                {graduationDates.length}
+              </div>
+              <div className="text-xs text-gray-500">Graduações</div>
             </div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-[#D10A11]">
-              {graduationDates.length}
+            <div>
+              <div className="text-2xl font-black text-emerald-600">
+                {displayStudent.degrees}
+              </div>
+              <div className="text-xs text-gray-500">Graus</div>
             </div>
-            <div className="text-xs text-gray-500">Graduações</div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-emerald-600">
-              {displayStudent.degrees}
-            </div>
-            <div className="text-xs text-gray-500">Graus</div>
-          </div>
           </div>
         </div>
       </div>
