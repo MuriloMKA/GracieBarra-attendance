@@ -106,6 +106,20 @@ export const AdminDashboard: React.FC = () => {
     return null;
   }, []);
 
+  const isSameLocalDay = useCallback(
+    (value: string | null | undefined, referenceDate: Date) => {
+      const parsed = parseFlexibleDate(value);
+      if (!parsed) return false;
+
+      return (
+        parsed.getFullYear() === referenceDate.getFullYear() &&
+        parsed.getMonth() === referenceDate.getMonth() &&
+        parsed.getDate() === referenceDate.getDate()
+      );
+    },
+    [parseFlexibleDate],
+  );
+
   const activeStudents = useMemo(
     () => students.filter((student) => student.active !== false),
     [students],
@@ -408,6 +422,51 @@ export const AdminDashboard: React.FC = () => {
     c.daysOfWeek.includes(today.getDay()),
   );
 
+  const confirmDegreeWithOptionalAttendance = useCallback(
+    async (student: StudentReadyForDegree, notes: string) => {
+      const studentId = student._id || student.id;
+      if (!studentId) throw new Error("Aluno sem identificador válido");
+
+      const now = new Date();
+      const hasConfirmedAttendanceToday = attendance.some((entry) => {
+        if (!entry.confirmed) return false;
+        const entryStudentId =
+          (entry.studentId as any)?._id ||
+          (entry.studentId as any)?.id ||
+          entry.studentId;
+
+        return (
+          entryStudentId === studentId && isSameLocalDay(entry.date, now)
+        );
+      });
+
+      if (!hasConfirmedAttendanceToday) {
+        await api.post("/attendance", {
+          studentId,
+          classId: "manual-degree-confirm",
+          className: "Presença via confirmação de grau",
+          classTime: format(now, "HH:mm"),
+          date: now.toISOString(),
+          confirmed: true,
+        });
+      }
+
+      await api.post(`/students/${studentId}/confirm-degree`, {
+        notes,
+        date: format(now, "yyyy-MM-dd"),
+      });
+
+      toast.success(
+        hasConfirmedAttendanceToday
+          ? `Grau de ${student.name} confirmado!`
+          : `Grau de ${student.name} confirmado e presença registrada!`,
+      );
+
+      await refreshData();
+    },
+    [attendance, isSameLocalDay, refreshData],
+  );
+
   const handleScanSuccess = useCallback(
     (decodedText: string) => {
       try {
@@ -439,13 +498,15 @@ export const AdminDashboard: React.FC = () => {
 
         scannerCooldowns.current.set(studentId, now);
 
-        const todayStr = today.toISOString().split("T")[0];
+        const scanMoment = new Date();
         const alreadyConfirmed = attendance.some(
           (a) =>
-            a.studentId === studentId &&
+            ((a.studentId as any)?._id ||
+              (a.studentId as any)?.id ||
+              a.studentId) === studentId &&
             a.classId === "manual-scan" &&
             a.confirmed &&
-            a.date.startsWith(todayStr),
+            isSameLocalDay(a.date, scanMoment),
         );
 
         if (alreadyConfirmed) {
@@ -534,7 +595,14 @@ export const AdminDashboard: React.FC = () => {
         toast.error("QR Code inválido!");
       }
     },
-    [students, attendance, studentsReadyForDegree, checkIn, today, vibrate],
+    [
+      students,
+      attendance,
+      studentsReadyForDegree,
+      checkIn,
+      vibrate,
+      isSameLocalDay,
+    ],
   );
 
   // Keep ref in sync so the keyboard listener always calls the latest version
@@ -601,16 +669,11 @@ export const AdminDashboard: React.FC = () => {
   const handleConfirmDegree = async (student: StudentReadyForDegree) => {
     try {
       setConfirmingDegree(true);
-      const studentId = student._id || student.id;
-      if (!studentId) throw new Error("Aluno sem identificador válido");
-
-      await api.post(`/students/${studentId}/confirm-degree`, {
-        notes: "Confirmado pelo professor via leitura QR",
-      });
-
-      toast.success(`Grau de ${student.name} confirmado!`);
+      await confirmDegreeWithOptionalAttendance(
+        student,
+        "Confirmado pelo professor via leitura QR",
+      );
       setPendingDegreeStudent(null);
-      await refreshData();
     } catch (err) {
       console.error(err);
       toast.error("Erro ao confirmar grau");
@@ -1278,19 +1341,10 @@ export const AdminDashboard: React.FC = () => {
                         e.stopPropagation();
                         e.preventDefault();
                         try {
-                          const studentId = student._id || student.id;
-                          if (!studentId) {
-                            throw new Error("Aluno sem identificador válido");
-                          }
-                          await api.post(
-                            `/students/${studentId}/confirm-degree`,
-                            {
-                              notes: "Confirmado pelo professor via painel",
-                            },
+                          await confirmDegreeWithOptionalAttendance(
+                            student,
+                            "Confirmado pelo professor via painel",
                           );
-
-                          toast.success("Grau confirmado com sucesso");
-                          await refreshData();
                         } catch (err) {
                           console.error(err);
                           toast.error("Erro ao confirmar grau");

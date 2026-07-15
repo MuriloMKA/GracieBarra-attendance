@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import {
   authService,
   studentService,
@@ -96,6 +102,7 @@ export interface UserAccount {
 
 interface DataContextType {
   currentUser: UserAccount | null;
+  authInitialized: boolean;
   students: Student[];
   attendance: Attendance[];
   classes: JJClass[];
@@ -143,10 +150,39 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [classes, setClasses] = useState<JJClass[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const normalizeStudentProgress = useCallback((student: any) => {
+    const relevantSpecialDates = (student.specialDates || [])
+      .filter((sd: any) => sd?.type === "grade" || sd?.type === "graduation")
+      .map((sd: any) => sd?.date)
+      .filter((date: any): date is string => typeof date === "string" && !!date);
+
+    const normalizedRelevantDates = relevantSpecialDates
+      .map((date) => {
+        const parsed = new Date(date);
+        if (Number.isNaN(parsed.getTime())) return null;
+        return parsed.toISOString().split("T")[0];
+      })
+      .filter((date): date is string => typeof date === "string")
+      .sort();
+
+    const derivedLastGraduationDate =
+      normalizedRelevantDates[normalizedRelevantDates.length - 1] ||
+      student.lastGraduationDate ||
+      "";
+
+    return {
+      ...student,
+      active: student.active ?? true,
+      id: student._id || student.id,
+      lastGraduationDate: derivedLastGraduationDate,
+    };
+  }, []);
 
   // Carregar dados quando autenticado
   const loadData = async () => {
@@ -161,14 +197,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         classService.getAll(),
       ]);
 
-      // Normalizar IDs
-      setStudents(
-        studentsData.map((s: any) => ({
-          ...s,
-          active: s.active ?? true,
-          id: s._id || s.id,
-        })),
-      );
+      // Normalizar IDs e corrigir registros legados com lastGraduationDate inconsistente
+      setStudents(studentsData.map((s: any) => normalizeStudentProgress(s)));
       setAttendance(
         attendanceData.map((a: any) => ({ ...a, id: a._id || a.id })),
       );
@@ -186,20 +216,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Restaurar usuário ao carregar página
   useEffect(() => {
-    const savedUser = localStorage.getItem("gb_current_user");
-    const token = localStorage.getItem("gb_auth_token");
+    const restoreSession = async () => {
+      const savedUser = localStorage.getItem("gb_current_user");
+      const token = localStorage.getItem("gb_auth_token");
 
-    if (savedUser && token) {
-      try {
-        const user = JSON.parse(savedUser);
-        setCurrentUser(user);
-        loadData();
-      } catch (error) {
-        console.error("Erro ao restaurar usuário:", error);
-        localStorage.removeItem("gb_current_user");
-        localStorage.removeItem("gb_auth_token");
+      if (savedUser && token) {
+        try {
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
+          await loadData();
+        } catch (error) {
+          console.error("Erro ao restaurar usuário:", error);
+          localStorage.removeItem("gb_current_user");
+          localStorage.removeItem("gb_auth_token");
+          setCurrentUser(null);
+        }
       }
-    }
+
+      setAuthInitialized(true);
+    };
+
+    restoreSession();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -355,7 +392,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setStudents(
         students.map((s) =>
           s.id === studentId || s._id === studentId
-            ? { ...updated, id: updated._id || updated.id }
+            ? normalizeStudentProgress(updated)
             : s,
         ),
       );
@@ -376,10 +413,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ...student,
         password,
       });
-      setStudents([
-        ...students,
-        { ...newStudent, id: newStudent._id || newStudent.id },
-      ]);
+      setStudents([...students, normalizeStudentProgress(newStudent)]);
       toast.success("Aluno adicionado com sucesso!");
     } catch (error: any) {
       console.error("Erro ao adicionar aluno:", error);
@@ -440,11 +474,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         : null;
       const snapshotGraduationDate = gradeSnapshotMatch?.[2] || undefined;
 
+      const remainingSpecialDates = student.specialDates.filter(
+        (sd) => sd.id !== specialDateId && sd._id !== specialDateId,
+      );
+
+      const remainingRelevantDates = remainingSpecialDates
+        .filter((sd) => sd.type === "grade" || sd.type === "graduation")
+        .map((sd) => sd.date)
+        .filter((date): date is string => typeof date === "string" && !!date)
+        .sort((a, b) => {
+          const aTime = new Date(a).getTime();
+          const bTime = new Date(b).getTime();
+          const aValid = !Number.isNaN(aTime);
+          const bValid = !Number.isNaN(bTime);
+
+          if (aValid && bValid) return aTime - bTime;
+          if (aValid) return -1;
+          if (bValid) return 1;
+
+          return a.localeCompare(b);
+        });
+
+      const fallbackLastGraduationDate =
+        remainingRelevantDates[remainingRelevantDates.length - 1] || "";
+
       const updatedStudent = {
         ...student,
-        specialDates: student.specialDates.filter(
-          (sd) => sd.id !== specialDateId && sd._id !== specialDateId,
-        ),
+        specialDates: remainingSpecialDates,
         degrees:
           specialDateToRemove?.type === "grade"
             ? (snapshotDegrees ?? Math.max(0, student.degrees - 1))
@@ -452,7 +508,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         lastGraduationDate:
           specialDateToRemove?.type === "grade" && snapshotGraduationDate
             ? snapshotGraduationDate
-            : student.lastGraduationDate,
+            : fallbackLastGraduationDate,
       };
 
       await updateStudent(updatedStudent);
@@ -535,6 +591,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     <DataContext.Provider
       value={{
         currentUser,
+        authInitialized,
         students,
         attendance,
         classes,

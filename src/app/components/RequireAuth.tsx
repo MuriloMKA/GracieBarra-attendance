@@ -11,7 +11,11 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   children,
   allowedRoles,
 }) => {
-  const { currentUser } = useData();
+  const { currentUser, authInitialized } = useData();
+
+  if (!authInitialized) {
+    return null;
+  }
 
   if (!currentUser) {
     return <Navigate to="/" replace />;

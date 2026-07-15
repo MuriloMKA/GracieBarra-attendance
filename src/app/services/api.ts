@@ -36,9 +36,15 @@ api.interceptors.response.use(
   (error) => {
     const url: string = error.config?.url || '';
     const isLoginRoute = url.includes('/auth/login') || url.includes('/auth/change-password');
-    // 401 = Token não fornecido, 403 = Token inválido/expirado
-    // Não redireciona em rotas de autenticação para que o erro apareça na tela
-    if (!isLoginRoute && (error.response?.status === 401 || error.response?.status === 403)) {
+    const status = error.response?.status;
+    const responseErrorMessage = String(error.response?.data?.error || '').toLowerCase();
+    const isAuthError =
+      status === 401 ||
+      (status === 403 && responseErrorMessage.includes('token inválido'));
+
+    // Não redireciona em rotas de autenticação para que o erro apareça na tela.
+    // Também evita deslogar em 403 de permissão (ex.: rota restrita).
+    if (!isLoginRoute && isAuthError) {
       localStorage.removeItem('gb_auth_token');
       localStorage.removeItem('gb_current_user');
       window.location.href = '/';
