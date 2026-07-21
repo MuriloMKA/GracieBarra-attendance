@@ -272,7 +272,7 @@ export const StudentDashboard: React.FC = () => {
               actualProgram,
               student.belt,
               student.degrees,
-            )}
+            ) || "0"}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graus na Faixa
@@ -280,10 +280,8 @@ export const StudentDashboard: React.FC = () => {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-2xl font-black text-green-600">
-            {
-              student.specialDates.filter((sd) => sd.type === "graduation")
-                .length
-            }
+            {(student.specialDates || []).filter((sd) => sd.type === "graduation")
+              .length}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graduações
