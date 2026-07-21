@@ -225,7 +225,7 @@ export const StudentCard: React.FC = () => {
     return total;
   }, [myAttendance, student.lastGraduationDate]);
 
-  const graduationCount = student.specialDates.filter(
+  const graduationCount = (student.specialDates || []).filter(
     (sd) => sd.type === "graduation",
   ).length;
 
@@ -280,7 +280,7 @@ export const StudentCard: React.FC = () => {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-lg font-black text-[#003087]">
-            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees)}
+            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) || "0"}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graus na Faixa
