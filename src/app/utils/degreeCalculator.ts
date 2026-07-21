@@ -95,6 +95,53 @@ const getGBKTrainingsRequiredForNextDegree = (
   return trainingsRequired;
 };
 
+const getValidTrainingDays = (
+  program?: string,
+  birthDate?: string,
+): Set<number> => {
+  const resolvedProg =
+    program === "GBK" || program === "GBKIDS" || program === "GBKJUVENIL"
+      ? resolveGbkProgram(program, birthDate)
+      : program;
+
+  if (resolvedProg === "GBKIDS") return new Set([1, 3]); // Mon, Wed
+  if (resolvedProg === "GBKJUVENIL") return new Set([1, 2, 3, 4]); // Mon-Thu
+  return new Set([1, 2, 3, 4, 5]); // Mon-Fri (adults)
+};
+
+const calculateRecentWeeklyAverageTrainings = (
+  attendanceRecords: Attendance[],
+  program?: string,
+  birthDate?: string,
+  weeksWindow = 4,
+): number => {
+  const validDays = getValidTrainingDays(program, birthDate);
+  const today = new Date();
+  const windowStart = addDays(today, -(weeksWindow * 7) + 1);
+
+  const map = new Map<string, number>();
+
+  attendanceRecords.forEach((a) => {
+    if (!a.confirmed) return;
+
+    const date = parseISO(a.date);
+    if (Number.isNaN(date.getTime())) return;
+    if (date < windowStart || date > today) return;
+    if (!validDays.has(date.getDay())) return;
+
+    const dateStr = a.date.slice(0, 10);
+    const current = map.get(dateStr) || 0;
+    if (current < 2) {
+      map.set(dateStr, current + 1);
+    }
+  });
+
+  let totalTrainings = 0;
+  map.forEach((count) => (totalTrainings += count));
+
+  return totalTrainings / weeksWindow;
+};
+
 const countCompletedTrainings = (
   attendanceRecords: Attendance[],
   lastGraduationDate?: string,
@@ -271,32 +318,41 @@ export const calculateNextDegreeDate = (
     return "Pronto para graduação!";
   }
 
-  const addBusinessDays = (date: Date, businessDays: number) => {
+  const validDays = getValidTrainingDays(program, birthDate);
+  const recentWeeklyAverage = calculateRecentWeeklyAverageTrainings(
+    attendanceRecords,
+    program,
+    birthDate,
+    4,
+  );
+
+  if (recentWeeklyAverage <= 0) {
+    return "Sem previsão (frequência insuficiente)";
+  }
+
+  const progressPerValidDay = recentWeeklyAverage / Math.max(1, validDays.size);
+  if (progressPerValidDay <= 0) {
+    return "Sem previsão (frequência insuficiente)";
+  }
+
+  const addProjectedDays = (date: Date, remainingTrainings: number) => {
     let currentDate = new Date(date);
-    let remainingDays = Math.max(0, businessDays);
+    let projectedProgress = 0;
+    const targetProgress = Math.max(0, remainingTrainings);
+    let guard = 0;
 
-    // Determine allowed class days based on resolved program
-    const resolvedProg = program === "GBK" || program === "GBKIDS" || program === "GBKJUVENIL"
-      ? resolveGbkProgram(program, birthDate)
-      : program;
-    const validDays: Set<number> =
-      resolvedProg === "GBKIDS"
-        ? new Set([1, 3])         // Mon, Wed only
-        : resolvedProg === "GBKJUVENIL"
-          ? new Set([1, 2, 3, 4]) // Mon–Thu only
-          : new Set([1, 2, 3, 4, 5]); // Mon–Fri (adults)
-
-    while (remainingDays > 0) {
+    while (projectedProgress < targetProgress && guard < 3650) {
+      guard += 1;
       currentDate = addDays(currentDate, 1);
       if (validDays.has(currentDate.getDay())) {
-        remainingDays -= 1;
+        projectedProgress += progressPerValidDay;
       }
     }
 
     return currentDate;
   };
 
-  const estimatedDate = addBusinessDays(new Date(), Math.ceil(progressRemaining));
+  const estimatedDate = addProjectedDays(new Date(), progressRemaining);
 
   return format(estimatedDate, "dd/MM/yyyy");
 };
@@ -330,6 +386,12 @@ export const getDegreeProgress = (
     program,
     birthDate,
   );
+  const recentWeeklyAverage = calculateRecentWeeklyAverageTrainings(
+    attendanceRecords,
+    program,
+    birthDate,
+    4,
+  );
 
   const progressPercentage = weeksRequired
     ? Math.min(100, Math.round((weeksCompleted / weeksRequired) * 100))
@@ -350,6 +412,7 @@ export const getDegreeProgress = (
     weeksRemaining: weeksRequired ? Math.max(0, weeksRequired - weeksCompleted) : null,
     progressPercentage,
     estimatedDate,
+    recentWeeklyAverage: Math.floor(recentWeeklyAverage * 10) / 10,
     isReadyForGraduation,
     isPenultimate,
     nextDegree: currentDegree + 1,

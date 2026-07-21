@@ -301,8 +301,7 @@ export const StudentCard: React.FC = () => {
         <div className="text-sm text-[#003087]">
           <strong>Pontos pretos</strong> = aulas que você participou no período exibido.{" "}
           <strong>Pontos vermelhos</strong> = datas de graduação (nova faixa).{" "}
-          <strong>X azul</strong> = grau confirmado automaticamente.{" "}
-          <strong>Pontos verdes</strong> = previsão do próximo grau.
+          <strong>X azul</strong> = grau confirmado automaticamente.
         </div>
       </div>
 

@@ -169,6 +169,28 @@ export const StudentDashboard: React.FC = () => {
   const progressRequiredValue = String(
     Math.round(degreeProgress.weeksRequired || 0),
   );
+  const recentWeeklyAverage = degreeProgress.recentWeeklyAverage || 0;
+  const recentWeeklyAverageLabel = recentWeeklyAverage
+    .toFixed(1)
+    .replace(".", ",");
+  const incentiveMessage = (() => {
+    if (degreeProgress.weeksRequired === null) return null;
+
+    if (degreeProgress.isReadyForGraduation) {
+      return "Parabéns! Você já atingiu os treinos necessários para o próximo grau, Continue assim! ";
+    }
+
+    if (
+      typeof degreeProgress.estimatedDate === "string" &&
+      degreeProgress.estimatedDate.length > 0 &&
+      !degreeProgress.estimatedDate.startsWith("Sem previsão") &&
+      degreeProgress.estimatedDate !== "Pronto para graduação!"
+    ) {
+      return `Com base nas ultimas 4 semanas (media de ${recentWeeklyAverageLabel} treinos por semana), a previsao para o proximo grau fica em torno do dia ${degreeProgress.estimatedDate}.`;
+    }
+
+    return "Com base nas ultimas 4 semanas, sua frequencia ainda esta baixa para gerar uma previsao confiavel. Continue treinando para liberar a estimativa.";
+  })();
 
   const confirmedSinceGraduation = (() => {
     const cutoff = student.lastGraduationDate;
@@ -433,27 +455,21 @@ export const StudentDashboard: React.FC = () => {
                     {progressUnit === "semanas" ? "sem" : "treinos"}
                   </div>
                 </div>
-
-
               </div>
 
-              {/* Data Estimada */}
-              <div className="mt-3 p-3 bg-gradient-to-r from-[#003087]/5 to-[#D10A11]/5 rounded-lg border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">
-                    Próximo grau estimado:
-                  </span>
-                  <span className="text-sm font-black text-[#003087]">
-                    {degreeProgress.estimatedDate}
-                  </span>
+              {incentiveMessage && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                    Continue Assim!
+                  </div>
+                  <div className="mt-1 text-sm text-amber-900">
+                    {incentiveMessage}
+                  </div>
+                  <div className="mt-1 text-xs text-amber-700">
+                    Base de calculo: ultimas 4 semanas de treino. A previsao e aproximada, sem finais de semana, e pode variar conforme sua assiduidade e criterios da academia.
+                  </div>
                 </div>
-              </div>
-
-              {/* Mensagem explicativa */}
-              <div className="mt-2 text-xs text-gray-500 italic">
-                * Baseado na sua frequência média. A data pode variar conforme
-                sua assiduidade nos treinos.
-              </div>
+              )}
             </div>
           )}
         </div>

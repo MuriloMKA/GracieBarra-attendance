@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
-import { format, parseISO, getMonth, getDate, getYear } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { parseISO, getMonth, getDate, getYear } from "date-fns";
 import {
   BeltColor,
   Student,
@@ -12,10 +11,8 @@ import {
   BELT_COLORS,
   BELT_NAMES_PT,
   getDegreeDisplayLabel,
-  getNextDegreeDisplayLabel,
   calculateProgram,
 } from "./BeltDisplay";
-import { getNextDegreeDate } from "../utils/degreeCalculator";
 
 const MONTHS = [
   "Janeiro",
@@ -123,10 +120,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
   // Build special dates map: "YYYY-MM-DD" → SpecialDate
   const specialDatesMap = useMemo(() => {
-    const map = new Map<
-      string,
-      SpecialDate | { type: "nextDegree"; date: string; notes?: string }
-    >();
+    const map = new Map<string, SpecialDate>();
 
     // Adiciona datas especiais existentes (graduações e graus confirmados)
     student.specialDates.forEach((sd) => {
@@ -135,37 +129,9 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
       }
     });
 
-    // Calcula e adiciona a data prevista do próximo grau
-    const nextDegreeDate = getNextDegreeDate(
-      attendanceHistory,
-      student.lastGraduationDate,
-      student.belt,
-      student.degrees,
-      student.program,
-      student.birthDate,
-    );
-
-    // Se a data prevista é deste ano e não conflita com graduação já marcada
-    if (nextDegreeDate && nextDegreeDate.startsWith(String(year))) {
-      // Só adiciona se não houver uma graduação já marcada nesta data
-      if (!map.has(nextDegreeDate)) {
-        map.set(nextDegreeDate, {
-          type: "nextDegree",
-          date: nextDegreeDate,
-          notes: `Próximo grau previsto (${getNextDegreeDisplayLabel(actualProgram, student.belt, student.degrees)})`,
-        });
-      }
-    }
-
     return map;
   }, [
     student.specialDates,
-    student.lastGraduationDate,
-    student.belt,
-    student.degrees,
-    student.program,
-    student.birthDate,
-    attendanceHistory,
     year,
   ]);
 
@@ -177,10 +143,6 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   }, [actualProgram]);
 
   const beltColor = BELT_COLORS[student.belt];
-
-  const gradeDates = student.specialDates
-    .filter((sd) => sd.type === "grade")
-    .sort((a, b) => b.date.localeCompare(a.date));
 
   const today = new Date();
   const highlightCurrentDate = year === today.getFullYear();
@@ -443,9 +405,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                     ? `Graduação: ${day}/${monthIdx + 1}`
                                     : specialDate?.type === "grade"
                                       ? `Grau confirmado: ${day}/${monthIdx + 1}`
-                                      : specialDate?.type === "nextDegree"
-                                        ? `Próximo grau previsto (${getNextDegreeDisplayLabel(actualProgram, student.belt, student.degrees)}): ${day}/${monthIdx + 1}`
-                                        : adminMode && isValidDay
+                                      : adminMode && isValidDay
                                           ? "Clique para marcar graduação"
                                           : ""
                               }
@@ -461,11 +421,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                     </div>
                                   ) : (
                                     <div
-                                      className={`${isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} rounded-full shadow-sm ${
-                                        specialDate.type === "graduation"
-                                          ? "bg-red-600 ring-1 ring-red-800"
-                                          : "bg-green-500 border-2 border-dashed border-green-600 animate-pulse"
-                                      }`}
+                                      className={`${isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} rounded-full shadow-sm bg-red-600 ring-1 ring-red-800`}
                                     />
                                   )}
                                   {attendanceCount > 0 &&
@@ -510,10 +466,6 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
               X
             </div>
             <span>Grau confirmado</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-dashed border-green-600 animate-pulse" />
-            <span>Próximo grau previsto</span>
           </div>
           {adminMode && (
             <div className="flex items-center gap-1.5">

@@ -828,7 +828,7 @@ export const AdminStudents: React.FC = () => {
                         {progressValue} / {progressRequiredValue} {progressUnit}
                       </span>
                       <span className="font-bold">
-                        {degreeProgress.estimatedDate}
+                        {degreeProgress.progressPercentage}%
                       </span>
                     </div>
                   </div>
