@@ -170,9 +170,7 @@ export const StudentDashboard: React.FC = () => {
     Math.round(degreeProgress.weeksRequired || 0),
   );
   const recentWeeklyAverage = degreeProgress.recentWeeklyAverage || 0;
-  const recentWeeklyAverageLabel = recentWeeklyAverage
-    .toFixed(1)
-    .replace(".", ",");
+  const recentWeeklyAverageRounded = Math.round(recentWeeklyAverage);
   const incentiveMessage = (() => {
     if (degreeProgress.weeksRequired === null) return null;
 
@@ -186,7 +184,7 @@ export const StudentDashboard: React.FC = () => {
       !degreeProgress.estimatedDate.startsWith("Sem previsão") &&
       degreeProgress.estimatedDate !== "Pronto para graduação!"
     ) {
-      return `Com base nas ultimas 4 semanas (media de ${recentWeeklyAverageLabel} treinos por semana), a previsao para o proximo grau fica em torno do dia ${degreeProgress.estimatedDate}.`;
+      return `Com base nas ultimas 4 semanas (media de ${recentWeeklyAverageRounded} treinos por semana), a previsao para o proximo grau fica em torno do dia ${degreeProgress.estimatedDate}.`;
     }
 
     return "Com base nas ultimas 4 semanas, sua frequencia ainda esta baixa para gerar uma previsao confiavel. Continue treinando para liberar a estimativa.";
