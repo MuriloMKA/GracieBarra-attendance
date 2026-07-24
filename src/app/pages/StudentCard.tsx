@@ -9,6 +9,7 @@ import {
 } from "../components/BeltDisplay";
 import { ArrowLeft, Info } from "lucide-react";
 import { parseISO, format } from "date-fns";
+import { calculateCompletedTrainings } from "../utils/degreeCalculator";
 
 const extractBeltFromNotes = (notes?: string): BeltColor | null => {
   if (!notes) return null;
@@ -203,27 +204,21 @@ export const StudentCard: React.FC = () => {
     return total;
   }, [myAttendance]);
 
-  const confirmedSinceGraduation = useMemo(() => {
-    const cutoff = student.lastGraduationDate;
-    const map = new Map<string, number>();
-    myAttendance.forEach((a) => {
-      if (!a.confirmed) return;
-      const dateStr = a.date.slice(0, 10);
-      if (cutoff && dateStr <= cutoff) return;
-      const d = parseISO(a.date);
-      const dayOfWeek = d.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        const current = map.get(dateStr) || 0;
-        if (current < 2) {
-          map.set(dateStr, current + 1);
-        }
-      }
-    });
-
-    let total = 0;
-    map.forEach((count) => (total += count));
-    return total;
-  }, [myAttendance, student.lastGraduationDate]);
+  const confirmedSinceGraduation = useMemo(
+    () =>
+      calculateCompletedTrainings(
+        myAttendance,
+        student.lastGraduationDate,
+        student.program,
+        student.birthDate,
+      ),
+    [
+      myAttendance,
+      student.birthDate,
+      student.lastGraduationDate,
+      student.program,
+    ],
+  );
 
   const graduationCount = (student.specialDates || []).filter(
     (sd) => sd.type === "graduation",
@@ -308,6 +303,7 @@ export const StudentCard: React.FC = () => {
       <AttendanceCard
         student={displayStudent}
         attendanceHistory={filteredAttendance}
+        profilePhotoUrl={student.studentProfilePhoto || undefined}
         year={new Date().getFullYear()}
         compact
         historyBeltOptions={beltHistory.map((segment) => ({

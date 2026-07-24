@@ -54,6 +54,8 @@ export interface Student {
   lastGraduationDate: string;
   nextDegreeDate: string;
   birthDate: string;
+  adminProfilePhoto?: string;
+  studentProfilePhoto?: string;
   specialDates: SpecialDate[];
 }
 
@@ -156,6 +158,64 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [classes, setClasses] = useState<JJClass[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const estimateDataUrlBytes = (dataUrl?: string) => {
+    if (!dataUrl || typeof dataUrl !== "string") return 0;
+    const base64 = dataUrl.split(",")[1] || "";
+    return Math.ceil((base64.length * 3) / 4);
+  };
+
+  const compressDataUrlImage = async (
+    dataUrl?: string,
+    maxBytes = 900_000,
+  ): Promise<string> => {
+    if (!dataUrl || typeof dataUrl !== "string") return "";
+    if (!dataUrl.startsWith("data:image")) return dataUrl;
+    if (estimateDataUrlBytes(dataUrl) <= maxBytes) return dataUrl;
+
+    const loadImage = (): Promise<HTMLImageElement> =>
+      new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Falha ao abrir imagem"));
+        img.src = dataUrl;
+      });
+
+    const render = (img: HTMLImageElement, maxDim: number, quality: number) => {
+      const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const width = Math.max(1, Math.round(img.width * ratio));
+      const height = Math.max(1, Math.round(img.height * ratio));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Falha ao preparar compressao");
+
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL("image/jpeg", quality);
+    };
+
+    const img = await loadImage();
+    const attempts: Array<[number, number]> = [
+      [420, 0.78],
+      [360, 0.72],
+      [320, 0.66],
+      [280, 0.6],
+      [240, 0.52],
+    ];
+
+    let best = dataUrl;
+    for (const [maxDim, quality] of attempts) {
+      const compressed = render(img, maxDim, quality);
+      best = compressed;
+      if (estimateDataUrlBytes(compressed) <= maxBytes) {
+        return compressed;
+      }
+    }
+
+    return best;
+  };
+
   const normalizeStudentProgress = useCallback((student: any) => {
     const relevantSpecialDates = (student.specialDates || [])
       .filter((sd: any) => sd?.type === "grade" || sd?.type === "graduation")
@@ -181,6 +241,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       active: student.active ?? true,
       id: student._id || student.id,
       lastGraduationDate: derivedLastGraduationDate,
+      adminProfilePhoto: student.adminProfilePhoto || "",
+      studentProfilePhoto: student.studentProfilePhoto || "",
     };
   }, []);
 
@@ -388,7 +450,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const studentId = student.id || student._id;
       if (!studentId) throw new Error("ID do aluno não encontrado");
 
-      const updated = await studentService.update(studentId, student);
+      const adminProfilePhoto = await compressDataUrlImage(
+        student.adminProfilePhoto,
+      );
+      const studentProfilePhoto = await compressDataUrlImage(
+        student.studentProfilePhoto,
+      );
+
+      const normalizedPayload = {
+        ...student,
+        adminProfilePhoto,
+        studentProfilePhoto,
+      };
+
+      const updated = await studentService.update(studentId, normalizedPayload);
       setStudents(
         students.map((s) =>
           s.id === studentId || s._id === studentId

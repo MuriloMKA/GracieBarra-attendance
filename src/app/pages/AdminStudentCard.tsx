@@ -17,6 +17,7 @@ import {
   calculateProgram,
   getDegreeDisplayLabel,
 } from "../components/BeltDisplay";
+import { calculateCompletedTrainings } from "../utils/degreeCalculator";
 
 const ADULT_BELTS: BeltColor[] = ["White", "Blue", "Purple", "Brown", "Black"];
 const GBK_BELTS: BeltColor[] = [
@@ -189,25 +190,21 @@ export const AdminStudentCard: React.FC = () => {
     map.forEach((count) => (total += count));
     return total;
   }, [displayAttendance]);
-  const confirmedSinceGraduation = useMemo(() => {
-    const cutoff = student?.lastGraduationDate;
-    const map = new Map<string, number>();
-    displayAttendance.forEach((a) => {
-      if (!a.confirmed) return;
-      const dateStr = a.date.slice(0, 10);
-      // match degreeCalculator: only count from the day AFTER graduation
-      if (cutoff && dateStr <= cutoff) return;
-      const d = parseISO(a.date);
-      const dayOfWeek = d.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        const current = map.get(dateStr) || 0;
-        if (current < 2) map.set(dateStr, current + 1);
-      }
-    });
-    let total = 0;
-    map.forEach((count) => (total += count));
-    return total;
-  }, [displayAttendance, student?.lastGraduationDate]);
+  const confirmedSinceGraduation = useMemo(
+    () =>
+      calculateCompletedTrainings(
+        displayAttendance,
+        student?.lastGraduationDate || "",
+        student?.program,
+        student?.birthDate,
+      ),
+    [
+      displayAttendance,
+      student?.birthDate,
+      student?.lastGraduationDate,
+      student?.program,
+    ],
+  );
 
   const gradeDates = (student?.specialDates || [])
     .filter((sd) => sd.type === "grade")
@@ -591,8 +588,16 @@ export const AdminStudentCard: React.FC = () => {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xl">
-            {student.name.charAt(0)}
+          <div className="w-12 h-12 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xl overflow-hidden">
+            {student.adminProfilePhoto ? (
+              <img
+                src={student.adminProfilePhoto}
+                alt={`Foto de ${student.name}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              student.name.charAt(0)
+            )}
           </div>
           <div>
             <div className="font-black text-gray-900">{student.name}</div>
@@ -793,6 +798,7 @@ export const AdminStudentCard: React.FC = () => {
         <AttendanceCard
           student={displayStudent}
           attendanceHistory={visibleAttendance}
+          profilePhotoUrl={student.adminProfilePhoto || undefined}
           year={year}
           adminMode={true}
           onCellClick={handleCellClick}

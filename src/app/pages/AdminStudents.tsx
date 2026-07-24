@@ -165,6 +165,65 @@ const readStoredBoolean = (key: string, fallback: boolean) => {
   return raw === "true";
 };
 
+const MAX_PROFILE_PHOTO_BYTES = 10_000_000;
+const MAX_COMPRESSED_BYTES = 450_000;
+
+const estimateDataUrlBytes = (dataUrl: string) => {
+  const base64 = dataUrl.split(",")[1] || "";
+  return Math.ceil((base64.length * 3) / 4);
+};
+
+const compressAvatarImage = async (file: File): Promise<string> => {
+  const loadImage = (): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Falha ao abrir imagem"));
+      };
+      img.src = objectUrl;
+    });
+
+  const render = (img: HTMLImageElement, maxDim: number, quality: number) => {
+    const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const width = Math.max(1, Math.round(img.width * ratio));
+    const height = Math.max(1, Math.round(img.height * ratio));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Falha ao preparar compressao");
+
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", quality);
+  };
+
+  const img = await loadImage();
+  const attempts: Array<[number, number]> = [
+    [320, 0.72],
+    [280, 0.66],
+    [240, 0.6],
+    [220, 0.55],
+  ];
+
+  let best = "";
+  for (const [maxDim, quality] of attempts) {
+    const dataUrl = render(img, maxDim, quality);
+    best = dataUrl;
+    if (estimateDataUrlBytes(dataUrl) <= MAX_COMPRESSED_BYTES) {
+      return dataUrl;
+    }
+  }
+
+  return best;
+};
+
 export const AdminStudents: React.FC = () => {
   const { students, attendance, updateStudent, addStudent } = useData();
   const location = useLocation();
@@ -377,6 +436,38 @@ export const AdminStudents: React.FC = () => {
     }
   };
 
+  const handleAdminPhotoChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingStudent) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem válido.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_PROFILE_PHOTO_BYTES) {
+      toast.error("A imagem original deve ter no máximo 10MB.");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const dataUrl = await compressAvatarImage(file);
+      setEditingStudent({
+        ...editingStudent,
+        adminProfilePhoto: dataUrl,
+      });
+      toast.success("Foto de cadastro carregada. Clique em Salvar.");
+    } catch (error) {
+      toast.error("Não foi possível carregar a foto.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudent.name || !newStudent.email) return;
@@ -420,6 +511,8 @@ export const AdminStudents: React.FC = () => {
       lastGraduationDate: new Date().toISOString().split("T")[0],
       nextDegreeDate: "",
       birthDate: "",
+      adminProfilePhoto: "",
+      studentProfilePhoto: "",
       specialDates: [],
     });
   };
@@ -569,8 +662,16 @@ export const AdminStudents: React.FC = () => {
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-sm shrink-0">
-                          {student.name.charAt(0)}
+                        <div className="w-9 h-9 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
+                          {student.adminProfilePhoto ? (
+                            <img
+                              src={student.adminProfilePhoto}
+                              alt={`Foto de ${student.name}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            student.name.charAt(0)
+                          )}
                         </div>
                         <div>
                           <div className="font-bold text-gray-900 text-sm">
@@ -795,6 +896,54 @@ export const AdminStudents: React.FC = () => {
                 {/* QR Code do Aluno */}
                 <div className="mb-4">
                   <StudentQRCode student={editingStudent} size="md" />
+                </div>
+
+                <div className="mb-4 rounded-xl border border-gray-200 p-3">
+                  <div className="text-sm font-bold text-gray-800 mb-2">
+                    Foto de Cadastro (somente professor vê)
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full overflow-hidden border border-gray-300 bg-gray-100 shrink-0">
+                      {editingStudent.adminProfilePhoto ? (
+                        <img
+                          src={editingStudent.adminProfilePhoto}
+                          alt={`Foto de ${editingStudent.name}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 font-black text-lg">
+                          {editingStudent.name?.charAt(0) || "?"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-lg bg-[#003087] text-white text-xs font-bold cursor-pointer hover:bg-blue-900">
+                        {editingStudent.adminProfilePhoto
+                          ? "Substituir imagem"
+                          : "Escolher imagem"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAdminPhotoChange}
+                        />
+                      </label>
+                      {editingStudent.adminProfilePhoto && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditingStudent({
+                              ...editingStudent,
+                              adminProfilePhoto: "",
+                            })
+                          }
+                          className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-100"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Progresso do Próximo Grau */}

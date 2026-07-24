@@ -13,6 +13,7 @@ import {
   getDegreeDisplayLabel,
   calculateProgram,
 } from "./BeltDisplay";
+import { getNextDegreeDate } from "../utils/degreeCalculator";
 
 const MONTHS = [
   "Janeiro",
@@ -47,6 +48,7 @@ const MONTHS_SHORT = [
 interface AttendanceCardProps {
   student: Student;
   attendanceHistory: Attendance[];
+  profilePhotoUrl?: string;
   year?: number;
   /** If true, admin can click on cells to toggle special dates */
   adminMode?: boolean;
@@ -73,6 +75,7 @@ function getDaysInMonth(year: number, month: number): number {
 export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   student,
   attendanceHistory,
+  profilePhotoUrl,
   year = new Date().getFullYear(),
   adminMode = false,
   compact = false,
@@ -98,15 +101,22 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     student.birthDate,
   );
 
+  // Days of week allowed for class per program (0=Sun, 1=Mon ... 6=Sat)
+  const validClassDays = useMemo((): Set<number> => {
+    if (actualProgram === "GBKIDS") return new Set([1, 3]); // Mon, Wed only
+    if (actualProgram === "GBKJUVENIL") return new Set([1, 2, 3, 4]); // Mon-Thu only
+    return new Set([1, 2, 3, 4, 5]); // Mon-Fri (adults)
+  }, [actualProgram]);
+
   // Build attendance map: "YYYY-MM-DD" → count of confirmed check-ins
   const attendedDates = useMemo(() => {
     const map = new Map<string, number>();
     attendanceHistory.forEach((a) => {
       if (a.confirmed && getYear(parseISO(a.date)) === year) {
         const d = parseISO(a.date);
+        if (Number.isNaN(d.getTime())) return;
         const dayOfWeek = d.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          // ignore weekends
+        if (validClassDays.has(dayOfWeek)) {
           const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
           const currentCount = map.get(key) || 0;
           if (currentCount < 2) {
@@ -116,7 +126,25 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
       }
     });
     return map;
-  }, [attendanceHistory, year]);
+  }, [attendanceHistory, validClassDays, year]);
+
+  const predictedNextDegreeDate = useMemo(() => {
+    return getNextDegreeDate(
+      attendanceHistory,
+      student.lastGraduationDate,
+      student.belt,
+      student.degrees,
+      student.program,
+      student.birthDate,
+    );
+  }, [
+    attendanceHistory,
+    student.birthDate,
+    student.belt,
+    student.degrees,
+    student.lastGraduationDate,
+    student.program,
+  ]);
 
   // Build special dates map: "YYYY-MM-DD" → SpecialDate
   const specialDatesMap = useMemo(() => {
@@ -134,13 +162,6 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     student.specialDates,
     year,
   ]);
-
-  // Days of week allowed for class per program (0=Sun, 1=Mon ... 6=Sat)
-  const validClassDays = useMemo((): Set<number> => {
-    if (actualProgram === "GBKIDS") return new Set([1, 3]); // Mon, Wed only
-    if (actualProgram === "GBKJUVENIL") return new Set([1, 2, 3, 4]); // Mon–Thu only
-    return new Set([1, 2, 3, 4, 5]); // Mon–Fri (adults)
-  }, [actualProgram]);
 
   const beltColor = BELT_COLORS[student.belt];
 
@@ -165,11 +186,19 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
             <div
               className={`bg-white rounded-full flex items-center justify-center shrink-0 shadow-md overflow-hidden ${isCompact ? "p-0.5 h-11 w-11" : "p-1 h-14 w-14"}`}
             >
-              <img
-                src="/images/logo.png"
-                alt="Gracie Barra Logo"
-                className="w-full h-full object-cover scale-110"
-              />
+              {profilePhotoUrl ? (
+                <img
+                  src={profilePhotoUrl}
+                  alt={`Foto de ${student.name}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src="/images/logo.png"
+                  alt="Gracie Barra Logo"
+                  className="w-full h-full object-cover scale-110"
+                />
+              )}
             </div>
             <div>
               <div
@@ -334,6 +363,8 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                             isValidDay && !isWeekendDay
                               ? specialDatesMap.get(dateKey)
                               : undefined;
+                          const isPredictedDegreeDate =
+                            predictedNextDegreeDate === dateKey;
                           const isTodayColumn =
                             highlightCurrentDate && day === currentDay;
                           const isTodayCell =
@@ -429,6 +460,12 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                                 </div>
                               ) : isAttended ? (
                                 renderAttendanceDots(attendanceCount)
+                              ) : isPredictedDegreeDate ? (
+                                <div className="flex items-center justify-center">
+                                  <span
+                                    className={`${isCompact ? "w-2.5 h-2.5" : "w-3 h-3"} rounded-full bg-green-500 ring-1 ring-green-700 shadow-sm`}
+                                  />
+                                </div>
                               ) : null}
                               {isTodayCell && !specialDate && !isAttended && (
                                 <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
@@ -456,6 +493,10 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-gray-900 border border-white/50" />
             <span>Presença confirmada</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-green-500 border border-white/50" />
+            <span>Previsão do próximo grau</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-600 border border-white/50" />

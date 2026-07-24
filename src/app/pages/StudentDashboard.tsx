@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useData } from "../context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   X,
   MessageSquareMore,
+  ImagePlus,
+  Trash2,
 } from "lucide-react";
 import {
   BeltDisplay,
@@ -22,8 +24,71 @@ import {
   getDegreeDisplayLabel,
   getNextDegreeDisplayLabel,
 } from "../components/BeltDisplay";
-import { getDegreeProgress } from "../utils/degreeCalculator";
+import {
+  getDegreeProgress,
+  calculateCompletedTrainings,
+} from "../utils/degreeCalculator";
 import { notificationService } from "../services/api";
+import { toast } from "sonner";
+
+const MAX_PROFILE_PHOTO_BYTES = 10_000_000;
+const MAX_COMPRESSED_BYTES = 450_000;
+
+const estimateDataUrlBytes = (dataUrl: string) => {
+  const base64 = dataUrl.split(",")[1] || "";
+  return Math.ceil((base64.length * 3) / 4);
+};
+
+const compressAvatarImage = async (file: File): Promise<string> => {
+  const loadImage = (): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Falha ao abrir imagem"));
+      };
+      img.src = objectUrl;
+    });
+
+  const render = (img: HTMLImageElement, maxDim: number, quality: number) => {
+    const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const width = Math.max(1, Math.round(img.width * ratio));
+    const height = Math.max(1, Math.round(img.height * ratio));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Falha ao preparar compressao");
+
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", quality);
+  };
+
+  const img = await loadImage();
+  const attempts: Array<[number, number]> = [
+    [320, 0.72],
+    [280, 0.66],
+    [240, 0.6],
+    [220, 0.55],
+  ];
+
+  let best = "";
+  for (const [maxDim, quality] of attempts) {
+    const dataUrl = render(img, maxDim, quality);
+    best = dataUrl;
+    if (estimateDataUrlBytes(dataUrl) <= MAX_COMPRESSED_BYTES) {
+      return dataUrl;
+    }
+  }
+
+  return best;
+};
 
 interface SystemNotification {
   _id?: string;
@@ -35,10 +100,11 @@ interface SystemNotification {
 }
 
 export const StudentDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes } = useData();
+  const { currentUser, students, attendance, classes, updateStudent } = useData();
   const [recentNotifications, setRecentNotifications] = useState<
     SystemNotification[]
   >([]);
+  const studentPhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -190,25 +256,12 @@ export const StudentDashboard: React.FC = () => {
     return "Com base nas ultimas 4 semanas, sua frequencia ainda esta baixa para gerar uma previsao confiavel. Continue treinando para liberar a estimativa.";
   })();
 
-  const confirmedSinceGraduation = (() => {
-    const cutoff = student.lastGraduationDate;
-    const map = new Map<string, number>();
-    myAllAttendance.forEach((a) => {
-      if (!a.confirmed) return;
-      const dateStr = a.date.slice(0, 10);
-      // match degreeCalculator: only count from the day AFTER graduation
-      if (cutoff && dateStr <= cutoff) return;
-      const d = parseISO(a.date);
-      const dow = d.getDay();
-      if (dow !== 0 && dow !== 6) {
-        const cur = map.get(dateStr) || 0;
-        if (cur < 2) map.set(dateStr, cur + 1);
-      }
-    });
-    let total = 0;
-    map.forEach((c) => (total += c));
-    return total;
-  })();
+  const confirmedSinceGraduation = calculateCompletedTrainings(
+    myAllAttendance,
+    student.lastGraduationDate,
+    student.program,
+    student.birthDate,
+  );
 
   // Recent confirmed attendance (last 5)
   const recentAttendance = myAllAttendance
@@ -216,17 +269,67 @@ export const StudentDashboard: React.FC = () => {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
+  const handleStudentPhotoFile = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem válido.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_PROFILE_PHOTO_BYTES) {
+      toast.error("A imagem original deve ter no máximo 10MB.");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const dataUrl = await compressAvatarImage(file);
+      await updateStudent({
+        ...student,
+        studentProfilePhoto: dataUrl,
+      });
+    } catch (error) {
+      toast.error("Não foi possível atualizar sua foto.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveStudentPhoto = async () => {
+    try {
+      await updateStudent({
+        ...student,
+        studentProfilePhoto: "",
+      });
+    } catch (error) {
+      toast.error("Não foi possível remover sua foto.");
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
       {/* Welcome */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
-            <img
-              src="/images/logo.png"
-              alt="Gracie Barra Logo"
-              className="w-full h-full object-cover scale-110"
-            />
+            {student.studentProfilePhoto ? (
+              <img
+                src={student.studentProfilePhoto}
+                alt={`Foto de ${student.name}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img
+                src="/images/logo.png"
+                alt="Gracie Barra Logo"
+                className="w-full h-full object-cover scale-110"
+              />
+            )}
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900">
@@ -236,6 +339,35 @@ export const StudentDashboard: React.FC = () => {
               <CalendarDays size={15} />
               {format(today, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </p>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                ref={studentPhotoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleStudentPhotoFile}
+              />
+              <button
+                type="button"
+                onClick={() => studentPhotoInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#003087] text-white text-xs font-bold hover:bg-blue-900"
+              >
+                <ImagePlus size={13} />
+                {student.studentProfilePhoto
+                  ? "Substituir imagem"
+                  : "Minha foto"}
+              </button>
+              {student.studentProfilePhoto && (
+                <button
+                  type="button"
+                  onClick={handleRemoveStudentPhoto}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-100"
+                >
+                  <Trash2 size={13} />
+                  Remover
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <Link

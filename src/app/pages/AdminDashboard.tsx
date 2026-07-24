@@ -129,12 +129,13 @@ export const AdminDashboard: React.FC = () => {
     const readyStudents: StudentReadyForDegree[] = [];
 
     activeStudents.forEach((student) => {
+      const studentId = student.id || student._id;
       const studentAttendance = attendance.filter(
         (entry) =>
           entry.confirmed &&
-          (entry.studentId === student.id ||
-            (entry.studentId as any)?._id === student.id ||
-            (entry.studentId as any)?.id === student.id),
+          (entry.studentId === studentId ||
+            (entry.studentId as any)?._id === studentId ||
+            (entry.studentId as any)?.id === studentId),
       );
 
       const degreeProgress = getDegreeProgress(

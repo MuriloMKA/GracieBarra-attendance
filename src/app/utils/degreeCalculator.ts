@@ -21,6 +21,17 @@ const parseFlexibleDate = (value?: string | null): Date | null => {
   return null;
 };
 
+const toDateOnlyString = (value?: string | null): string | null => {
+  if (!isValidIsoDate(value)) return null;
+
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parsed = parseFlexibleDate(trimmed);
+  if (!parsed) return null;
+  return format(parsed, "yyyy-MM-dd");
+};
+
 const getAdultTrainingsRequiredForNextDegree = (
   belt: BeltColor,
   currentDegree: number,
@@ -145,20 +156,25 @@ const calculateRecentWeeklyAverageTrainings = (
 const countCompletedTrainings = (
   attendanceRecords: Attendance[],
   lastGraduationDate?: string,
+  program?: string,
+  birthDate?: string,
 ): number => {
+  const validDays = getValidTrainingDays(program, birthDate);
+  const cutoffDateOnly = toDateOnlyString(lastGraduationDate);
+
   let records = attendanceRecords.filter((a) => a.confirmed);
 
-  if (isValidIsoDate(lastGraduationDate)) {
-    const graduationDate = parseISO(lastGraduationDate);
-    const nextDayStart = addDays(graduationDate, 1);
-    records = records.filter((a) => parseISO(a.date) >= nextDayStart);
+  // Do not count the same day of the graduation/degree confirmation.
+  if (cutoffDateOnly) {
+    records = records.filter((a) => a.date.slice(0, 10) > cutoffDateOnly);
   }
 
   const map = new Map<string, number>();
   records.forEach((a) => {
     const d = parseISO(a.date);
+    if (Number.isNaN(d.getTime())) return;
     const dayOfWeek = d.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // ignore weekends
+    if (validDays.has(dayOfWeek)) {
       const dateStr = a.date.slice(0, 10);
       const current = map.get(dateStr) || 0;
       if (current < 2) {
@@ -235,15 +251,19 @@ export const getWeeksRequiredForNextDegree = (
  */
 export const calculateCompletedWeeks = (
   attendanceRecords: Attendance[],
-  lastGraduationDate: string
+  lastGraduationDate: string,
+  program?: string,
+  birthDate?: string,
 ): number => {
+  const validDays = getValidTrainingDays(program, birthDate);
+  const cutoffDateOnly = toDateOnlyString(lastGraduationDate);
+
   let validAttendances = attendanceRecords.filter((a) => a.confirmed);
 
-  if (isValidIsoDate(lastGraduationDate)) {
-    const graduationDate = parseISO(lastGraduationDate);
-    const nextDayStart = addDays(graduationDate, 1);
+  // Do not count the same day of the graduation/degree confirmation.
+  if (cutoffDateOnly) {
     validAttendances = validAttendances.filter(
-      (a) => parseISO(a.date) >= nextDayStart
+      (a) => a.date.slice(0, 10) > cutoffDateOnly,
     );
   }
 
@@ -252,8 +272,9 @@ export const calculateCompletedWeeks = (
 
   validAttendances.forEach((attendance) => {
     const attendanceDate = parseISO(attendance.date);
+    if (Number.isNaN(attendanceDate.getTime())) return;
     const dayOfWeek = attendanceDate.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // ignore weekends
+    if (validDays.has(dayOfWeek)) {
       const weekStart = startOfWeek(attendanceDate, { weekStartsOn: 0 }); // Domingo = 0
       const weekKey = weekStart.toISOString();
       const dateStr = attendance.date.slice(0, 10);
@@ -281,8 +302,15 @@ export const calculateCompletedWeeks = (
 export const calculateCompletedTrainings = (
   attendanceRecords: Attendance[],
   lastGraduationDate: string,
+  program?: string,
+  birthDate?: string,
 ): number => {
-  return countCompletedTrainings(attendanceRecords, lastGraduationDate);
+  return countCompletedTrainings(
+    attendanceRecords,
+    lastGraduationDate,
+    program,
+    birthDate,
+  );
 };
 
 /**
@@ -310,6 +338,8 @@ export const calculateNextDegreeDate = (
   const progressCompleted = calculateCompletedTrainings(
     attendanceRecords,
     lastGraduationDate,
+    program,
+    birthDate,
   );
 
   const progressRemaining = progressRequired - progressCompleted;
@@ -377,6 +407,8 @@ export const getDegreeProgress = (
   const weeksCompleted = calculateCompletedTrainings(
     attendanceRecords,
     lastGraduationDate,
+    program,
+    birthDate,
   );
   const estimatedDate = calculateNextDegreeDate(
     attendanceRecords,
