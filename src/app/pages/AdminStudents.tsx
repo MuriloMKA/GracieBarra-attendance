@@ -27,6 +27,7 @@ import { Switch } from "../components/ui/switch";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { getDegreeProgress } from "../utils/degreeCalculator";
+import { ImageCropModal } from "../components/ImageCropModal";
 
 // GBK (Crianças/Adolescentes) - 13 faixas progressivas
 const GBK_BELT_OPTIONS: BeltColor[] = [
@@ -166,63 +167,6 @@ const readStoredBoolean = (key: string, fallback: boolean) => {
 };
 
 const MAX_PROFILE_PHOTO_BYTES = 10_000_000;
-const MAX_COMPRESSED_BYTES = 450_000;
-
-const estimateDataUrlBytes = (dataUrl: string) => {
-  const base64 = dataUrl.split(",")[1] || "";
-  return Math.ceil((base64.length * 3) / 4);
-};
-
-const compressAvatarImage = async (file: File): Promise<string> => {
-  const loadImage = (): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(img);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Falha ao abrir imagem"));
-      };
-      img.src = objectUrl;
-    });
-
-  const render = (img: HTMLImageElement, maxDim: number, quality: number) => {
-    const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
-    const width = Math.max(1, Math.round(img.width * ratio));
-    const height = Math.max(1, Math.round(img.height * ratio));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Falha ao preparar compressao");
-
-    ctx.drawImage(img, 0, 0, width, height);
-    return canvas.toDataURL("image/jpeg", quality);
-  };
-
-  const img = await loadImage();
-  const attempts: Array<[number, number]> = [
-    [320, 0.72],
-    [280, 0.66],
-    [240, 0.6],
-    [220, 0.55],
-  ];
-
-  let best = "";
-  for (const [maxDim, quality] of attempts) {
-    const dataUrl = render(img, maxDim, quality);
-    best = dataUrl;
-    if (estimateDataUrlBytes(dataUrl) <= MAX_COMPRESSED_BYTES) {
-      return dataUrl;
-    }
-  }
-
-  return best;
-};
 
 export const AdminStudents: React.FC = () => {
   const { students, attendance, updateStudent, addStudent } = useData();
@@ -268,6 +212,10 @@ export const AdminStudents: React.FC = () => {
   const [showActiveCount, setShowActiveCount] = useState(() =>
     readStoredBoolean(STUDENTS_COUNT_STORAGE_KEY, true),
   );
+  const [adminPhotoPreviewOpen, setAdminPhotoPreviewOpen] = useState(false);
+  const [adminPhotoPreviewSrc, setAdminPhotoPreviewSrc] = useState<
+    string | null
+  >(null);
   const didMountRef = React.useRef(false);
 
   const formatGraduationDate = (date?: string) => {
@@ -455,17 +403,38 @@ export const AdminStudents: React.FC = () => {
     }
 
     try {
-      const dataUrl = await compressAvatarImage(file);
-      setEditingStudent({
-        ...editingStudent,
-        adminProfilePhoto: dataUrl,
-      });
-      toast.success("Foto de cadastro carregada. Clique em Salvar.");
+      const objectUrl = URL.createObjectURL(file);
+      setAdminPhotoPreviewSrc(objectUrl);
+      setAdminPhotoPreviewOpen(true);
     } catch (error) {
       toast.error("Não foi possível carregar a foto.");
     } finally {
       e.target.value = "";
     }
+  };
+
+  const handleConfirmAdminPhoto = async (dataUrl: string) => {
+    if (!editingStudent) return;
+
+    setEditingStudent({
+      ...editingStudent,
+      adminProfilePhoto: dataUrl,
+    });
+    toast.success("Foto de cadastro carregada. Clique em Salvar.");
+
+    setAdminPhotoPreviewOpen(false);
+    if (adminPhotoPreviewSrc) {
+      URL.revokeObjectURL(adminPhotoPreviewSrc);
+    }
+    setAdminPhotoPreviewSrc(null);
+  };
+
+  const handleCancelAdminPhotoPreview = () => {
+    setAdminPhotoPreviewOpen(false);
+    if (adminPhotoPreviewSrc) {
+      URL.revokeObjectURL(adminPhotoPreviewSrc);
+    }
+    setAdminPhotoPreviewSrc(null);
   };
 
   const handleAdd = (e: React.FormEvent) => {
@@ -538,7 +507,16 @@ export const AdminStudents: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <>
+      <ImageCropModal
+        open={adminPhotoPreviewOpen}
+        title="Ajustar foto de cadastro"
+        imageSrc={adminPhotoPreviewSrc}
+        onCancel={handleCancelAdminPhotoPreview}
+        onConfirm={handleConfirmAdminPhoto}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
@@ -1524,6 +1502,7 @@ export const AdminStudents: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };

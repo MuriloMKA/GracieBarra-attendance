@@ -86,6 +86,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 }) => {
   const isCompact = compact && !adminMode;
   const canInteractWithCells = adminMode && !!onCellClick;
+  const showPredictedDegree = !adminMode;
 
   const actualProgram = calculateProgram(
     student.program,
@@ -129,6 +130,8 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   }, [attendanceHistory, validClassDays, year]);
 
   const predictedNextDegreeDate = useMemo(() => {
+    if (!showPredictedDegree) return null;
+
     return getNextDegreeDate(
       attendanceHistory,
       student.lastGraduationDate,
@@ -139,6 +142,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
     );
   }, [
     attendanceHistory,
+    showPredictedDegree,
     student.birthDate,
     student.belt,
     student.degrees,
@@ -494,10 +498,12 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
             <div className="w-3 h-3 rounded-full bg-gray-900 border border-white/50" />
             <span>Presença confirmada</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-green-500 border border-white/50" />
-            <span>Previsão do próximo grau</span>
-          </div>
+          {showPredictedDegree && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-green-500 border border-white/50" />
+              <span>Previsão do próximo grau</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-600 border border-white/50" />
             <span>Graduação (nova faixa)</span>
