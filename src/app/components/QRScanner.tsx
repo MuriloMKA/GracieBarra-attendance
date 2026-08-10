@@ -60,8 +60,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     const now = Date.now();
     const lastScanTime = lastScansRef.current.get(decodedText) || 0;
 
-    // Cooldown de 5 segundos para a mesma leitura exata
-    if (now - lastScanTime < 5000) {
+    // Cooldown de 2 minutos para evitar miss-click no mesmo aluno
+    if (now - lastScanTime < 120000) {
       return;
     }
 

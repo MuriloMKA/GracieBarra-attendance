@@ -483,8 +483,8 @@ export const AdminDashboard: React.FC = () => {
 
         const now = Date.now();
         const lastScan = scannerCooldowns.current.get(studentId) || 0;
-        if (now - lastScan < 5000) {
-          // Ignora leituras repetidas do mesmo aluno por 5 segundos
+        if (now - lastScan < 120000) {
+          // Ignora releituras do mesmo aluno por 2 minutos (anti miss-click)
           return;
         }
 
@@ -500,18 +500,17 @@ export const AdminDashboard: React.FC = () => {
         scannerCooldowns.current.set(studentId, now);
 
         const scanMoment = new Date();
-        const alreadyConfirmed = attendance.some(
+        const todayConfirmedCount = attendance.filter(
           (a) =>
             ((a.studentId as any)?._id ||
               (a.studentId as any)?.id ||
               a.studentId) === studentId &&
-            a.classId === "manual-scan" &&
             a.confirmed &&
             isSameLocalDay(a.date, scanMoment),
-        );
+        ).length;
 
-        if (alreadyConfirmed) {
-          toast.info(`Presença já confirmada para ${student.name} hoje!`);
+        if (todayConfirmedCount >= 2) {
+          toast.info(`${student.name} já tem 2 presenças confirmadas hoje!`);
           // Only prompt degree confirmation if student is fully done (not penultimate)
           const readyEntry = studentsReadyForDegree.find(
             (s) => (s.id || s._id) === studentId && !s.isPenultimate,
