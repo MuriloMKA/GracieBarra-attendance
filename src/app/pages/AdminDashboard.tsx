@@ -1294,6 +1294,11 @@ export const AdminDashboard: React.FC = () => {
                       <div className="font-bold text-gray-900 truncate">
                         {student.name}
                       </div>
+                      <div className="mt-1">
+                        <span className="inline-flex items-center rounded-full bg-[#003087]/10 px-2 py-0.5 text-[11px] font-bold text-[#003087]">
+                          {student.program}
+                        </span>
+                      </div>
                       {(() => {
                         const progressUnit = student.progressUnit || "treinos";
                         const completed = Math.round(
