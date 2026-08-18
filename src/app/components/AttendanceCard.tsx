@@ -119,6 +119,13 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
         const dayOfWeek = d.getDay();
         if (validClassDays.has(dayOfWeek)) {
           const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
+          
+          // Don't count attendance on graduation day (same logic as countCompletedTrainings)
+          const lastGraduationDateOnly = student.lastGraduationDate?.slice(0, 10);
+          if (lastGraduationDateOnly && key === lastGraduationDateOnly) {
+            return;
+          }
+          
           const currentCount = map.get(key) || 0;
           if (currentCount < 2) {
             map.set(key, currentCount + 1);
@@ -127,7 +134,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
       }
     });
     return map;
-  }, [attendanceHistory, validClassDays, year]);
+  }, [attendanceHistory, validClassDays, year, student.lastGraduationDate]);
 
   const predictedNextDegreeDate = useMemo(() => {
     if (!showPredictedDegree) return null;
