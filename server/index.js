@@ -644,6 +644,17 @@ app.post(
       }
       if (!isoDate) isoDate = new Date().toISOString().split("T")[0];
 
+      // Check if a grade has already been confirmed for this date
+      const hasAlreadyConfirmedGrade = (student.specialDates || []).some(
+        (sd) => sd.type === "grade" && sd.date === isoDate
+      );
+
+      if (hasAlreadyConfirmedGrade) {
+        return res.status(400).json({
+          error: `Grau já foi confirmado em ${isoDate}. Não é possível confirmar novamente.`,
+        });
+      }
+
       student.degrees = (student.degrees || 0) + 1;
       student.lastGraduationDate = isoDate;
       student.notificationState = {

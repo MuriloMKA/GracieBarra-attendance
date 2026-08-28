@@ -97,8 +97,8 @@ const cleanNotes = (notes?: string): string | undefined => {
   if (!notes) return undefined;
   return (
     notes
-      .replace(/^TRACK:[^|]+\|\s*/, "")
-      .replace(/^BELT:[A-Za-z]+(?:[A-Za-z]+)*\|?\s*/, "")
+      .replace(/^TRACK:[^|]*(\||\s|$)/, "") // Remove TRACK:... with or without pipe
+      .replace(/^BELT:[A-Za-z]+(?:[A-Za-z]+)*(?:\||\s|$)/, "") // Remove BELT:... with or without pipe
       .trim() || undefined
   );
 };
@@ -190,21 +190,6 @@ export const AdminStudentCard: React.FC = () => {
     map.forEach((count) => (total += count));
     return total;
   }, [displayAttendance]);
-  const confirmedSinceGraduation = useMemo(
-    () =>
-      calculateCompletedTrainings(
-        displayAttendance,
-        student?.lastGraduationDate || "",
-        student?.program,
-        student?.birthDate,
-      ),
-    [
-      displayAttendance,
-      student?.birthDate,
-      student?.lastGraduationDate,
-      student?.program,
-    ],
-  );
 
   const gradeDates = (student?.specialDates || [])
     .filter((sd) => sd.type === "grade")
@@ -315,6 +300,22 @@ export const AdminStudentCard: React.FC = () => {
 
   const visibleAttendance = displayAttendance.filter((a) =>
     isDateInSelectedHistory(a.date),
+  );
+
+  const confirmedSinceGraduation = useMemo(
+    () =>
+      calculateCompletedTrainings(
+        visibleAttendance,
+        student?.lastGraduationDate || "",
+        student?.program,
+        student?.birthDate,
+      ),
+    [
+      visibleAttendance,
+      student?.birthDate,
+      student?.lastGraduationDate,
+      student?.program,
+    ],
   );
 
   const filteredSpecialDates = student.specialDates.filter((sd) =>
@@ -797,7 +798,7 @@ export const AdminStudentCard: React.FC = () => {
 
         <AttendanceCard
           student={displayStudent}
-          attendanceHistory={visibleAttendance}
+          attendanceHistory={displayAttendance}
           profilePhotoUrl={student.adminProfilePhoto || undefined}
           year={year}
           adminMode={true}

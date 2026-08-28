@@ -112,29 +112,39 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
   // Build attendance map: "YYYY-MM-DD" → count of confirmed check-ins
   const attendedDates = useMemo(() => {
     const map = new Map<string, number>();
+    
+    let confirmedCount = 0;
+    let correctYearCount = 0;
+    let validDayCount = 0;
+    const trainingsByDate = new Map<string, number>();
+    
     attendanceHistory.forEach((a) => {
-      if (a.confirmed && getYear(parseISO(a.date)) === year) {
-        const d = parseISO(a.date);
-        if (Number.isNaN(d.getTime())) return;
-        const dayOfWeek = d.getDay();
-        if (validClassDays.has(dayOfWeek)) {
-          const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
-          
-          // Don't count attendance on graduation day (same logic as countCompletedTrainings)
-          const lastGraduationDateOnly = student.lastGraduationDate?.slice(0, 10);
-          if (lastGraduationDateOnly && key === lastGraduationDateOnly) {
-            return;
-          }
-          
-          const currentCount = map.get(key) || 0;
-          if (currentCount < 2) {
-            map.set(key, currentCount + 1);
+      if (a.confirmed) {
+        confirmedCount++;
+        const attendanceYear = getYear(parseISO(a.date));
+        
+        if (attendanceYear === year) {
+          correctYearCount++;
+          const d = parseISO(a.date);
+          if (Number.isNaN(d.getTime())) return;
+          const dayOfWeek = d.getDay();
+          if (validClassDays.has(dayOfWeek)) {
+            validDayCount++;
+            const key = `${year}-${String(getMonth(d) + 1).padStart(2, "0")}-${String(getDate(d)).padStart(2, "0")}`;
+            
+            trainingsByDate.set(key, (trainingsByDate.get(key) || 0) + 1);
+            
+            const currentCount = map.get(key) || 0;
+            if (currentCount < 2) {
+              map.set(key, currentCount + 1);
+            }
           }
         }
       }
     });
+    
     return map;
-  }, [attendanceHistory, validClassDays, year, student.lastGraduationDate]);
+  }, [attendanceHistory, validClassDays, year]);
 
   const predictedNextDegreeDate = useMemo(() => {
     if (!showPredictedDegree) return null;

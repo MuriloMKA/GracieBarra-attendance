@@ -193,6 +193,15 @@ export const StudentDashboard: React.FC = () => {
       return "Parabéns! Você já atingiu os treinos necessários para o próximo grau, Continue assim! ";
     }
 
+    // Show "falta apenas X treinos" only when 5 or less trainings remain
+    const trainingsMissing = Math.ceil(
+      (degreeProgress.weeksRequired || 0) - (degreeProgress.weeksCompleted || 0),
+    );
+    if (trainingsMissing > 0 && trainingsMissing <= 5) {
+      const treinoText = trainingsMissing === 1 ? "treino" : "treinos";
+      return `Falta apenas ${trainingsMissing} ${treinoText} para o próximo grau! Vem lá, você consegue! 💪`;
+    }
+
     if (
       typeof degreeProgress.estimatedDate === "string" &&
       degreeProgress.estimatedDate.length > 0 &&

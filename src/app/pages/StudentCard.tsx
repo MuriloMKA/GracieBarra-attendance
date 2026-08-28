@@ -207,13 +207,13 @@ export const StudentCard: React.FC = () => {
   const confirmedSinceGraduation = useMemo(
     () =>
       calculateCompletedTrainings(
-        myAttendance,
+        filteredAttendance,
         student.lastGraduationDate,
         student.program,
         student.birthDate,
       ),
     [
-      myAttendance,
+      filteredAttendance,
       student.birthDate,
       student.lastGraduationDate,
       student.program,
