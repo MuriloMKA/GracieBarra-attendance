@@ -33,7 +33,6 @@ import {
 } from "../components/BeltDisplay";
 import { getDegreeProgress } from "../utils/degreeCalculator";
 import { QRScanner } from "../components/QRScanner";
-import api from "../services/api";
 
 interface StudentReadyForDegree extends Student {
   weeksCompleted: number;
@@ -56,7 +55,7 @@ interface BirthdayStudent extends Student {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, checkIn, refreshData } =
+  const { currentUser, students, attendance, classes, checkIn, confirmDegree } =
     useData();
 
   const [showScanner, setShowScanner] = useState(false);
@@ -436,36 +435,18 @@ export const AdminDashboard: React.FC = () => {
           (entry.studentId as any)?.id ||
           entry.studentId;
 
-        return (
-          entryStudentId === studentId && isSameLocalDay(entry.date, now)
-        );
+        return entryStudentId === studentId && isSameLocalDay(entry.date, now);
       });
 
-      if (!hasConfirmedAttendanceToday) {
-        await api.post("/attendance", {
-          studentId,
-          classId: "manual-degree-confirm",
-          className: "Presença via confirmação de grau",
-          classTime: format(now, "HH:mm"),
-          date: now.toISOString(),
-          confirmed: true,
-        });
-      }
-
-      await api.post(`/students/${studentId}/confirm-degree`, {
-        notes,
-        date: format(now, "yyyy-MM-dd"),
-      });
+      await confirmDegree(studentId, notes, hasConfirmedAttendanceToday);
 
       toast.success(
         hasConfirmedAttendanceToday
           ? `Grau de ${student.name} confirmado!`
           : `Grau de ${student.name} confirmado e presença registrada!`,
       );
-
-      await refreshData();
     },
-    [attendance, isSameLocalDay, refreshData],
+    [attendance, isSameLocalDay, confirmDegree],
   );
 
   const handleScanSuccess = useCallback(

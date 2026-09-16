@@ -131,6 +131,7 @@ export const AdminStudentCard: React.FC = () => {
     removeSpecialDate,
     checkIn,
     rejectAttendance,
+    loading,
   } = useData();
 
   const [year, setYear] = useState(new Date().getFullYear());
@@ -269,6 +270,13 @@ export const AdminStudentCard: React.FC = () => {
   }, [beltHistory, selectedHistoryKey]);
 
   if (!student) {
+    if (loading) {
+      return (
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center text-gray-500">
+          <p>Carregando...</p>
+        </div>
+      );
+    }
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 text-center text-gray-500">
         <p>Aluno não encontrado.</p>

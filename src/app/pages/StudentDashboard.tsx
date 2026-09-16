@@ -44,13 +44,13 @@ interface SystemNotification {
 }
 
 export const StudentDashboard: React.FC = () => {
-  const { currentUser, students, attendance, classes, updateStudent } = useData();
+  const { currentUser, students, attendance, classes, updateStudent, loading } =
+    useData();
   const [recentNotifications, setRecentNotifications] = useState<
     SystemNotification[]
   >([]);
   const studentPhotoInputRef = useRef<HTMLInputElement | null>(null);
-  const [studentPhotoPreviewOpen, setStudentPhotoPreviewOpen] =
-    useState(false);
+  const [studentPhotoPreviewOpen, setStudentPhotoPreviewOpen] = useState(false);
   const [studentPhotoPreviewSrc, setStudentPhotoPreviewSrc] = useState<
     string | null
   >(null);
@@ -77,12 +77,16 @@ export const StudentDashboard: React.FC = () => {
   const student = students.find(
     (s) => (s.id || s._id) === currentUser?.studentId,
   );
-  if (!student)
+  if (!student) {
+    if (loading) {
+      return <div className="p-8 text-center text-gray-500">Carregando...</div>;
+    }
     return (
       <div className="p-8 text-center text-gray-500">
         Perfil de aluno não encontrado.
       </div>
     );
+  }
 
   const today = new Date();
   const todayDOW = today.getDay();
@@ -195,7 +199,8 @@ export const StudentDashboard: React.FC = () => {
 
     // Show "falta apenas X treinos" only when 5 or less trainings remain
     const trainingsMissing = Math.ceil(
-      (degreeProgress.weeksRequired || 0) - (degreeProgress.weeksCompleted || 0),
+      (degreeProgress.weeksRequired || 0) -
+        (degreeProgress.weeksCompleted || 0),
     );
     if (trainingsMissing > 0 && trainingsMissing <= 5) {
       const treinoText = trainingsMissing === 1 ? "treino" : "treinos";
@@ -304,427 +309,444 @@ export const StudentDashboard: React.FC = () => {
       />
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-      {/* Welcome */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
-            {student.studentProfilePhoto ? (
-              <img
-                src={student.studentProfilePhoto}
-                alt={`Foto de ${student.name}`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <img
-                src="/images/logo.png"
-                alt="Gracie Barra Logo"
-                className="w-full h-full object-cover scale-110"
-              />
-            )}
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900">
-              Olá, {student.name?.split(" ")[0] || "Aluno"}! 👊
-            </h1>
-            <p className="text-gray-500 mt-1 flex items-center gap-2">
-              <CalendarDays size={15} />
-              {format(today, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                ref={studentPhotoInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleStudentPhotoFile}
-              />
-              <button
-                type="button"
-                onClick={() => studentPhotoInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#003087] text-white text-xs font-bold hover:bg-blue-900"
-              >
-                <ImagePlus size={13} />
-                {student.studentProfilePhoto
-                  ? "Substituir imagem"
-                  : "Minha foto"}
-              </button>
-              {student.studentProfilePhoto && (
-                <button
-                  type="button"
-                  onClick={handleRemoveStudentPhoto}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-100"
-                >
-                  <Trash2 size={13} />
-                  Remover
-                </button>
+        {/* Welcome */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+              {student.studentProfilePhoto ? (
+                <img
+                  src={student.studentProfilePhoto}
+                  alt={`Foto de ${student.name}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src="/images/logo.png"
+                  alt="Gracie Barra Logo"
+                  className="w-full h-full object-cover scale-110"
+                />
               )}
             </div>
-          </div>
-        </div>
-        <Link
-          to="/student/card"
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg transition-all hover:scale-105 ${cardStyle.outerBg}`}
-        >
-          <CreditCard size={18} />
-          Ver Cartão de Frequência
-        </Link>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-black text-[#D10A11]">
-            {confirmedCount}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 font-medium">
-            Aulas no total
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-black text-indigo-600">
-            {confirmedSinceGraduation}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 font-medium">
-            Aulas no{" "}
-            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) || "grau atual"}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-lg font-black text-[#003087]">
-            {getDegreeDisplayLabel(
-              actualProgram,
-              student.belt,
-              student.degrees,
-            ) || "0"}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 font-medium">
-            Graus na Faixa
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-black text-green-600">
-            {(student.specialDates || []).filter((sd) => sd.type === "graduation")
-              .length}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 font-medium">
-            Graduações
-          </div>
-        </div>
-      </div>
-
-      {/* Mural de Notificações */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-          <MessageSquareMore size={18} className="text-[#003087]" />
-          Mural de Notificações
-        </h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Os últimos avisos publicados pela equipe aparecem aqui.
-        </p>
-
-        <div className="space-y-3">
-          {recentNotifications.length === 0 ? (
-            <div className="text-sm text-gray-500">
-              Nenhuma notificação recente.
+            <div>
+              <h1 className="text-2xl font-black text-gray-900">
+                Olá, {student.name?.split(" ")[0] || "Aluno"}! 👊
+              </h1>
+              <p className="text-gray-500 mt-1 flex items-center gap-2">
+                <CalendarDays size={15} />
+                {format(today, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  ref={studentPhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleStudentPhotoFile}
+                />
+                <button
+                  type="button"
+                  onClick={() => studentPhotoInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#003087] text-white text-xs font-bold hover:bg-blue-900"
+                >
+                  <ImagePlus size={13} />
+                  {student.studentProfilePhoto
+                    ? "Substituir imagem"
+                    : "Minha foto"}
+                </button>
+                {student.studentProfilePhoto && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveStudentPhoto}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-100"
+                  >
+                    <Trash2 size={13} />
+                    Remover
+                  </button>
+                )}
+              </div>
             </div>
-          ) : (
-            recentNotifications.map((item) => (
-              <div
-                key={item._id || item.id}
-                className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="font-bold text-gray-900">{item.title}</div>
-                    <div className="text-sm text-gray-700 mt-1">
-                      {item.message}
+          </div>
+          <Link
+            to="/student/card"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg transition-all hover:scale-105 ${cardStyle.outerBg}`}
+          >
+            <CreditCard size={18} />
+            Ver Cartão de Frequência
+          </Link>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+            <div className="text-2xl font-black text-[#D10A11]">
+              {confirmedCount}
+            </div>
+            <div className="text-xs text-gray-500 mt-1 font-medium">
+              Aulas no total
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+            <div className="text-2xl font-black text-indigo-600">
+              {confirmedSinceGraduation}
+            </div>
+            <div className="text-xs text-gray-500 mt-1 font-medium">
+              Aulas no{" "}
+              {getDegreeDisplayLabel(
+                actualProgram,
+                student.belt,
+                student.degrees,
+              ) || "grau atual"}
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+            <div className="text-lg font-black text-[#003087]">
+              {getDegreeDisplayLabel(
+                actualProgram,
+                student.belt,
+                student.degrees,
+              ) || "0"}
+            </div>
+            <div className="text-xs text-gray-500 mt-1 font-medium">
+              Graus na Faixa
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+            <div className="text-2xl font-black text-green-600">
+              {
+                (student.specialDates || []).filter(
+                  (sd) => sd.type === "graduation",
+                ).length
+              }
+            </div>
+            <div className="text-xs text-gray-500 mt-1 font-medium">
+              Graduações
+            </div>
+          </div>
+        </div>
+
+        {/* Mural de Notificações */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <MessageSquareMore size={18} className="text-[#003087]" />
+            Mural de Notificações
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Os últimos avisos publicados pela equipe aparecem aqui.
+          </p>
+
+          <div className="space-y-3">
+            {recentNotifications.length === 0 ? (
+              <div className="text-sm text-gray-500">
+                Nenhuma notificação recente.
+              </div>
+            ) : (
+              recentNotifications.map((item) => (
+                <div
+                  key={item._id || item.id}
+                  className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="font-bold text-gray-900">
+                        {item.title}
+                      </div>
+                      <div className="text-sm text-gray-700 mt-1">
+                        {item.message}
+                      </div>
+                    </div>
+                    <div className="text-[11px] font-bold uppercase text-[#003087] whitespace-nowrap">
+                      {item.createdAt
+                        ? format(parseISO(item.createdAt), "dd/MM HH:mm")
+                        : "Agora"}
                     </div>
                   </div>
-                  <div className="text-[11px] font-bold uppercase text-[#003087] whitespace-nowrap">
-                    {item.createdAt
-                      ? format(parseISO(item.createdAt), "dd/MM HH:mm")
-                      : "Agora"}
+                  {item.createdByName && (
+                    <div className="text-xs text-gray-500 mt-2">
+                      Por {item.createdByName}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Belt Info */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <Award size={18} className="text-[#D10A11]" />
+            Minha Faixa
+          </h2>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1">
+                <BeltDisplay
+                  belt={student.belt}
+                  degrees={student.degrees}
+                  program={student.program}
+                  size="lg"
+                />
+              </div>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div>
+                  <span className="font-medium">Programa:</span>{" "}
+                  <span className="bg-gray-100 px-2 py-0.5 rounded font-bold text-gray-800">
+                    {actualProgram === "GBKIDS"
+                      ? "GBK KIDS"
+                      : actualProgram === "GBKJUVENIL"
+                        ? "GBK JUVENIL"
+                        : actualProgram}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium">Última graduação:</span>{" "}
+                  {graduationDateLabel}
+                </div>
+              </div>
+            </div>
+
+            {/* Progresso do Próximo Grau */}
+            {degreeProgress.weeksRequired !== null && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                    <TrendingUp size={16} className="text-[#003087]" />
+                    Progresso para{" "}
+                    {getNextDegreeDisplayLabel(
+                      actualProgram,
+                      student.belt,
+                      student.degrees,
+                    )}
+                  </h3>
+                  {degreeProgress.isReadyForGraduation ? (
+                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                      <CheckCircle2 size={14} />
+                      Pronto!
+                    </span>
+                  ) : degreeProgress.isPenultimate ? (
+                    <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                      <CheckCircle2 size={14} />
+                      Falta 1!
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Barra de Progresso */}
+                <div className="mb-3">
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        degreeProgress.isReadyForGraduation
+                          ? "bg-green-500"
+                          : degreeProgress.isPenultimate
+                            ? "bg-amber-500"
+                            : "bg-[#003087]"
+                      }`}
+                      style={{ width: `${degreeProgress.progressPercentage}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600 mt-1">
+                    <span className="font-medium">
+                      {progressValue} {progressUnit} completados
+                    </span>
+                    <span className="font-bold text-[#003087]">
+                      {degreeProgress.progressPercentage}%
+                    </span>
                   </div>
                 </div>
-                {item.createdByName && (
-                  <div className="text-xs text-gray-500 mt-2">
-                    Por {item.createdByName}
+
+                {/* Contagem visual de progresso */}
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                    <span className="font-medium">Sua contagem</span>
+                    <span className="font-medium">Objetivo</span>
+                  </div>
+
+                  <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
+                    <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-[#003087] font-black text-sm">
+                      {progressValue}{" "}
+                      {progressUnit === "semanas" ? "sem" : "treinos"}
+                    </div>
+
+                    <div className="relative h-2 rounded-full bg-blue-100 overflow-visible">
+                      <div
+                        className="absolute left-0 top-0 h-full rounded-full bg-[#003087]"
+                        style={{
+                          width: `${degreeProgress.progressPercentage}%`,
+                        }}
+                      />
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2"
+                        style={{
+                          left: `calc(${degreeProgress.progressPercentage}% - 8px)`,
+                        }}
+                      >
+                        <ArrowRight size={14} className="text-[#003087]" />
+                      </div>
+                    </div>
+
+                    <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-gray-700 font-black text-sm">
+                      {progressRequiredValue}{" "}
+                      {progressUnit === "semanas" ? "sem" : "treinos"}
+                    </div>
+                  </div>
+                </div>
+
+                {incentiveMessage && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                    <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                      Continue Assim!
+                    </div>
+                    <div className="mt-1 text-sm text-amber-900">
+                      {incentiveMessage}
+                    </div>
+                    <div className="mt-1 text-xs text-amber-700">
+                      Base de calculo: ultimas 4 semanas de treino. A previsao e
+                      aproximada, sem finais de semana, e pode variar conforme
+                      sua assiduidade e criterios da academia.
+                    </div>
                   </div>
                 )}
               </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Belt Info */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-          <Award size={18} className="text-[#D10A11]" />
-          Minha Faixa
-        </h2>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex-1">
-              <BeltDisplay
-                belt={student.belt}
-                degrees={student.degrees}
-                program={student.program}
-                size="lg"
-              />
-            </div>
-            <div className="text-sm text-gray-600 space-y-1">
-              <div>
-                <span className="font-medium">Programa:</span>{" "}
-                <span className="bg-gray-100 px-2 py-0.5 rounded font-bold text-gray-800">
-                  {actualProgram === "GBKIDS"
-                    ? "GBK KIDS"
-                    : actualProgram === "GBKJUVENIL"
-                      ? "GBK JUVENIL"
-                      : actualProgram}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium">Última graduação:</span>{" "}
-                {graduationDateLabel}
-              </div>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Progresso do Próximo Grau */}
-          {degreeProgress.weeksRequired !== null && (
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                  <TrendingUp size={16} className="text-[#003087]" />
-                  Progresso para{" "}
-                  {getNextDegreeDisplayLabel(
-                    actualProgram,
-                    student.belt,
-                    student.degrees,
-                  )}
-                </h3>
-                {degreeProgress.isReadyForGraduation ? (
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    Pronto!
-                  </span>
-                ) : degreeProgress.isPenultimate ? (
-                  <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
-                    <CheckCircle2 size={14} />
-                    Falta 1!
-                  </span>
-                ) : null}
-              </div>
-
-              {/* Barra de Progresso */}
-              <div className="mb-3">
-                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        {/* Aulas de Hoje */}
+        <div>
+          <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Clock size={18} className="text-[#D10A11]" />
+            Aulas de Hoje
+          </h2>
+          {allTodayClasses.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500">
+              Não há aulas agendadas para hoje.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Aulas Abertas */}
+              {todayClasses.map((cls) => {
+                const classId = (cls.id || cls._id) as string;
+                const confirmedRecord = myTodayAttendance.find(
+                  (a) => a.classId === classId && a.confirmed,
+                );
+                return (
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      degreeProgress.isReadyForGraduation
-                        ? "bg-green-500"
-                        : degreeProgress.isPenultimate
-                          ? "bg-amber-500"
-                          : "bg-[#003087]"
+                    key={classId}
+                    className={`bg-white rounded-xl border-2 p-5 shadow-sm transition-all ${
+                      confirmedRecord
+                        ? "border-green-400 bg-green-50"
+                        : "border-gray-200"
                     }`}
-                    style={{ width: `${degreeProgress.progressPercentage}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
-                  <span className="font-medium">
-                    {progressValue} {progressUnit} completados
-                  </span>
-                  <span className="font-bold text-[#003087]">
-                    {degreeProgress.progressPercentage}%
-                  </span>
-                </div>
-              </div>
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="font-bold text-gray-900 text-base">
+                          {cls.name}
+                        </div>
+                        <div className="text-gray-500 text-sm">
+                          {cls.instructor}
+                        </div>
+                      </div>
+                      <div
+                        className={`text-2xl font-black ${confirmedRecord ? "text-green-600" : "text-[#D10A11]"}`}
+                      >
+                        {cls.time}
+                      </div>
+                    </div>
 
-              {/* Contagem visual de progresso */}
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                  <span className="font-medium">Sua contagem</span>
-                  <span className="font-medium">Objetivo</span>
-                </div>
-
-                <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
-                  <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-[#003087] font-black text-sm">
-                    {progressValue}{" "}
-                    {progressUnit === "semanas" ? "sem" : "treinos"}
+                    {confirmedRecord ? (
+                      <div className="flex items-center gap-2 text-green-700 text-sm font-bold">
+                        <CheckCheck size={18} />
+                        Presença confirmada!
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-sm">
+                        Aguardando confirmação do professor
+                      </div>
+                    )}
                   </div>
+                );
+              })}
 
-                  <div className="relative h-2 rounded-full bg-blue-100 overflow-visible">
-                    <div
-                      className="absolute left-0 top-0 h-full rounded-full bg-[#003087]"
-                      style={{ width: `${degreeProgress.progressPercentage}%` }}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2"
-                      style={{
-                        left: `calc(${degreeProgress.progressPercentage}% - 8px)`,
-                      }}
-                    >
-                      <ArrowRight size={14} className="text-[#003087]" />
+              {/* Aulas Fechadas */}
+              {closedTodayClasses.map((cls) => {
+                const classId = (cls.id || cls._id) as string;
+                return (
+                  <div
+                    key={classId}
+                    className="bg-gray-100 rounded-xl border-2 border-gray-300 p-5 shadow-sm opacity-75"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="font-bold text-gray-600 text-base">
+                          {cls.name}
+                        </div>
+                        <div className="text-gray-500 text-sm">
+                          {cls.instructor}
+                        </div>
+                      </div>
+                      <div className="text-2xl font-black text-gray-400">
+                        {cls.time}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-red-600 text-sm font-bold bg-red-50 px-3 py-2 rounded-lg">
+                      <X size={18} />
+                      SEM AULA HOJE
                     </div>
                   </div>
-
-                  <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-gray-700 font-black text-sm">
-                    {progressRequiredValue}{" "}
-                    {progressUnit === "semanas" ? "sem" : "treinos"}
-                  </div>
-                </div>
-              </div>
-
-              {incentiveMessage && (
-                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                  <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                    Continue Assim!
-                  </div>
-                  <div className="mt-1 text-sm text-amber-900">
-                    {incentiveMessage}
-                  </div>
-                  <div className="mt-1 text-xs text-amber-700">
-                    Base de calculo: ultimas 4 semanas de treino. A previsao e aproximada, sem finais de semana, e pode variar conforme sua assiduidade e criterios da academia.
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Aulas de Hoje */}
-      <div>
-        <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-          <Clock size={18} className="text-[#D10A11]" />
-          Aulas de Hoje
-        </h2>
-        {allTodayClasses.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500">
-            Não há aulas agendadas para hoje.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Aulas Abertas */}
-            {todayClasses.map((cls) => {
-              const classId = (cls.id || cls._id) as string;
-              const confirmedRecord = myTodayAttendance.find(
-                (a) => a.classId === classId && a.confirmed,
-              );
-              return (
+        {/* Recent Attendance */}
+        <div>
+          <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <CalendarDays size={18} className="text-[#003087]" />
+            Presenças Recentes
+          </h2>
+          {recentAttendance.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500 text-sm">
+              Nenhuma presença confirmada ainda.
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+              {recentAttendance.map((att) => (
                 <div
-                  key={classId}
-                  className={`bg-white rounded-xl border-2 p-5 shadow-sm transition-all ${
-                    confirmedRecord
-                      ? "border-green-400 bg-green-50"
-                      : "border-gray-200"
-                  }`}
+                  key={att.id}
+                  className="flex items-center justify-between px-5 py-3"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 size={16} className="text-green-600" />
+                    </div>
                     <div>
-                      <div className="font-bold text-gray-900 text-base">
-                        {cls.name}
+                      <div className="text-sm font-bold text-gray-900">
+                        {att.className}
                       </div>
-                      <div className="text-gray-500 text-sm">
-                        {cls.instructor}
-                      </div>
-                    </div>
-                    <div
-                      className={`text-2xl font-black ${confirmedRecord ? "text-green-600" : "text-[#D10A11]"}`}
-                    >
-                      {cls.time}
-                    </div>
-                  </div>
-
-                  {confirmedRecord ? (
-                    <div className="flex items-center gap-2 text-green-700 text-sm font-bold">
-                      <CheckCheck size={18} />
-                      Presença confirmada!
-                    </div>
-                  ) : (
-                    <div className="text-gray-500 text-sm">
-                      Aguardando confirmação do professor
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Aulas Fechadas */}
-            {closedTodayClasses.map((cls) => {
-              const classId = (cls.id || cls._id) as string;
-              return (
-                <div
-                  key={classId}
-                  className="bg-gray-100 rounded-xl border-2 border-gray-300 p-5 shadow-sm opacity-75"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="font-bold text-gray-600 text-base">
-                        {cls.name}
-                      </div>
-                      <div className="text-gray-500 text-sm">
-                        {cls.instructor}
+                      <div className="text-xs text-gray-500">
+                        {att.classTime}
                       </div>
                     </div>
-                    <div className="text-2xl font-black text-gray-400">
-                      {cls.time}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-700">
+                      {format(parseISO(att.date), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })}
+                    </div>
+                    <div className="text-xs text-green-600 font-medium">
+                      Confirmada
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 text-red-600 text-sm font-bold bg-red-50 px-3 py-2 rounded-lg">
-                    <X size={18} />
-                    SEM AULA HOJE
-                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Recent Attendance */}
-      <div>
-        <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-          <CalendarDays size={18} className="text-[#003087]" />
-          Presenças Recentes
-        </h2>
-        {recentAttendance.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500 text-sm">
-            Nenhuma presença confirmada ainda.
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
-            {recentAttendance.map((att) => (
-              <div
-                key={att.id}
-                className="flex items-center justify-between px-5 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle2 size={16} className="text-green-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-gray-900">
-                      {att.className}
-                    </div>
-                    <div className="text-xs text-gray-500">{att.classTime}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-700">
-                    {format(parseISO(att.date), "dd/MM/yyyy", { locale: ptBR })}
-                  </div>
-                  <div className="text-xs text-green-600 font-medium">
-                    Confirmada
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

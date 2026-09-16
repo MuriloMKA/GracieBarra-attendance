@@ -17,10 +17,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || "sua_chave_secreta_development";
 const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
-const DEFAULT_ADMIN_EMAIL =
-  (process.env.DEFAULT_ADMIN_EMAIL || "Gabriel.recreio@gmail.com")
-    .trim()
-    .toLowerCase();
+const DEFAULT_ADMIN_EMAIL = (
+  process.env.DEFAULT_ADMIN_EMAIL || "Gabriel.recreio@gmail.com"
+)
+  .trim()
+  .toLowerCase();
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "961433";
 
 // Configuração do nodemailer (use variáveis de ambiente EMAIL_USER e EMAIL_PASS no .env ou railway)
@@ -180,7 +181,9 @@ const syncPrimaryAdminCredentials = async () => {
 
   const admins = await User.find({ role: "admin" });
   const targetAdmin =
-    admins.find((admin) => admin.email?.toLowerCase() === DEFAULT_ADMIN_EMAIL) ||
+    admins.find(
+      (admin) => admin.email?.toLowerCase() === DEFAULT_ADMIN_EMAIL,
+    ) ||
     admins.find((admin) => admin.email === "admin@graciebarra.com") ||
     admins[0];
 
@@ -287,6 +290,7 @@ const attendanceSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+attendanceSchema.index({ studentId: 1, date: -1 });
 
 const userSchema = new mongoose.Schema(
   {
@@ -298,6 +302,7 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+userSchema.index({ email: 1 });
 
 const classSchema = new mongoose.Schema(
   {
@@ -646,7 +651,7 @@ app.post(
 
       // Check if a grade has already been confirmed for this date
       const hasAlreadyConfirmedGrade = (student.specialDates || []).some(
-        (sd) => sd.type === "grade" && sd.date === isoDate
+        (sd) => sd.type === "grade" && sd.date === isoDate,
       );
 
       if (hasAlreadyConfirmedGrade) {

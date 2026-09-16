@@ -67,15 +67,19 @@ interface BeltHistorySegment {
 }
 
 export const StudentCard: React.FC = () => {
-  const { currentUser, students, attendance } = useData();
+  const { currentUser, students, attendance, loading } = useData();
 
   const student = students.find(
     (s) => (s.id || s._id) === currentUser?.studentId,
   );
-  if (!student)
+  if (!student) {
+    if (loading) {
+      return <div className="p-8 text-center text-gray-500">Carregando...</div>;
+    }
     return (
       <div className="p-8 text-center text-gray-500">Aluno não encontrado.</div>
     );
+  }
 
   const studentId = student.id || student._id;
   const myAttendance = attendance.filter(
@@ -269,13 +273,20 @@ export const StudentCard: React.FC = () => {
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Aulas no{" "}
-            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) ||
-              "grau atual"}
+            {getDegreeDisplayLabel(
+              actualProgram,
+              student.belt,
+              student.degrees,
+            ) || "grau atual"}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-lg font-black text-[#003087]">
-            {getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) || "0"}
+            {getDegreeDisplayLabel(
+              actualProgram,
+              student.belt,
+              student.degrees,
+            ) || "0"}
           </div>
           <div className="text-xs text-gray-500 mt-1 font-medium">
             Graus na Faixa
@@ -294,9 +305,9 @@ export const StudentCard: React.FC = () => {
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
         <Info size={18} className="text-[#003087] mt-0.5 shrink-0" />
         <div className="text-sm text-[#003087]">
-          <strong>Pontos pretos</strong> = aulas que você participou no período exibido.{" "}
-          <strong>Pontos vermelhos</strong> = datas de graduação (nova faixa).{" "}
-          <strong>X azul</strong> = grau confirmado automaticamente.
+          <strong>Pontos pretos</strong> = aulas que você participou no período
+          exibido. <strong>Pontos vermelhos</strong> = datas de graduação (nova
+          faixa). <strong>X azul</strong> = grau confirmado automaticamente.
         </div>
       </div>
 

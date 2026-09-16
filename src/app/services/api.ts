@@ -109,6 +109,11 @@ export const studentService = {
     const { data } = await api.put(`/students/${id}`, student);
     return data;
   },
+
+  async confirmDegree(id: string, payload: { notes?: string; date?: string }) {
+    const { data } = await api.post(`/students/${id}/confirm-degree`, payload);
+    return data;
+  },
 };
 
 export const attendanceService = {

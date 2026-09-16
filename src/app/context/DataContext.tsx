@@ -145,6 +145,11 @@ interface DataContextType {
   updateClass: (cls: JJClass) => Promise<void>;
   addClass: (cls: Omit<JJClass, "id">) => Promise<void>;
   deleteClass: (classId: string) => Promise<void>;
+  confirmDegree: (
+    studentId: string,
+    notes: string,
+    hasConfirmedAttendanceToday: boolean,
+  ) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -220,15 +225,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const relevantSpecialDates = (student.specialDates || [])
       .filter((sd: any) => sd?.type === "grade" || sd?.type === "graduation")
       .map((sd: any) => sd?.date)
-      .filter((date: any): date is string => typeof date === "string" && !!date);
+      .filter(
+        (date: any): date is string => typeof date === "string" && !!date,
+      );
 
     const normalizedRelevantDates = relevantSpecialDates
-      .map((date) => {
+      .map((date: string) => {
         const parsed = new Date(date);
         if (Number.isNaN(parsed.getTime())) return null;
         return parsed.toISOString().split("T")[0];
       })
-      .filter((date): date is string => typeof date === "string")
+      .filter((date: string | null): date is string => typeof date === "string")
       .sort();
 
     const derivedLastGraduationDate =
@@ -403,8 +410,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (autoConfirm) {
         toast.success("Presença confirmada com sucesso!");
-        // Recarregar dados do aluno pois o grau pode ter sido auto-incrementado
-        await refreshData();
       } else {
         toast.success("Check-in realizado! Aguarde confirmação do professor.");
       }
@@ -426,8 +431,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ),
       );
       toast.success("Presença confirmada!");
-      // Recarregar dados pois o grau pode ter sido auto-incrementado no backend
-      await refreshData();
     } catch (error: any) {
       console.error("Erro ao confirmar presença:", error);
       toast.error(error.response?.data?.error || "Erro ao confirmar presença");
@@ -437,12 +440,56 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const rejectAttendance = async (attendanceId: string) => {
     try {
       await attendanceService.delete(attendanceId);
-      await refreshData();
+      setAttendance(
+        attendance.filter(
+          (a) => a.id !== attendanceId && a._id !== attendanceId,
+        ),
+      );
       toast.info("Presença removida.");
     } catch (error: any) {
       console.error("Erro ao rejeitar presença:", error);
       toast.error("Erro ao remover check-in");
     }
+  };
+
+  // Confirma o grau e, se necessário, registra a presença do dia sem recarregar toda a base
+  const confirmDegree = async (
+    studentId: string,
+    notes: string,
+    hasConfirmedAttendanceToday: boolean,
+  ) => {
+    const now = new Date();
+
+    if (!hasConfirmedAttendanceToday) {
+      const created = await attendanceService.create({
+        studentId,
+        classId: "manual-degree-confirm",
+        className: "Presença via confirmação de grau",
+        classTime: `${String(now.getHours()).padStart(2, "0")}:${String(
+          now.getMinutes(),
+        ).padStart(2, "0")}`,
+        date: now.toISOString(),
+        confirmed: true,
+      });
+      setAttendance((prev) => [
+        ...prev,
+        { ...created, id: created._id || created.id },
+      ]);
+    }
+
+    const dateOnly = now.toISOString().split("T")[0];
+    const { student: updatedStudent } = await studentService.confirmDegree(
+      studentId,
+      { notes, date: dateOnly },
+    );
+
+    setStudents((prev) =>
+      prev.map((s) =>
+        (s.id || s._id) === studentId
+          ? normalizeStudentProgress(updatedStudent)
+          : s,
+      ),
+    );
   };
 
   const updateStudent = async (student: Student) => {
@@ -685,6 +732,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateClass,
         addClass,
         deleteClass,
+        confirmDegree,
         refreshData,
       }}
     >
