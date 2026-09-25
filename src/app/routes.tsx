@@ -5,15 +5,16 @@ import { DataProvider } from "./context/DataContext";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { LoginPage } from "./pages/Login";
-import { StudentDashboard } from "./pages/StudentDashboard";
-import { StudentCard } from "./pages/StudentCard";
-import { AdminDashboard } from "./pages/AdminDashboard";
-import { AdminStudents } from "./pages/AdminStudents";
-import { PrintQRCodes } from "./pages/PrintQRCodes";
-import { AdminStudentCard } from "./pages/AdminStudentCard";
-import { AdminClasses } from "./pages/AdminClasses";
-import { AdminNotifications } from "./pages/AdminNotifications";
 import { RouteErrorPage } from "./pages/RouteErrorPage";
+
+// Páginas carregadas sob demanda: o aluno não baixa o código do admin
+// (scanner de QR, gráficos etc.) e o primeiro carregamento fica mais leve.
+const page =
+  <K extends string>(
+    loader: () => Promise<Record<K, React.ComponentType>>,
+    name: K,
+  ) =>
+  async () => ({ Component: (await loader())[name] });
 
 function Root() {
   return (
@@ -48,26 +49,65 @@ export const router = createBrowserRouter([
   {
     errorElement: <RouteErrorPage />,
     element: <Root />,
+    hydrateFallbackElement: (
+      <div className="p-8 text-center text-gray-500">Carregando...</div>
+    ),
     children: [
       { path: "/", element: <LoginPage /> },
       {
         errorElement: <RouteErrorPage />,
         element: <StudentLayout />,
         children: [
-          { path: "student", element: <StudentDashboard /> },
-          { path: "student/card", element: <StudentCard /> },
+          {
+            path: "student",
+            lazy: page(
+              () => import("./pages/StudentDashboard"),
+              "StudentDashboard",
+            ),
+          },
+          {
+            path: "student/card",
+            lazy: page(() => import("./pages/StudentCard"), "StudentCard"),
+          },
         ],
       },
       {
         errorElement: <RouteErrorPage />,
         element: <AdminLayout />,
         children: [
-          { path: "admin", element: <AdminDashboard /> },
-          { path: "admin/students", element: <AdminStudents /> },
-          { path: "admin/students/print-qrcodes", element: <PrintQRCodes /> },
-          { path: "admin/students/:id/card", element: <AdminStudentCard /> },
-          { path: "admin/classes", element: <AdminClasses /> },
-          { path: "admin/notifications", element: <AdminNotifications /> },
+          {
+            path: "admin",
+            lazy: page(
+              () => import("./pages/AdminDashboard"),
+              "AdminDashboard",
+            ),
+          },
+          {
+            path: "admin/students",
+            lazy: page(() => import("./pages/AdminStudents"), "AdminStudents"),
+          },
+          {
+            path: "admin/students/print-qrcodes",
+            lazy: page(() => import("./pages/PrintQRCodes"), "PrintQRCodes"),
+          },
+          {
+            path: "admin/students/:id/card",
+            lazy: page(
+              () => import("./pages/AdminStudentCard"),
+              "AdminStudentCard",
+            ),
+          },
+          {
+            path: "admin/classes",
+            lazy: page(() => import("./pages/AdminClasses"), "AdminClasses"),
+          },
+          {
+            path: "admin/notifications",
+            lazy: page(
+              () => import("./pages/AdminNotifications"),
+              "AdminNotifications",
+            ),
+          },
         ],
       },
       { path: "*", element: <Navigate to="/" replace /> },

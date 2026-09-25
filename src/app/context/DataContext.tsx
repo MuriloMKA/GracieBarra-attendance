@@ -12,6 +12,7 @@ import {
   classService,
 } from "../services/api";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 export type UserRole = "student" | "admin" | "teacher";
 export type Program = "GBK" | "GBKIDS" | "GBKJUVENIL" | "GB1" | "GB2" | "GB3";
@@ -293,7 +294,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           const user = JSON.parse(savedUser);
           setCurrentUser(user);
+          // Liberar a interface já com "Carregando..." em vez de tela branca;
+          // os dados chegam em segundo plano.
+          setLoading(true);
+          setAuthInitialized(true);
           await loadData();
+          return;
         } catch (error) {
           console.error("Erro ao restaurar usuário:", error);
           localStorage.removeItem("gb_current_user");
@@ -477,7 +483,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
     }
 
-    const dateOnly = now.toISOString().split("T")[0];
+    // Dia local (não UTC), para bater com o dia em que a ficha mostra a presença
+    const dateOnly = format(now, "yyyy-MM-dd");
     const { student: updatedStudent } = await studentService.confirmDegree(
       studentId,
       { notes, date: dateOnly },

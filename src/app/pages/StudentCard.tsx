@@ -9,7 +9,10 @@ import {
 } from "../components/BeltDisplay";
 import { ArrowLeft, Info } from "lucide-react";
 import { parseISO, format } from "date-fns";
-import { calculateCompletedTrainings } from "../utils/degreeCalculator";
+import {
+  calculateCompletedTrainings,
+  getAttendanceDayKey,
+} from "../utils/degreeCalculator";
 
 const extractBeltFromNotes = (notes?: string): BeltColor | null => {
   if (!notes) return null;
@@ -167,7 +170,8 @@ export const StudentCard: React.FC = () => {
     );
     if (!activeHistory) return true;
 
-    const date = dateInput.slice(0, 10);
+    const date =
+      dateInput.length > 10 ? getAttendanceDayKey(dateInput) : dateInput;
     if (activeHistory.startDate && date < activeHistory.startDate) return false;
     if (activeHistory.endDate && date > activeHistory.endDate) return false;
     return true;
@@ -195,7 +199,7 @@ export const StudentCard: React.FC = () => {
       const d = parseISO(a.date);
       const dayOfWeek = d.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        const dateStr = a.date.slice(0, 10);
+        const dateStr = getAttendanceDayKey(a.date);
         const current = map.get(dateStr) || 0;
         if (current < 2) {
           map.set(dateStr, current + 1);

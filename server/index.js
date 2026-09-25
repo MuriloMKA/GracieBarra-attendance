@@ -437,7 +437,16 @@ app.get("/api/health", (req, res) => {
 // Students Routes (protegidas)
 app.get("/api/students", authenticateToken, async (req, res) => {
   try {
-    const students = await Student.find();
+    // Aluno só precisa (e só pode ver) o próprio cadastro; evita baixar
+    // todos os alunos com fotos em base64 a cada login.
+    if (req.user?.role === "student") {
+      const ownId = req.user.studentId;
+      if (!ownId || !mongoose.isValidObjectId(ownId)) return res.json([]);
+      const own = await Student.find({ _id: ownId }).lean();
+      return res.json(own);
+    }
+
+    const students = await Student.find().lean();
     res.json(students);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -551,9 +560,20 @@ app.put("/api/students/:id", authenticateToken, async (req, res) => {
 // Attendance Routes (protegidas)
 app.get("/api/attendance", authenticateToken, async (req, res) => {
   try {
-    const { studentId } = req.query;
+    let { studentId } = req.query;
+
+    // Aluno só recebe as próprias presenças
+    if (req.user?.role === "student") {
+      studentId = req.user.studentId;
+      if (!studentId || !mongoose.isValidObjectId(studentId)) {
+        return res.json([]);
+      }
+    }
+
     const query = studentId ? { studentId } : {};
-    const attendance = await Attendance.find(query).populate("studentId");
+    // Sem populate: o front só usa o id do aluno. O populate copiava o
+    // cadastro inteiro (com fotos em base64) para dentro de cada presença.
+    const attendance = await Attendance.find(query).lean();
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ error: error.message });

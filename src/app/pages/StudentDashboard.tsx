@@ -27,6 +27,7 @@ import {
 import {
   getDegreeProgress,
   calculateCompletedTrainings,
+  getAttendanceDayKey,
 } from "../utils/degreeCalculator";
 import { notificationService } from "../services/api";
 import { toast } from "sonner";
@@ -90,7 +91,7 @@ export const StudentDashboard: React.FC = () => {
 
   const today = new Date();
   const todayDOW = today.getDay();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = format(today, "yyyy-MM-dd");
 
   // Calcula o programa real baseado na faixa e grau
   const actualProgram = calculateProgram(
@@ -141,7 +142,7 @@ export const StudentDashboard: React.FC = () => {
     a.studentId?.id === studentIdToMatch;
 
   const myTodayAttendance = attendance.filter(
-    (a) => matchStudentId(a) && a.date.startsWith(todayStr),
+    (a) => matchStudentId(a) && getAttendanceDayKey(a.date) === todayStr,
   );
 
   // Stats
@@ -153,7 +154,7 @@ export const StudentDashboard: React.FC = () => {
       const d = new Date(a.date);
       const dow = d.getDay();
       if (dow !== 0 && dow !== 6) {
-        const key = a.date.slice(0, 10);
+        const key = getAttendanceDayKey(a.date);
         const cur = map.get(key) || 0;
         if (cur < 2) map.set(key, cur + 1);
       }

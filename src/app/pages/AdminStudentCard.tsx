@@ -17,7 +17,10 @@ import {
   calculateProgram,
   getDegreeDisplayLabel,
 } from "../components/BeltDisplay";
-import { calculateCompletedTrainings } from "../utils/degreeCalculator";
+import {
+  calculateCompletedTrainings,
+  getAttendanceDayKey,
+} from "../utils/degreeCalculator";
 
 const ADULT_BELTS: BeltColor[] = ["White", "Blue", "Purple", "Brown", "Black"];
 const GBK_BELTS: BeltColor[] = [
@@ -178,7 +181,7 @@ export const AdminStudentCard: React.FC = () => {
         const dayOfWeek = d.getDay();
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           // ignore weekends
-          const dateStr = a.date.slice(0, 10);
+          const dateStr = getAttendanceDayKey(a.date);
           const current = map.get(dateStr) || 0;
           if (current < 2) {
             map.set(dateStr, current + 1);
@@ -296,7 +299,8 @@ export const AdminStudentCard: React.FC = () => {
 
   const isDateInSelectedHistory = (dateInput: string): boolean => {
     if (!activeHistory) return true;
-    const date = dateInput.slice(0, 10);
+    const date =
+      dateInput.length > 10 ? getAttendanceDayKey(dateInput) : dateInput;
     if (activeHistory.startDate && date < activeHistory.startDate) return false;
     if (activeHistory.endDate && date > activeHistory.endDate) return false;
     return true;
@@ -310,20 +314,13 @@ export const AdminStudentCard: React.FC = () => {
     isDateInSelectedHistory(a.date),
   );
 
-  const confirmedSinceGraduation = useMemo(
-    () =>
-      calculateCompletedTrainings(
-        visibleAttendance,
-        student?.lastGraduationDate || "",
-        student?.program,
-        student?.birthDate,
-      ),
-    [
-      visibleAttendance,
-      student?.birthDate,
-      student?.lastGraduationDate,
-      student?.program,
-    ],
+  // Cálculo simples (sem hook): fica depois do early return acima,
+  // e hooks não podem ser chamados condicionalmente.
+  const confirmedSinceGraduation = calculateCompletedTrainings(
+    visibleAttendance,
+    student.lastGraduationDate || "",
+    student.program,
+    student.birthDate,
   );
 
   const filteredSpecialDates = student.specialDates.filter((sd) =>
@@ -386,7 +383,7 @@ export const AdminStudentCard: React.FC = () => {
         toast.success("Presença adicionada com sucesso.");
       } else if (manualAction === "attendance-remove") {
         const attendanceEntry = studentAttendance.find(
-          (a) => a.date.slice(0, 10) === isoDate,
+          (a) => getAttendanceDayKey(a.date) === isoDate,
         );
 
         if (!attendanceEntry) {
@@ -502,11 +499,11 @@ export const AdminStudentCard: React.FC = () => {
 
       if (attendanceCount >= 2) {
         setDisplayAttendance((current) =>
-          current.filter((a) => a.date.slice(0, 10) !== date),
+          current.filter((a) => getAttendanceDayKey(a.date) !== date),
         );
 
         const attendanceEntries = studentAttendance.filter(
-          (a) => a.date.slice(0, 10) === date,
+          (a) => getAttendanceDayKey(a.date) === date,
         );
 
         if (!attendanceEntries.length) {

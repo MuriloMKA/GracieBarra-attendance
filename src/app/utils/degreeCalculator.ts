@@ -32,6 +32,18 @@ const toDateOnlyString = (value?: string | null): string | null => {
   return format(parsed, "yyyy-MM-dd");
 };
 
+/**
+ * Dia (YYYY-MM-DD) de uma presença no fuso local do navegador.
+ * As presenças são salvas em UTC (toISOString); um check-in às 21h+ no Brasil
+ * fica gravado como o dia seguinte em UTC. Usar `date.slice(0, 10)` faz o
+ * contador divergir da ficha (que desenha as bolinhas pelo dia local).
+ */
+export const getAttendanceDayKey = (value: string): string => {
+  const parsed = parseISO(value);
+  if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
+  return format(parsed, "yyyy-MM-dd");
+};
+
 const getAdultTrainingsRequiredForNextDegree = (
   belt: BeltColor,
   currentDegree: number,
@@ -140,7 +152,7 @@ const calculateRecentWeeklyAverageTrainings = (
     if (date < windowStart || date > today) return;
     if (!validDays.has(date.getDay())) return;
 
-    const dateStr = a.date.slice(0, 10);
+    const dateStr = getAttendanceDayKey(a.date);
     const current = map.get(dateStr) || 0;
     if (current < 2) {
       map.set(dateStr, current + 1);
@@ -166,7 +178,9 @@ const countCompletedTrainings = (
 
   // Do not count the same day of the graduation/degree confirmation.
   if (cutoffDateOnly) {
-    records = records.filter((a) => a.date.slice(0, 10) > cutoffDateOnly);
+    records = records.filter(
+      (a) => getAttendanceDayKey(a.date) > cutoffDateOnly,
+    );
   }
 
   const map = new Map<string, number>();
@@ -175,7 +189,7 @@ const countCompletedTrainings = (
     if (Number.isNaN(d.getTime())) return;
     const dayOfWeek = d.getDay();
     if (validDays.has(dayOfWeek)) {
-      const dateStr = a.date.slice(0, 10);
+      const dateStr = getAttendanceDayKey(a.date);
       const current = map.get(dateStr) || 0;
       if (current < 2) {
         map.set(dateStr, current + 1);
@@ -263,7 +277,7 @@ export const calculateCompletedWeeks = (
   // Do not count the same day of the graduation/degree confirmation.
   if (cutoffDateOnly) {
     validAttendances = validAttendances.filter(
-      (a) => a.date.slice(0, 10) > cutoffDateOnly,
+      (a) => getAttendanceDayKey(a.date) > cutoffDateOnly,
     );
   }
 
@@ -277,7 +291,7 @@ export const calculateCompletedWeeks = (
     if (validDays.has(dayOfWeek)) {
       const weekStart = startOfWeek(attendanceDate, { weekStartsOn: 0 }); // Domingo = 0
       const weekKey = weekStart.toISOString();
-      const dateStr = attendance.date.slice(0, 10);
+      const dateStr = getAttendanceDayKey(attendance.date);
 
       const daysSet = weekMap.get(weekKey) || new Set<string>();
       daysSet.add(dateStr); // Conta apenas dias únicos

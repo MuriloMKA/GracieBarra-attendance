@@ -26,7 +26,10 @@ import { StudentQRCode } from "../components/StudentQRCode";
 import { Switch } from "../components/ui/switch";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { toast } from "sonner";
-import { getDegreeProgress } from "../utils/degreeCalculator";
+import {
+  getDegreeProgress,
+  getAttendanceDayKey,
+} from "../utils/degreeCalculator";
 import { ImageCropModal } from "../components/ImageCropModal";
 
 // GBK (Crianças/Adolescentes) - 13 faixas progressivas
@@ -366,7 +369,7 @@ export const AdminStudents: React.FC = () => {
       const d = new Date(a.date);
       const dow = d.getDay();
       if (dow !== 0 && dow !== 6) {
-        const key = a.date.slice(0, 10);
+        const key = getAttendanceDayKey(a.date);
         const cur = map.get(key) || 0;
         if (cur < 2) map.set(key, cur + 1);
       }
