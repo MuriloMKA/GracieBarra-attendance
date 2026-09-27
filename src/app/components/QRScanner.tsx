@@ -157,7 +157,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-200">
           <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 </div>
                 <button
                   onClick={startScanner}
-                  className="mt-3 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700"
+                  className="mt-3 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-[#b91c1c]"
                 >
                   Tentar novamente
                 </button>
@@ -215,7 +215,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 {!isScanning && !isStarting && (
                   <button
                     onClick={startScanner}
-                    className="mt-3 px-4 py-2 bg-[#003087] text-white rounded-lg font-semibold text-sm hover:bg-blue-900"
+                    className="mt-3 px-4 py-2 bg-[#003087] text-white rounded-lg font-semibold text-sm hover:bg-[#1e3a8a]"
                   >
                     Ativar camera
                   </button>

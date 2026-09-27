@@ -668,7 +668,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+          <div className="bg-surface rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
             <img
               src="/images/logo.png"
               alt="Gracie Barra Logo"
@@ -691,7 +691,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Confirmados Hoje Modal */}
       {showConfirmedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-xl p-6 mx-4">
+          <div className="bg-surface rounded-xl w-full max-w-xl p-6 mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg">Confirmados Hoje</h3>
               <button
@@ -763,7 +763,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Graduações Modal */}
       {showGraduationsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+          <div className="bg-surface rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
               <h3 className="font-bold text-lg">Histórico de Graduações</h3>
               <button
@@ -931,7 +931,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Aniversariantes Modal */}
       {showBirthdaysModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+          <div className="bg-surface rounded-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
               <h3 className="font-bold text-lg">Aniversariantes</h3>
               <button
@@ -1067,7 +1067,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Ausentes Há Mais de 15 Dias Modal */}
       {showAbsentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-2xl p-6 mx-4">
+          <div className="bg-surface rounded-xl w-full max-w-2xl p-6 mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg">Ausentes Há Mais de 15 Dias</h3>
               <button
@@ -1117,7 +1117,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div
           onClick={() => setShowConfirmedModal(true)}
-          className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+          className="bg-surface rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
         >
           <div className="flex items-center gap-3 mb-2">
             <CheckSquare size={20} className="text-green-600" />
@@ -1131,7 +1131,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <div
           onClick={() => setShowGraduationsModal(true)}
-          className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+          className="bg-surface rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
         >
           <div className="flex items-center gap-3 mb-2">
             <Award size={20} className="text-[#D10A11]" />
@@ -1148,7 +1148,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <div
           onClick={() => setShowBirthdaysModal(true)}
-          className="relative bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+          className="relative bg-surface rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
         >
           {birthdaysToday.length > 0 && (
             <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-rose-500 shadow animate-pulse" />
@@ -1170,7 +1170,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <div
           onClick={() => setShowAbsentModal(true)}
-          className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
+          className="bg-surface rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer"
         >
           <div className="flex items-center gap-3 mb-2">
             <AlertCircle size={20} className="text-amber-600" />
@@ -1188,11 +1188,11 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link
           to="/admin/students"
-          className="bg-[#003087] hover:bg-blue-900 text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
+          className="bg-[#003087] hover:bg-[#1e3a8a] text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
         >
           <div>
             <div className="font-black text-lg">Gerenciar Alunos</div>
-            <div className="text-blue-200 text-sm mt-1">
+            <div className="text-[#bfdbfe] text-sm mt-1">
               Ver lista, editar faixa, grau e informações
             </div>
           </div>
@@ -1204,11 +1204,11 @@ export const AdminDashboard: React.FC = () => {
 
         <Link
           to="/admin/classes"
-          className="bg-[#D10A11] hover:bg-red-700 text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
+          className="bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-xl p-5 flex items-center justify-between group transition-all shadow-lg"
         >
           <div>
             <div className="font-black text-lg">Gerenciar Aulas</div>
-            <div className="text-red-200 text-sm mt-1">
+            <div className="text-[#fecaca] text-sm mt-1">
               Configurar horários e dias das aulas
             </div>
           </div>
@@ -1227,7 +1227,7 @@ export const AdminDashboard: React.FC = () => {
               <Bell size={18} />
               Notificacoes
             </div>
-            <div className="text-amber-100 text-sm mt-1">
+            <div className="text-[#fef3c7] text-sm mt-1">
               Enviar push para todos os usuarios
             </div>
           </div>
@@ -1264,7 +1264,7 @@ export const AdminDashboard: React.FC = () => {
             {studentsReadyForDegree.map((student) => (
               <div
                 key={student._id}
-                className="bg-white rounded-lg border border-amber-200 p-4 hover:shadow-md transition-all group"
+                className="bg-surface rounded-lg border border-amber-200 p-4 hover:shadow-md transition-all group"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -1370,7 +1370,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Camera scanner */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="text-center max-w-sm mx-auto">
               <div className="mb-4">
                 <div className="inline-flex items-center justify-center w-14 h-14 bg-[#D10A11]/10 rounded-full mb-3">
@@ -1385,7 +1385,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowScanner(true)}
-                className="w-full py-3 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-xl font-black shadow-lg transition-all flex items-center justify-center gap-2"
               >
                 <QrCode size={18} />
                 Iniciar Câmera
@@ -1394,7 +1394,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Physical scanner (USB/Bluetooth HID) */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="max-w-sm mx-auto">
               <div className="mb-4 text-center">
                 <div className="inline-flex items-center justify-center w-14 h-14 bg-green-100 rounded-full mb-3">
@@ -1458,7 +1458,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Degree Confirmation Modal - shown when scanning a student ready for degree */}
       {pendingDegreeStudent && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
@@ -1468,7 +1468,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className="text-white font-black text-lg">
                     Grau Disponível!
                   </div>
-                  <div className="text-amber-100 text-sm">
+                  <div className="text-[#fef3c7] text-sm">
                     {pendingDegreeStudent.name}
                   </div>
                 </div>

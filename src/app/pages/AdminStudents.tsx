@@ -135,7 +135,7 @@ const BELT_COLORS_CSS: Record<BeltColor, { bg: string; text: string }> = {
   Blue: { bg: "bg-blue-100", text: "text-blue-800" },
   Purple: { bg: "bg-purple-100", text: "text-purple-800" },
   Brown: { bg: "bg-amber-100", text: "text-amber-900" },
-  Black: { bg: "bg-gray-900", text: "text-white" },
+  Black: { bg: "bg-[#111827]", text: "text-white" },
 };
 
 const getBirthDatePassword = (birthDate?: string) => {
@@ -589,14 +589,14 @@ export const AdminStudents: React.FC = () => {
           <div className="flex items-center gap-3">
             <Link
               to="/admin/students/print-qrcodes"
-              className="flex items-center gap-2 bg-[#003087] hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow transition-all"
+              className="flex items-center gap-2 bg-[#003087] hover:bg-[#1e40af] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow transition-all"
             >
               <Printer size={18} />
               Imprimir QR Codes
             </Link>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-[#D10A11] hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all"
+              className="flex items-center gap-2 bg-[#D10A11] hover:bg-[#b91c1c] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all"
             >
               <UserPlus size={18} />
               Novo Aluno
@@ -656,7 +656,7 @@ export const AdminStudents: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -804,7 +804,7 @@ export const AdminStudents: React.FC = () => {
         </div>
 
         {visibleStudents.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
             <p className="text-sm text-gray-500">
               Mostrando {(currentPage - 1) * pageSize + 1} a{" "}
               {Math.min(currentPage * pageSize, visibleStudents.length)} de{" "}
@@ -859,7 +859,7 @@ export const AdminStudents: React.FC = () => {
                       goToPage(nextPage);
                     }
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#003087] text-white text-sm font-bold hover:bg-blue-900 transition-colors"
+                  className="px-3 py-2 rounded-lg bg-[#003087] text-white text-sm font-bold hover:bg-[#1e3a8a] transition-colors"
                 >
                   Ir
                 </button>
@@ -901,7 +901,7 @@ export const AdminStudents: React.FC = () => {
                 onClick={closeEditModal}
               >
                 <div
-                  className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
+                  className="bg-surface rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-4">
@@ -950,7 +950,7 @@ export const AdminStudents: React.FC = () => {
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className="px-3 py-1.5 rounded-lg bg-[#003087] text-white text-xs font-bold cursor-pointer hover:bg-blue-900">
+                        <label className="px-3 py-1.5 rounded-lg bg-[#003087] text-white text-xs font-bold cursor-pointer hover:bg-[#1e3a8a]">
                           {editingStudent.adminProfilePhoto
                             ? "Substituir imagem"
                             : "Escolher imagem"}
@@ -1091,7 +1091,7 @@ export const AdminStudents: React.FC = () => {
                               degrees: newDegrees,
                             });
                           }}
-                          className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
+                          className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-surface"
                         >
                           {PROGRAM_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -1130,7 +1130,7 @@ export const AdminStudents: React.FC = () => {
                               program: normalizedProgram,
                             });
                           }}
-                          className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
+                          className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-surface"
                         >
                           {getBeltOptionsForProgram(editingStudent.program).map(
                             (b) => (
@@ -1239,7 +1239,7 @@ export const AdminStudents: React.FC = () => {
                       </button>
                       <button
                         type="submit"
-                        className="px-6 py-2.5 bg-[#003087] hover:bg-blue-900 text-white rounded-lg font-black text-sm shadow-lg transition-all flex items-center gap-2"
+                        className="px-6 py-2.5 bg-[#003087] hover:bg-[#1e3a8a] text-white rounded-lg font-black text-sm shadow-lg transition-all flex items-center gap-2"
                       >
                         <Check size={16} />
                         Salvar Alterações
@@ -1271,7 +1271,7 @@ export const AdminStudents: React.FC = () => {
             onClick={() => setShowAddModal(false)}
           >
             <div
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
+              className="bg-surface rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
@@ -1365,7 +1365,7 @@ export const AdminStudents: React.FC = () => {
                           degrees: newDegrees,
                         });
                       }}
-                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-surface"
                     >
                       {PROGRAM_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -1404,7 +1404,7 @@ export const AdminStudents: React.FC = () => {
                           program: normalizedProgram,
                         });
                       }}
-                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-white"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003087] focus:outline-none text-sm bg-surface"
                     >
                       {getBeltOptionsForProgram(
                         newStudent.program || "GB1",
@@ -1506,7 +1506,7 @@ export const AdminStudents: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-lg font-black text-sm shadow-lg flex items-center gap-2"
+                    className="px-6 py-2.5 bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-lg font-black text-sm shadow-lg flex items-center gap-2"
                   >
                     <UserPlus size={16} />
                     Cadastrar Aluno
@@ -1524,7 +1524,7 @@ export const AdminStudents: React.FC = () => {
             onClick={() => setNewlyCreatedStudent(null)}
           >
             <div
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+              className="bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
@@ -1555,7 +1555,7 @@ export const AdminStudents: React.FC = () => {
 
               <button
                 onClick={() => setNewlyCreatedStudent(null)}
-                className="w-full mt-4 py-2.5 bg-[#003087] hover:bg-blue-900 text-white rounded-lg font-bold text-sm"
+                className="w-full mt-4 py-2.5 bg-[#003087] hover:bg-[#1e3a8a] text-white rounded-lg font-bold text-sm"
               >
                 Fechar
               </button>

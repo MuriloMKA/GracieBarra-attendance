@@ -7,6 +7,17 @@
     <meta name="description" content="Sistema de presença Gracie Barra" />
     <link rel="icon" type="image/png" href="/images/logo.png" />
     <title>GB Frequência</title>
+    <style>
+      html.dark { background-color: #141c2b; color-scheme: dark; }
+    </style>
+    <script>
+      // Aplica o modo escuro antes do app carregar (evita "piscar" branco)
+      try {
+        if (localStorage.getItem("gb-theme") === "dark") {
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

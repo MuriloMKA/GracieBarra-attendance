@@ -61,7 +61,7 @@ export const PrintQRCodes: React.FC = () => {
         </p>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 px-6 py-3 bg-[#D10A11] text-white rounded-lg font-bold shadow hover:bg-red-700 transition"
+          className="flex items-center gap-2 px-6 py-3 bg-[#D10A11] text-white rounded-lg font-bold shadow hover:bg-[#b91c1c] transition"
         >
           <Printer size={20} />
           Imprimir Todos ({sortedStudents.length})
@@ -75,7 +75,7 @@ export const PrintQRCodes: React.FC = () => {
       {/* Área de impressão */}
       <div
         id="print-area"
-        className="w-full bg-white print:bg-white text-black p-4"
+        className="theme-light w-full bg-surface print:bg-surface text-black p-4"
       >
         <div className="grid grid-cols-4 gap-6 print:grid-cols-4 print:gap-4 justify-items-center">
           {sortedStudents.map((student) => {

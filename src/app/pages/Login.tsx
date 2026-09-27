@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useData } from "../context/DataContext";
 import { Lock, Mail, ArrowRight, Eye, EyeOff, KeyRound, ChevronDown } from "lucide-react";
 import api from "../services/api";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export function LoginPage() {
   const { login } = useData();
@@ -81,16 +82,17 @@ export function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4"
+      className="relative min-h-screen flex flex-col items-center justify-center px-4"
       style={{
         background:
           "linear-gradient(135deg, #1a0000 0%, #6b0000 50%, #D10A11 100%)",
       }}
     >
+      <ThemeToggle onDark className="absolute top-4 right-4" />
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-white rounded-full shadow-2xl mb-5 w-28 h-28 flex items-center justify-center overflow-hidden">
+          <div className="theme-light bg-surface rounded-full shadow-2xl mb-5 w-28 h-28 flex items-center justify-center overflow-hidden">
             <img
               src="/images/logo.png"
               alt="Gracie Barra Logo"
@@ -100,13 +102,13 @@ export function LoginPage() {
           <h1 className="text-white text-3xl font-black tracking-widest uppercase text-center">
             GRACIE BARRA MARAJOARA
           </h1>
-          <p className="text-red-200 text-sm tracking-widest uppercase mt-1 text-center">
+          <p className="text-[#fecaca] text-sm tracking-widest uppercase mt-1 text-center">
             Sistema de Frequência Digital
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-surface rounded-2xl shadow-2xl p-8">
           <h2 className="text-gray-900 text-xl font-black mb-1">
             Entrar no sistema
           </h2>
@@ -171,7 +173,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-[#D10A11] hover:bg-red-700 text-white font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 mt-2"
+              className="w-full py-3 bg-[#D10A11] hover:bg-[#b91c1c] text-white font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 mt-2"
             >
               {loading ? (
                 <>
@@ -206,7 +208,7 @@ export function LoginPage() {
           </button>
 
           {showChangePwd && (
-            <div className="bg-white px-6 py-5 border-t border-gray-100">
+            <div className="bg-surface px-6 py-5 border-t border-gray-100">
               {cpSuccess ? (
                 <div className="text-center py-4">
                   <div className="text-green-600 font-black text-base mb-1">Senha alterada com sucesso!</div>
@@ -290,7 +292,7 @@ export function LoginPage() {
                   <button
                     type="submit"
                     disabled={cpLoading}
-                    className="w-full py-2.5 bg-[#003087] hover:bg-blue-900 text-white font-black rounded-xl text-sm shadow disabled:opacity-50 mt-1"
+                    className="w-full py-2.5 bg-[#003087] hover:bg-[#1e3a8a] text-white font-black rounded-xl text-sm shadow disabled:opacity-50 mt-1"
                   >
                     {cpLoading ? "Alterando..." : "Alterar Senha"}
                   </button>
@@ -300,7 +302,7 @@ export function LoginPage() {
           )}
         </div>
 
-        <p className="text-center text-red-200/50 text-xs mt-6">
+        <p className="text-center text-[#fecaca]/50 text-xs mt-6">
           © {new Date().getFullYear()} Gracie Barra — Carlos Gracie Jr.
         </p>
       </div>

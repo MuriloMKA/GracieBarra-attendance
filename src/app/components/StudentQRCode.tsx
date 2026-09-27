@@ -91,7 +91,7 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
 
       <div
         ref={qrWrapperRef}
-        className="bg-white p-4 rounded-xl shadow-lg mb-3 flex flex-col items-center gap-3"
+        className="theme-light bg-surface p-4 rounded-xl shadow-lg mb-3 flex flex-col items-center gap-3"
       >
         <QRCodeCanvas
           id={`qr-code-${studentId}`}
@@ -107,7 +107,7 @@ export const StudentQRCode: React.FC<StudentQRCodeProps> = ({
 
       <button
         onClick={handleDownload}
-        className="flex items-center gap-2 px-4 py-2 bg-[#D10A11] hover:bg-red-700 text-white rounded-lg font-bold text-sm shadow-md transition-all"
+        className="flex items-center gap-2 px-4 py-2 bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-lg font-bold text-sm shadow-md transition-all"
       >
         <Download size={16} />
         Baixar QR Code para Impressão

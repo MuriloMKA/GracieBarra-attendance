@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { useData } from "../context/DataContext";
 import { BELT_NAMES_PT, getDegreeDisplayLabel } from "./BeltDisplay";
+import { ThemeToggle } from "./ThemeToggle";
 import {
   LogOut,
   CreditCard,
@@ -65,7 +66,7 @@ export const Header: React.FC = () => {
   const isActive = (to: string) => location.pathname === to;
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <header className="bg-surface border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link
@@ -94,7 +95,7 @@ export const Header: React.FC = () => {
                     onClick={() => handleProfileSwitch(profile.id)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
                       active
-                        ? "bg-white text-[#D10A11] shadow"
+                        ? "bg-surface text-[#D10A11] shadow"
                         : "text-gray-500 hover:text-gray-900"
                     }`}
                     title="Trocar de perfil"
@@ -172,6 +173,7 @@ export const Header: React.FC = () => {
               </div>
             )}
           </div>
+          <ThemeToggle />
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-[#D10A11] hover:bg-red-50 rounded-lg transition-colors text-sm"
@@ -192,7 +194,7 @@ export const Header: React.FC = () => {
 
       {/* Mobile Nav */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-3 space-y-1">
+        <div className="md:hidden bg-surface border-t border-gray-100 px-4 py-3 space-y-1">
           {availableProfiles.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
               {availableProfiles.map((profile) => {

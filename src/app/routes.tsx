@@ -1,6 +1,7 @@
 import React from "react";
 import { createBrowserRouter, Outlet, Navigate } from "react-router";
 import { Toaster } from "sonner";
+import { ThemeProvider, useTheme } from "next-themes";
 import { DataProvider } from "./context/DataContext";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
@@ -16,12 +17,33 @@ const page =
   ) =>
   async () => ({ Component: (await loader())[name] });
 
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme();
+  return (
+    <Toaster
+      position="top-right"
+      richColors
+      theme={resolvedTheme === "dark" ? "dark" : "light"}
+    />
+  );
+}
+
 function Root() {
   return (
-    <DataProvider>
-      <Toaster position="top-right" richColors />
-      <Outlet />
-    </DataProvider>
+    // A escolha fica salva no navegador (chave "gb-theme"); veja também o
+    // script em index.html que aplica o tema antes do React carregar.
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      enableSystem={false}
+      storageKey="gb-theme"
+      disableTransitionOnChange
+    >
+      <DataProvider>
+        <ThemedToaster />
+        <Outlet />
+      </DataProvider>
+    </ThemeProvider>
   );
 }
 

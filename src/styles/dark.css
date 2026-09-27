@@ -1,0 +1,325 @@
+/*
+ * MODO ESCURO
+ * Em vez de adicionar "dark:" em cada
+ * classe, o modo escuro troca as variáveis de cor do Tailwind v4
+ * (bg-gray-50 -> var(--color-gray-50)) quando <html> tem a classe "dark".
+ *
+ * - Neutros (gray/slate) são invertidos: fundos escuros, textos claros.
+ * - Tons 50/100/200 das cores viram fundos escuros levemente tingidos.
+ * - Tons 700/800/900 das cores viram tons claros para texto legível.
+ * - Tons 300–600 (botões sólidos, destaques) não mudam.
+ *
+ * Elementos com a classe "theme-light" (ficha de frequência, QR code, logo...)
+ * voltam para as cores originais, mesmo no modo escuro.
+ */
+
+/* Guarda as cores originais para restaurar dentro de .theme-light */
+:root {
+  --light-gray-50: var(--color-gray-50);
+  --light-gray-100: var(--color-gray-100);
+  --light-gray-200: var(--color-gray-200);
+  --light-gray-300: var(--color-gray-300);
+  --light-gray-400: var(--color-gray-400);
+  --light-gray-500: var(--color-gray-500);
+  --light-gray-600: var(--color-gray-600);
+  --light-gray-700: var(--color-gray-700);
+  --light-gray-800: var(--color-gray-800);
+  --light-gray-900: var(--color-gray-900);
+  --light-gray-950: var(--color-gray-950);
+  --light-slate-50: var(--color-slate-50);
+  --light-slate-100: var(--color-slate-100);
+  --light-slate-200: var(--color-slate-200);
+  --light-red-50: var(--color-red-50);
+  --light-red-100: var(--color-red-100);
+  --light-red-200: var(--color-red-200);
+  --light-red-700: var(--color-red-700);
+  --light-red-800: var(--color-red-800);
+  --light-red-900: var(--color-red-900);
+  --light-rose-50: var(--color-rose-50);
+  --light-rose-100: var(--color-rose-100);
+  --light-rose-200: var(--color-rose-200);
+  --light-rose-700: var(--color-rose-700);
+  --light-rose-800: var(--color-rose-800);
+  --light-rose-900: var(--color-rose-900);
+  --light-orange-50: var(--color-orange-50);
+  --light-orange-100: var(--color-orange-100);
+  --light-orange-200: var(--color-orange-200);
+  --light-orange-700: var(--color-orange-700);
+  --light-orange-800: var(--color-orange-800);
+  --light-orange-900: var(--color-orange-900);
+  --light-amber-50: var(--color-amber-50);
+  --light-amber-100: var(--color-amber-100);
+  --light-amber-200: var(--color-amber-200);
+  --light-amber-700: var(--color-amber-700);
+  --light-amber-800: var(--color-amber-800);
+  --light-amber-900: var(--color-amber-900);
+  --light-yellow-50: var(--color-yellow-50);
+  --light-yellow-100: var(--color-yellow-100);
+  --light-yellow-200: var(--color-yellow-200);
+  --light-yellow-700: var(--color-yellow-700);
+  --light-yellow-800: var(--color-yellow-800);
+  --light-yellow-900: var(--color-yellow-900);
+  --light-green-50: var(--color-green-50);
+  --light-green-100: var(--color-green-100);
+  --light-green-200: var(--color-green-200);
+  --light-green-700: var(--color-green-700);
+  --light-green-800: var(--color-green-800);
+  --light-green-900: var(--color-green-900);
+  --light-emerald-50: var(--color-emerald-50);
+  --light-emerald-100: var(--color-emerald-100);
+  --light-emerald-200: var(--color-emerald-200);
+  --light-emerald-700: var(--color-emerald-700);
+  --light-emerald-800: var(--color-emerald-800);
+  --light-emerald-900: var(--color-emerald-900);
+  --light-blue-50: var(--color-blue-50);
+  --light-blue-100: var(--color-blue-100);
+  --light-blue-200: var(--color-blue-200);
+  --light-blue-700: var(--color-blue-700);
+  --light-blue-800: var(--color-blue-800);
+  --light-blue-900: var(--color-blue-900);
+  --light-indigo-50: var(--color-indigo-50);
+  --light-indigo-100: var(--color-indigo-100);
+  --light-indigo-200: var(--color-indigo-200);
+  --light-indigo-700: var(--color-indigo-700);
+  --light-indigo-800: var(--color-indigo-800);
+  --light-indigo-900: var(--color-indigo-900);
+  --light-purple-50: var(--color-purple-50);
+  --light-purple-100: var(--color-purple-100);
+  --light-purple-200: var(--color-purple-200);
+  --light-purple-700: var(--color-purple-700);
+  --light-purple-800: var(--color-purple-800);
+  --light-purple-900: var(--color-purple-900);
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  --surface: #1b2536;
+  --color-gray-50: #141c2b;
+  --color-gray-100: #222c3e;
+  --color-gray-200: #2c374b;
+  --color-gray-300: #3a465c;
+  --color-gray-400: #7a869b;
+  --color-gray-500: #96a1b4;
+  --color-gray-600: #aeb8c8;
+  --color-gray-700: #c4ccd8;
+  --color-gray-800: #d6dce5;
+  --color-gray-900: #e3e8ef;
+  --color-gray-950: #eef1f5;
+  --color-slate-50: #141c2b;
+  --color-slate-100: #222c3e;
+  --color-slate-200: #2c374b;
+  --color-red-50: color-mix(in oklab, #ef4444 10%, var(--surface));
+  --color-red-100: color-mix(in oklab, #ef4444 18%, var(--surface));
+  --color-red-200: color-mix(in oklab, #ef4444 32%, var(--surface));
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+  --color-rose-50: color-mix(in oklab, #f43f5e 10%, var(--surface));
+  --color-rose-100: color-mix(in oklab, #f43f5e 18%, var(--surface));
+  --color-rose-200: color-mix(in oklab, #f43f5e 32%, var(--surface));
+  --color-rose-700: #fda4af;
+  --color-rose-800: #fecdd3;
+  --color-rose-900: #ffe4e6;
+  --color-orange-50: color-mix(in oklab, #f97316 10%, var(--surface));
+  --color-orange-100: color-mix(in oklab, #f97316 18%, var(--surface));
+  --color-orange-200: color-mix(in oklab, #f97316 32%, var(--surface));
+  --color-orange-700: #fdba74;
+  --color-orange-800: #fed7aa;
+  --color-orange-900: #ffedd5;
+  --color-amber-50: color-mix(in oklab, #f59e0b 10%, var(--surface));
+  --color-amber-100: color-mix(in oklab, #f59e0b 18%, var(--surface));
+  --color-amber-200: color-mix(in oklab, #f59e0b 32%, var(--surface));
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-yellow-50: color-mix(in oklab, #eab308 10%, var(--surface));
+  --color-yellow-100: color-mix(in oklab, #eab308 18%, var(--surface));
+  --color-yellow-200: color-mix(in oklab, #eab308 32%, var(--surface));
+  --color-yellow-700: #fde047;
+  --color-yellow-800: #fef08a;
+  --color-yellow-900: #fef9c3;
+  --color-green-50: color-mix(in oklab, #22c55e 10%, var(--surface));
+  --color-green-100: color-mix(in oklab, #22c55e 18%, var(--surface));
+  --color-green-200: color-mix(in oklab, #22c55e 32%, var(--surface));
+  --color-green-700: #86efac;
+  --color-green-800: #bbf7d0;
+  --color-green-900: #dcfce7;
+  --color-emerald-50: color-mix(in oklab, #10b981 10%, var(--surface));
+  --color-emerald-100: color-mix(in oklab, #10b981 18%, var(--surface));
+  --color-emerald-200: color-mix(in oklab, #10b981 32%, var(--surface));
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+  --color-blue-50: color-mix(in oklab, #3b82f6 10%, var(--surface));
+  --color-blue-100: color-mix(in oklab, #3b82f6 18%, var(--surface));
+  --color-blue-200: color-mix(in oklab, #3b82f6 32%, var(--surface));
+  --color-blue-700: #93c5fd;
+  --color-blue-800: #bfdbfe;
+  --color-blue-900: #dbeafe;
+  --color-indigo-50: color-mix(in oklab, #6366f1 10%, var(--surface));
+  --color-indigo-100: color-mix(in oklab, #6366f1 18%, var(--surface));
+  --color-indigo-200: color-mix(in oklab, #6366f1 32%, var(--surface));
+  --color-indigo-700: #a5b4fc;
+  --color-indigo-800: #c7d2fe;
+  --color-indigo-900: #e0e7ff;
+  --color-purple-50: color-mix(in oklab, #a855f7 10%, var(--surface));
+  --color-purple-100: color-mix(in oklab, #a855f7 18%, var(--surface));
+  --color-purple-200: color-mix(in oklab, #a855f7 32%, var(--surface));
+  --color-purple-700: #d8b4fe;
+  --color-purple-800: #e9d5ff;
+  --color-purple-900: #f3e8ff;
+}
+
+html.dark .theme-light {
+  --surface: #ffffff;
+  --color-gray-50: var(--light-gray-50);
+  --color-gray-100: var(--light-gray-100);
+  --color-gray-200: var(--light-gray-200);
+  --color-gray-300: var(--light-gray-300);
+  --color-gray-400: var(--light-gray-400);
+  --color-gray-500: var(--light-gray-500);
+  --color-gray-600: var(--light-gray-600);
+  --color-gray-700: var(--light-gray-700);
+  --color-gray-800: var(--light-gray-800);
+  --color-gray-900: var(--light-gray-900);
+  --color-gray-950: var(--light-gray-950);
+  --color-slate-50: var(--light-slate-50);
+  --color-slate-100: var(--light-slate-100);
+  --color-slate-200: var(--light-slate-200);
+  --color-red-50: var(--light-red-50);
+  --color-red-100: var(--light-red-100);
+  --color-red-200: var(--light-red-200);
+  --color-red-700: var(--light-red-700);
+  --color-red-800: var(--light-red-800);
+  --color-red-900: var(--light-red-900);
+  --color-rose-50: var(--light-rose-50);
+  --color-rose-100: var(--light-rose-100);
+  --color-rose-200: var(--light-rose-200);
+  --color-rose-700: var(--light-rose-700);
+  --color-rose-800: var(--light-rose-800);
+  --color-rose-900: var(--light-rose-900);
+  --color-orange-50: var(--light-orange-50);
+  --color-orange-100: var(--light-orange-100);
+  --color-orange-200: var(--light-orange-200);
+  --color-orange-700: var(--light-orange-700);
+  --color-orange-800: var(--light-orange-800);
+  --color-orange-900: var(--light-orange-900);
+  --color-amber-50: var(--light-amber-50);
+  --color-amber-100: var(--light-amber-100);
+  --color-amber-200: var(--light-amber-200);
+  --color-amber-700: var(--light-amber-700);
+  --color-amber-800: var(--light-amber-800);
+  --color-amber-900: var(--light-amber-900);
+  --color-yellow-50: var(--light-yellow-50);
+  --color-yellow-100: var(--light-yellow-100);
+  --color-yellow-200: var(--light-yellow-200);
+  --color-yellow-700: var(--light-yellow-700);
+  --color-yellow-800: var(--light-yellow-800);
+  --color-yellow-900: var(--light-yellow-900);
+  --color-green-50: var(--light-green-50);
+  --color-green-100: var(--light-green-100);
+  --color-green-200: var(--light-green-200);
+  --color-green-700: var(--light-green-700);
+  --color-green-800: var(--light-green-800);
+  --color-green-900: var(--light-green-900);
+  --color-emerald-50: var(--light-emerald-50);
+  --color-emerald-100: var(--light-emerald-100);
+  --color-emerald-200: var(--light-emerald-200);
+  --color-emerald-700: var(--light-emerald-700);
+  --color-emerald-800: var(--light-emerald-800);
+  --color-emerald-900: var(--light-emerald-900);
+  --color-blue-50: var(--light-blue-50);
+  --color-blue-100: var(--light-blue-100);
+  --color-blue-200: var(--light-blue-200);
+  --color-blue-700: var(--light-blue-700);
+  --color-blue-800: var(--light-blue-800);
+  --color-blue-900: var(--light-blue-900);
+  --color-indigo-50: var(--light-indigo-50);
+  --color-indigo-100: var(--light-indigo-100);
+  --color-indigo-200: var(--light-indigo-200);
+  --color-indigo-700: var(--light-indigo-700);
+  --color-indigo-800: var(--light-indigo-800);
+  --color-indigo-900: var(--light-indigo-900);
+  --color-purple-50: var(--light-purple-50);
+  --color-purple-100: var(--light-purple-100);
+  --color-purple-200: var(--light-purple-200);
+  --color-purple-700: var(--light-purple-700);
+  --color-purple-800: var(--light-purple-800);
+  --color-purple-900: var(--light-purple-900);
+}
+
+/*
+ * Textos em tom 600 (ícones, números de destaque) ficam um pouco mais claros
+ * no escuro. Feito por classe (e não por variável) porque os mesmos tons 600
+ * são usados como fundo de botões com texto branco.
+ * :where() mantém a especificidade baixa para não vencer hover:/focus:.
+ */
+@layer utilities {
+  .text-red-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #f87171;
+  }
+  .text-rose-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #fb7185;
+  }
+  .text-orange-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #fb923c;
+  }
+  .text-amber-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #fbbf24;
+  }
+  .text-yellow-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #facc15;
+  }
+  .text-green-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #4ade80;
+  }
+  .text-emerald-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #34d399;
+  }
+  .text-blue-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #60a5fa;
+  }
+  .text-indigo-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #818cf8;
+  }
+  .text-purple-600:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #c084fc;
+  }
+}
+
+/*
+ * Cores da marca usadas como TEXTO: o azul GB (#003087) quase some no fundo
+ * escuro e o vermelho fica pesado. Clareamos só o texto; botões e fundos com
+ * essas cores continuam iguais.
+ */
+@layer utilities {
+  .text-\[\#003087\]:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #8fb0ff;
+  }
+  .text-\[\#D10A11\]:where(.dark *):not(:where(.theme-light, .theme-light *)) {
+    color: #ff5a60;
+  }
+}
+@media (hover: hover) {
+  html.dark .hover\:text-\[\#D10A11\]:hover:not(:where(.theme-light, .theme-light *)),
+  html.dark .group:hover .group-hover\:text-\[\#D10A11\]:not(:where(.theme-light, .theme-light *)) {
+    color: #ff5a60;
+  }
+}
+
+/* Sombras mais discretas e bordas visíveis no escuro */
+html.dark body :where(.shadow-sm, .shadow, .shadow-md, .shadow-lg):not(:where(.theme-light, .theme-light *)) {
+  --tw-shadow-color: rgb(0 0 0 / 0.45);
+}
+
+/* Barra de rolagem acompanhando o tema */
+html.dark ::-webkit-scrollbar-thumb {
+  background-color: #3a465c;
+  border-radius: 8px;
+}
+html.dark ::-webkit-scrollbar-track {
+  background-color: #141c2b;
+}

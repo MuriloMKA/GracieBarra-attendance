@@ -193,7 +193,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
   return (
     <div
-      className={`rounded-2xl overflow-hidden shadow-2xl w-full border-4 ${style.outerBorder}`}
+      className={`theme-light rounded-2xl overflow-hidden shadow-2xl w-full border-4 ${style.outerBorder}`}
       style={{
         backgroundColor: beltColor === "#FFFFFF" ? "#0EA5E9" : undefined,
       }}
@@ -205,7 +205,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
         >
           <div className="flex items-center gap-3">
             <div
-              className={`bg-white rounded-full flex items-center justify-center shrink-0 shadow-md overflow-hidden ${isCompact ? "p-0.5 h-11 w-11" : "p-1 h-14 w-14"}`}
+              className={`bg-surface rounded-full flex items-center justify-center shrink-0 shadow-md overflow-hidden ${isCompact ? "p-0.5 h-11 w-11" : "p-1 h-14 w-14"}`}
             >
               {profilePhotoUrl ? (
                 <img
@@ -286,7 +286,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
                             onClick={() => onSelectHistoryBelt?.(segment.key)}
                             className={`px-2 py-1 rounded-full border text-[10px] font-bold transition-all flex items-center gap-1.5 ${
                               isSelected
-                                ? "border-white bg-white text-[#003087]"
+                                ? "border-white bg-surface text-[#003087]"
                                 : "border-white/50 text-white hover:bg-white/20"
                             }`}
                           >
@@ -325,7 +325,7 @@ export const AttendanceCard: React.FC<AttendanceCardProps> = ({
 
         {/* Grid */}
         <div className={isCompact ? "px-1.5 pb-2" : "px-2 pb-3"}>
-          <div className="bg-white rounded-xl shadow-inner overflow-hidden">
+          <div className="bg-surface rounded-xl shadow-inner overflow-hidden">
             <div className="overflow-x-auto">
               <table
                 className="w-full border-collapse"

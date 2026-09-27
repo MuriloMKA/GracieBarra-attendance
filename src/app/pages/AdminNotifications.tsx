@@ -105,7 +105,7 @@ export const AdminNotifications: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
+      <div className="bg-surface rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
         <h2 className="font-black text-gray-900 flex items-center gap-2">
           <Bell size={18} className="text-[#D10A11]" />
           Publicar aviso para alunos
@@ -140,7 +140,7 @@ export const AdminNotifications: React.FC = () => {
         <button
           onClick={handleCreateNotification}
           disabled={loading}
-          className="px-5 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-5 py-2.5 bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-xl font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <Send size={16} />
           Publicar notificação
@@ -164,7 +164,7 @@ export const AdminNotifications: React.FC = () => {
             recentNotifications.map((item) => (
               <div
                 key={item._id || item.id}
-                className="bg-white rounded-xl border border-slate-200 p-4"
+                className="bg-surface rounded-xl border border-slate-200 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

@@ -134,7 +134,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
       onClick={resetAndCancel}
     >
       <div
-        className="w-full max-w-xl rounded-2xl bg-white shadow-2xl overflow-hidden"
+        className="w-full max-w-xl rounded-2xl bg-surface shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-gray-200">
@@ -144,7 +144,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
           </p>
         </div>
 
-        <div className="relative h-[360px] bg-gray-900">
+        <div className="relative h-[360px] bg-[#111827]">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -186,7 +186,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
             <button
               type="button"
               onClick={handleConfirm}
-              className="px-3 py-1.5 rounded-lg bg-[#003087] text-white text-xs font-bold hover:bg-blue-900 disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg bg-[#003087] text-white text-xs font-bold hover:bg-[#1e3a8a] disabled:opacity-50"
               disabled={!canSave}
             >
               {saving ? "Salvando..." : "Usar foto"}

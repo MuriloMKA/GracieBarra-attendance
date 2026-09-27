@@ -263,7 +263,7 @@ export const StudentCard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+        <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-2xl font-black text-[#D10A11]">
             {confirmedCount}
           </div>
@@ -271,7 +271,7 @@ export const StudentCard: React.FC = () => {
             Aulas no total
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+        <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-2xl font-black text-indigo-600">
             {confirmedSinceGraduation}
           </div>
@@ -284,7 +284,7 @@ export const StudentCard: React.FC = () => {
             ) || "grau atual"}
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+        <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-lg font-black text-[#003087]">
             {getDegreeDisplayLabel(
               actualProgram,
@@ -296,7 +296,7 @@ export const StudentCard: React.FC = () => {
             Graus na Faixa
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+        <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
           <div className="text-2xl font-black text-green-600">
             {graduationCount}
           </div>

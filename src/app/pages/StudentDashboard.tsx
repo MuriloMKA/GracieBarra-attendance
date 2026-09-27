@@ -313,7 +313,7 @@ export const StudentDashboard: React.FC = () => {
         {/* Welcome */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
+            <div className="bg-surface rounded-full shadow-lg w-12 h-12 flex items-center justify-center overflow-hidden border-2 border-gray-200">
               {student.studentProfilePhoto ? (
                 <img
                   src={student.studentProfilePhoto}
@@ -347,7 +347,7 @@ export const StudentDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => studentPhotoInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#003087] text-white text-xs font-bold hover:bg-blue-900"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#003087] text-white text-xs font-bold hover:bg-[#1e3a8a]"
                 >
                   <ImagePlus size={13} />
                   {student.studentProfilePhoto
@@ -369,7 +369,7 @@ export const StudentDashboard: React.FC = () => {
           </div>
           <Link
             to="/student/card"
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg transition-all hover:scale-105 ${cardStyle.outerBg}`}
+            className={`theme-light flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg transition-all hover:scale-105 ${cardStyle.outerBg}`}
           >
             <CreditCard size={18} />
             Ver Cartão de Frequência
@@ -378,7 +378,7 @@ export const StudentDashboard: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
             <div className="text-2xl font-black text-[#D10A11]">
               {confirmedCount}
             </div>
@@ -386,7 +386,7 @@ export const StudentDashboard: React.FC = () => {
               Aulas no total
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
             <div className="text-2xl font-black text-indigo-600">
               {confirmedSinceGraduation}
             </div>
@@ -399,7 +399,7 @@ export const StudentDashboard: React.FC = () => {
               ) || "grau atual"}
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
             <div className="text-lg font-black text-[#003087]">
               {getDegreeDisplayLabel(
                 actualProgram,
@@ -411,7 +411,7 @@ export const StudentDashboard: React.FC = () => {
               Graus na Faixa
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+          <div className="bg-surface rounded-xl border border-gray-200 p-4 text-center shadow-sm">
             <div className="text-2xl font-black text-green-600">
               {
                 (student.specialDates || []).filter(
@@ -426,7 +426,7 @@ export const StudentDashboard: React.FC = () => {
         </div>
 
         {/* Mural de Notificações */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-5">
           <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
             <MessageSquareMore size={18} className="text-[#003087]" />
             Mural de Notificações
@@ -473,7 +473,7 @@ export const StudentDashboard: React.FC = () => {
         </div>
 
         {/* Belt Info */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-5">
           <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
             <Award size={18} className="text-[#D10A11]" />
             Minha Faixa
@@ -564,7 +564,7 @@ export const StudentDashboard: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
-                    <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-[#003087] font-black text-sm">
+                    <div className="px-2.5 py-1.5 bg-surface rounded-md border border-blue-200 text-[#003087] font-black text-sm">
                       {progressValue}{" "}
                       {progressUnit === "semanas" ? "sem" : "treinos"}
                     </div>
@@ -586,7 +586,7 @@ export const StudentDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="px-2.5 py-1.5 bg-white rounded-md border border-blue-200 text-gray-700 font-black text-sm">
+                    <div className="px-2.5 py-1.5 bg-surface rounded-md border border-blue-200 text-gray-700 font-black text-sm">
                       {progressRequiredValue}{" "}
                       {progressUnit === "semanas" ? "sem" : "treinos"}
                     </div>
@@ -620,7 +620,7 @@ export const StudentDashboard: React.FC = () => {
             Aulas de Hoje
           </h2>
           {allTodayClasses.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500">
+            <div className="bg-surface border border-gray-200 rounded-xl p-6 text-center text-gray-500">
               Não há aulas agendadas para hoje.
             </div>
           ) : (
@@ -634,7 +634,7 @@ export const StudentDashboard: React.FC = () => {
                 return (
                   <div
                     key={classId}
-                    className={`bg-white rounded-xl border-2 p-5 shadow-sm transition-all ${
+                    className={`bg-surface rounded-xl border-2 p-5 shadow-sm transition-all ${
                       confirmedRecord
                         ? "border-green-400 bg-green-50"
                         : "border-gray-200"
@@ -710,11 +710,11 @@ export const StudentDashboard: React.FC = () => {
             Presenças Recentes
           </h2>
           {recentAttendance.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 text-center text-gray-500 text-sm">
+            <div className="bg-surface border border-gray-200 rounded-xl p-6 text-center text-gray-500 text-sm">
               Nenhuma presença confirmada ainda.
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+            <div className="bg-surface rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
               {recentAttendance.map((att) => (
                 <div
                   key={att.id}

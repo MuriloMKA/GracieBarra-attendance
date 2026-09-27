@@ -21,7 +21,7 @@ export const RouteErrorPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white flex items-center justify-center px-4 py-10">
+    <div className="theme-light min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white flex items-center justify-center px-4 py-10">
       <div className="max-w-xl w-full bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl shadow-2xl p-8">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-400/30">
@@ -38,7 +38,7 @@ export const RouteErrorPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-slate-900 font-bold hover:bg-slate-100 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-surface text-slate-900 font-bold hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft size={18} />
             Recarregar

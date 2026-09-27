@@ -183,7 +183,7 @@ export const AdminClasses: React.FC = () => {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-[#D10A11] hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all"
+          className="flex items-center gap-2 bg-[#D10A11] hover:bg-[#b91c1c] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all"
         >
           <Plus size={18} />
           Nova Aula
@@ -197,7 +197,7 @@ export const AdminClasses: React.FC = () => {
       </div>
 
       {/* Classes List */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -300,7 +300,7 @@ export const AdminClasses: React.FC = () => {
           onClick={() => setEditingClass(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
@@ -436,7 +436,7 @@ export const AdminClasses: React.FC = () => {
                           input.value = "";
                         }
                       }}
-                      className="px-4 py-2 bg-[#003087] text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
+                      className="px-4 py-2 bg-[#003087] text-white rounded-lg hover:bg-[#1e40af] transition-colors text-sm font-medium"
                     >
                       Adicionar
                     </button>
@@ -492,7 +492,7 @@ export const AdminClasses: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black text-sm shadow-lg"
+                  className="flex-1 px-4 py-2.5 bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-xl font-black text-sm shadow-lg"
                 >
                   Salvar Alterações
                 </button>
@@ -522,7 +522,7 @@ export const AdminClasses: React.FC = () => {
           onClick={() => setShowAddModal(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
@@ -657,7 +657,7 @@ export const AdminClasses: React.FC = () => {
                           input.value = "";
                         }
                       }}
-                      className="px-4 py-2 bg-[#003087] text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
+                      className="px-4 py-2 bg-[#003087] text-white rounded-lg hover:bg-[#1e40af] transition-colors text-sm font-medium"
                     >
                       Adicionar
                     </button>
@@ -712,7 +712,7 @@ export const AdminClasses: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-[#D10A11] hover:bg-red-700 text-white rounded-xl font-black text-sm shadow-lg"
+                  className="flex-1 px-4 py-2.5 bg-[#D10A11] hover:bg-[#b91c1c] text-white rounded-xl font-black text-sm shadow-lg"
                 >
                   Adicionar Aula
                 </button>

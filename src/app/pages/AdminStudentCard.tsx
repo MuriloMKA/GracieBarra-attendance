@@ -592,7 +592,7 @@ export const AdminStudentCard: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xl overflow-hidden">
             {student.adminProfilePhoto ? (
@@ -671,7 +671,7 @@ export const AdminStudentCard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[440px_minmax(0,1fr)] gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
+        <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
           <div>
             <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">
               <GraduationCap size={18} className="text-[#D10A11]" />
@@ -690,7 +690,7 @@ export const AdminStudentCard: React.FC = () => {
               className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "attendance"
                   ? "bg-green-600 text-white border-green-600 shadow-md"
-                  : "bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50"
+                  : "bg-surface text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50"
               }`}
             >
               Adicionar Presença
@@ -700,8 +700,8 @@ export const AdminStudentCard: React.FC = () => {
               onClick={() => setManualAction("attendance-remove")}
               className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "attendance-remove"
-                  ? "bg-gray-900 text-white border-gray-900 shadow-md"
-                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+                  ? "bg-[#111827] text-white border-[#111827] shadow-md"
+                  : "bg-surface text-gray-700 border-gray-200 hover:border-gray-400 hover:bg-gray-50"
               }`}
             >
               Remover Presença
@@ -712,7 +712,7 @@ export const AdminStudentCard: React.FC = () => {
               className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "grade"
                   ? "bg-[#003087] text-white border-[#003087] shadow-md"
-                  : "bg-white text-gray-700 border-gray-200 hover:border-[#003087] hover:bg-blue-50"
+                  : "bg-surface text-gray-700 border-gray-200 hover:border-[#003087] hover:bg-blue-50"
               }`}
             >
               Adicionar Grau
@@ -726,7 +726,7 @@ export const AdminStudentCard: React.FC = () => {
               className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                 manualAction === "graduation"
                   ? "bg-[#D10A11] text-white border-[#D10A11] shadow-md"
-                  : "bg-white text-gray-700 border-gray-200 hover:border-[#D10A11] hover:bg-red-50"
+                  : "bg-surface text-gray-700 border-gray-200 hover:border-[#D10A11] hover:bg-red-50"
               }`}
             >
               Adicionar Faixa
@@ -794,7 +794,7 @@ export const AdminStudentCard: React.FC = () => {
             <button
               type="button"
               onClick={handleManualSubmit}
-              className="flex-1 px-5 py-2.5 rounded-xl font-black text-sm shadow-lg transition-all bg-[#D10A11] hover:bg-red-700 text-white"
+              className="flex-1 px-5 py-2.5 rounded-xl font-black text-sm shadow-lg transition-all bg-[#D10A11] hover:bg-[#b91c1c] text-white"
             >
               Salvar
             </button>
@@ -819,7 +819,7 @@ export const AdminStudentCard: React.FC = () => {
       </div>
 
       {student.specialDates.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="bg-surface rounded-xl border border-gray-200 shadow-sm p-5">
           <h3 className="font-black text-gray-900 mb-4 flex items-center gap-2">
             <GraduationCap size={20} className="text-[#D10A11]" />
             Histórico de Graus e Graduações
