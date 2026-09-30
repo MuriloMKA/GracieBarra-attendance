@@ -22,7 +22,11 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
       aria-checked={isDark}
       aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
       title={isDark ? "Modo claro" : "Modo escuro"}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={(e) => {
+        setTheme(isDark ? "light" : "dark");
+        // Drop focus so a USB QR scanner's Enter doesn't toggle the theme again
+        e.currentTarget.blur();
+      }}
       className={`relative inline-flex h-8 w-[3.75rem] shrink-0 items-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003087] ${
         onDark
           ? "border-white/30 bg-white/15 hover:bg-white/25"
