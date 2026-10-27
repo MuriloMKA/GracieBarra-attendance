@@ -564,12 +564,17 @@ const buildPanelRanking = async (monthParam) => {
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "pt-BR"));
 
-    // Empatados dividem a posição (20, 20, 18 → 1º, 1º, 3º)
+    // Empatados dividem a posição e a próxima não pula (20, 20, 18 → 1º, 1º, 2º).
+    // O corte continua nos 5 primeiros alunos + quem empatar com o 5º.
     const entries = [];
     let position = 0;
+    let rank = 0;
     sorted.forEach((entry, index) => {
-      if (index === 0 || entry.count !== sorted[index - 1].count) position = index + 1;
-      if (position <= PANEL_RANKING_TOP) entries.push({ position, ...entry });
+      if (index === 0 || entry.count !== sorted[index - 1].count) {
+        position += 1;
+        rank = index + 1;
+      }
+      if (rank <= PANEL_RANKING_TOP) entries.push({ position, ...entry });
     });
 
     return { id: group.id, title: group.title, entries };
