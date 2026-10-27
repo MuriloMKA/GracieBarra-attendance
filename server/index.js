@@ -434,6 +434,195 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running" });
 });
 
+// ===== Ranking de presenças para o painel da TV =====
+// Acesso só com a chave compartilhada (PANEL_API_KEY), enviada pela API do painel.
+const PANEL_API_KEY = process.env.PANEL_API_KEY;
+
+const requirePanelKey = (req, res, next) => {
+  if (!PANEL_API_KEY) {
+    return res.status(503).json({ error: "PANEL_API_KEY não configurada" });
+  }
+  if (req.headers["x-panel-key"] !== PANEL_API_KEY) {
+    return res.status(401).json({ error: "Chave do painel inválida" });
+  }
+  next();
+};
+
+// Blocos exibidos no painel. Os adultos (GB1, GB2 e GB3) competem juntos.
+const PANEL_RANKING_GROUPS = [
+  { id: "juvenil", title: "GBK Juvenil", programs: ["GBKJUVENIL"] },
+  { id: "kids", title: "GBK Kids", programs: ["GBKIDS"] },
+  { id: "adulto", title: "GB1 + GB2 + GB3", programs: ["GB1", "GB2", "GB3"] },
+];
+const PANEL_RANKING_TOP = 5;
+const PANEL_RANKING_CACHE_MS = 30 * 1000;
+// America/Sao_Paulo = UTC-3 (sem horário de verão desde 2019)
+const SAO_PAULO_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+const getAgeFromBirthDate = (birthDate) => {
+  const trimmed = String(birthDate || "").trim();
+  const brazilian = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const birth = brazilian
+    ? new Date(Number(brazilian[3]), Number(brazilian[2]) - 1, Number(brazilian[1]))
+    : new Date(trimmed);
+  if (Number.isNaN(birth.getTime())) return 0;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+// Mesma regra do calculateProgram do front (src/app/components/BeltDisplay.tsx)
+const resolveStudentProgram = ({ program, belt, degrees = 0, birthDate }) => {
+  if (program === "GBKIDS" || program === "GBKJUVENIL") return program;
+  if (program === "GBK") {
+    if (!birthDate) return "GBKJUVENIL";
+    return getAgeFromBirthDate(birthDate) <= 7 ? "GBKIDS" : "GBKJUVENIL";
+  }
+
+  if (belt === "White" && degrees <= 2) return "GB1";
+  if (belt === "White" && degrees >= 3 && degrees <= 4) return "GB2";
+  if (["Blue", "Purple", "Brown", "Black"].includes(belt)) return "GB3";
+  if (["Grey", "Yellow", "Orange", "Green"].includes(belt)) {
+    return resolveStudentProgram({ program: "GBK", birthDate });
+  }
+  return program;
+};
+
+const getSaoPauloMonthRange = (monthParam) => {
+  const match = /^(\d{4})-(\d{2})$/.exec(monthParam || "");
+  const nowSp = new Date(Date.now() - SAO_PAULO_OFFSET_MS);
+  const year = match ? Number(match[1]) : nowSp.getUTCFullYear();
+  const monthIndex = match ? Number(match[2]) - 1 : nowSp.getUTCMonth();
+
+  return {
+    month: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
+    start: new Date(Date.UTC(year, monthIndex, 1) + SAO_PAULO_OFFSET_MS),
+    end: new Date(Date.UTC(year, monthIndex + 1, 1) + SAO_PAULO_OFFSET_MS),
+  };
+};
+
+const panelRankingCache = new Map();
+
+const buildPanelRanking = async (monthParam) => {
+  const { month, start, end } = getSaoPauloMonthRange(monthParam);
+
+  const cached = panelRankingCache.get(month);
+  if (cached && Date.now() - cached.at < PANEL_RANKING_CACHE_MS) {
+    return cached.data;
+  }
+
+  // Cada presença confirmada conta 1 (duas aulas no mesmo dia = 2)
+  const counts = await Attendance.aggregate([
+    { $match: { confirmed: true, date: { $gte: start, $lt: end } } },
+    { $group: { _id: "$studentId", count: { $sum: 1 } } },
+  ]);
+  const countById = new Map(counts.map((c) => [String(c._id), c.count]));
+
+  // Sem trazer as fotos em base64: só se o aluno tem foto
+  const students = await Student.aggregate([
+    {
+      $match: {
+        _id: { $in: counts.map((c) => c._id).filter(Boolean) },
+        active: { $ne: false },
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        program: 1,
+        belt: 1,
+        degrees: 1,
+        birthDate: 1,
+        updatedAt: 1,
+        hasPhoto: {
+          $or: [
+            { $gt: [{ $strLenCP: { $ifNull: ["$studentProfilePhoto", ""] } }, 0] },
+            { $gt: [{ $strLenCP: { $ifNull: ["$adminProfilePhoto", ""] } }, 0] },
+          ],
+        },
+      },
+    },
+  ]);
+
+  const groups = PANEL_RANKING_GROUPS.map((group) => {
+    const sorted = students
+      .filter((s) => group.programs.includes(resolveStudentProgram(s)))
+      .map((s) => ({
+        studentId: String(s._id),
+        name: (s.name || "").trim(),
+        count: countById.get(String(s._id)) || 0,
+        belt: s.belt || null,
+        degrees: s.degrees || 0,
+        photoVersion: s.hasPhoto
+          ? new Date(s.updatedAt || 0).getTime().toString(36)
+          : null,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "pt-BR"));
+
+    // Empatados dividem a posição (20, 20, 18 → 1º, 1º, 3º)
+    const entries = [];
+    sorted.forEach((entry, index) => {
+      const position =
+        index > 0 && entry.count === sorted[index - 1].count
+          ? entries[index - 1].position
+          : index + 1;
+      if (position <= PANEL_RANKING_TOP) entries.push({ position, ...entry });
+    });
+
+    return { id: group.id, title: group.title, entries };
+  });
+
+  const data = { month, updatedAt: new Date().toISOString(), groups };
+  panelRankingCache.set(month, { at: Date.now(), data });
+  return data;
+};
+
+app.get("/api/public/ranking", requirePanelKey, async (req, res) => {
+  try {
+    res.json(await buildPanelRanking(req.query.month));
+  } catch (error) {
+    console.error("Erro ao montar ranking do painel:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get(
+  "/api/public/ranking/photo/:id",
+  requirePanelKey,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) return res.sendStatus(404);
+
+      // Só entrega foto de quem está no ranking do mês
+      const ranking = await buildPanelRanking();
+      const isRanked = ranking.groups.some((g) =>
+        g.entries.some((e) => e.studentId === id),
+      );
+      if (!isRanked) return res.sendStatus(404);
+
+      const student = await Student.findById(id)
+        .select("studentProfilePhoto adminProfilePhoto")
+        .lean();
+      const photo = student?.studentProfilePhoto || student?.adminProfilePhoto;
+      const match = /^data:(image\/[\w.+-]+);base64,(.+)$/s.exec(photo || "");
+      if (!match) return res.sendStatus(404);
+
+      res.setHeader("Content-Type", match[1]);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.send(Buffer.from(match[2], "base64"));
+    } catch (error) {
+      console.error("Erro ao buscar foto do ranking:", error);
+      res.sendStatus(500);
+    }
+  },
+);
+
 // Students Routes (protegidas)
 app.get("/api/students", authenticateToken, async (req, res) => {
   try {
