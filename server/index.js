@@ -566,11 +566,9 @@ const buildPanelRanking = async (monthParam) => {
 
     // Empatados dividem a posição (20, 20, 18 → 1º, 1º, 3º)
     const entries = [];
+    let position = 0;
     sorted.forEach((entry, index) => {
-      const position =
-        index > 0 && entry.count === sorted[index - 1].count
-          ? entries[index - 1].position
-          : index + 1;
+      if (index === 0 || entry.count !== sorted[index - 1].count) position = index + 1;
       if (position <= PANEL_RANKING_TOP) entries.push({ position, ...entry });
     });
 
