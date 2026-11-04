@@ -598,10 +598,19 @@ app.get(
       const { id } = req.params;
       if (!mongoose.isValidObjectId(id)) return res.sendStatus(404);
 
-      // Só entrega foto de quem está no ranking do mês
-      const ranking = await buildPanelRanking();
-      const isRanked = ranking.groups.some((g) =>
-        g.entries.some((e) => e.studentId === id),
+      // Só entrega foto de quem está no ranking do mês atual ou do anterior
+      // (o anterior aparece na TV como campeão na primeira semana do mês)
+      const [year, monthNumber] = getSaoPauloMonthRange().month.split("-").map(Number);
+      const previousMonth =
+        monthNumber === 1
+          ? `${year - 1}-12`
+          : `${year}-${String(monthNumber - 1).padStart(2, "0")}`;
+      const rankings = await Promise.all([
+        buildPanelRanking(),
+        buildPanelRanking(previousMonth),
+      ]);
+      const isRanked = rankings.some((ranking) =>
+        ranking.groups.some((g) => g.entries.some((e) => e.studentId === id)),
       );
       if (!isRanked) return res.sendStatus(404);
 
