@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import {
   getDegreeProgress,
   getAttendanceDayKey,
+  formatProgressValue,
 } from "../utils/degreeCalculator";
 import { ImageCropModal } from "../components/ImageCropModal";
 
@@ -85,17 +86,17 @@ const getMaxDegreesForBelt = (program: Program, belt: BeltColor): number => {
     case "GreyWhite": // 4 brancos + 1 vermelho
       return 5;
 
-    case "Grey": // 4 brancos + 4 vermelhos + 3 pretos
-    case "GreyBlack": // 4 brancos + 4 vermelhos + 3 pretos
-    case "YellowWhite": // 4 brancos + 4 vermelhos + 3 pretos
-    case "Yellow": // 4 brancos + 4 vermelhos + 3 pretos
-    case "YellowBlack": // 4 brancos + 4 vermelhos + 3 pretos
-    case "OrangeWhite": // 4 brancos + 4 vermelhos + 3 pretos
-    case "Orange": // 4 brancos + 4 vermelhos + 3 pretos
-    case "OrangeBlack": // 4 brancos + 4 vermelhos + 3 pretos
-    case "GreenWhite": // 4 brancos + 4 vermelhos + 3 pretos
-    case "Green": // 4 brancos + 4 vermelhos + 3 pretos
-    case "GreenBlack": // 4 brancos + 4 vermelhos + 3 pretos
+    case "Grey": // 4 brancos + 4 vermelhos + 3 amarelos
+    case "GreyBlack": // 4 brancos + 4 vermelhos + 3 amarelos
+    case "YellowWhite": // 4 brancos + 4 vermelhos + 3 laranjas
+    case "Yellow": // 4 brancos + 4 vermelhos + 3 laranjas
+    case "YellowBlack": // 4 brancos + 4 vermelhos + 3 laranjas
+    case "OrangeWhite": // 4 brancos + 4 vermelhos + 3 verdes
+    case "Orange": // 4 brancos + 4 vermelhos + 3 verdes
+    case "OrangeBlack": // 4 brancos + 4 vermelhos + 3 verdes
+    case "GreenWhite": // 4 brancos + 4 vermelhos + 3 azuis
+    case "Green": // 4 brancos + 4 vermelhos + 3 azuis
+    case "GreenBlack": // 4 brancos + 4 vermelhos + 3 azuis
       return 11;
 
     default:
@@ -887,12 +888,12 @@ export const AdminStudents: React.FC = () => {
               editingStudent.program,
               editingStudent.birthDate,
             );
-            const progressUnit = degreeProgress.progressUnit || "treinos";
-            const progressValue = Math.round(
+            const progressUnit = degreeProgress.progressUnit || "semanas";
+            const progressValue = formatProgressValue(
               degreeProgress.weeksCompleted,
-            ).toString();
-            const progressRequiredValue = String(
-              Math.round(degreeProgress.weeksRequired || 0),
+            );
+            const progressRequiredValue = formatProgressValue(
+              degreeProgress.weeksRequired || 0,
             );
 
             return (

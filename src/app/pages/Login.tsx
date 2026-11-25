@@ -88,7 +88,10 @@ export function LoginPage() {
           "linear-gradient(135deg, #1a0000 0%, #6b0000 50%, #D10A11 100%)",
       }}
     >
-      <ThemeToggle onDark className="absolute top-4 right-4" />
+      {/* O ThemeToggle já usa "relative"; posiciona pelo wrapper para não conflitar */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle onDark />
+      </div>
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">

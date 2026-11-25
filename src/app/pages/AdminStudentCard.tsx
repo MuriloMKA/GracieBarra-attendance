@@ -19,7 +19,10 @@ import {
 } from "../components/BeltDisplay";
 import {
   calculateCompletedTrainings,
+  calculateCompletedWeeks,
+  formatProgressValue,
   getAttendanceDayKey,
+  getDegreeRequirement,
 } from "../utils/degreeCalculator";
 
 const ADULT_BELTS: BeltColor[] = ["White", "Blue", "Purple", "Brown", "Black"];
@@ -322,6 +325,33 @@ export const AdminStudentCard: React.FC = () => {
     student.program,
     student.birthDate,
   );
+
+  // Semanas completas no grau atual (2 treinos na semana = 1, 1 treino = 0,5).
+  // GBK Kids gradua por treinos, então não mostra semanas.
+  const actualProgram = calculateProgram(
+    student.program,
+    student.belt,
+    student.degrees,
+    student.birthDate,
+  );
+  const showWeeksInDegree = actualProgram !== "GBKIDS";
+  const weeksSinceGraduation = calculateCompletedWeeks(
+    visibleAttendance,
+    student.lastGraduationDate || "",
+    student.program,
+    student.birthDate,
+  );
+  const weeksRequirement = getDegreeRequirement(
+    student.belt,
+    student.degrees,
+    student.program,
+    student.birthDate,
+  );
+  const weeksRequiredForNextDegree =
+    weeksRequirement?.unit === "semanas" ? weeksRequirement.required : null;
+  const currentDegreeLabel =
+    getDegreeDisplayLabel(actualProgram, student.belt, student.degrees) ||
+    "grau atual";
 
   const filteredSpecialDates = student.specialDates.filter((sd) =>
     isDateInSelectedHistory(sd.date),
@@ -629,7 +659,7 @@ export const AdminStudentCard: React.FC = () => {
               <SquarePen size={14} />
             </Link>
           </div>
-          <div className="flex gap-4 text-center justify-end">
+          <div className="flex flex-wrap gap-4 text-center justify-end">
             <div>
               <div className="text-2xl font-black text-[#003087]">
                 {confirmedCount}
@@ -641,19 +671,26 @@ export const AdminStudentCard: React.FC = () => {
                 {confirmedSinceGraduation}
               </div>
               <div className="text-xs text-gray-500">
-                Aulas no{" "}
-                {getDegreeDisplayLabel(
-                  calculateProgram(
-                    student.program,
-                    student.belt,
-                    student.degrees,
-                    student.birthDate,
-                  ),
-                  student.belt,
-                  student.degrees,
-                ) || "grau atual"}
+                Aulas no {currentDegreeLabel}
               </div>
             </div>
+            {showWeeksInDegree && (
+              <div
+                title="2 treinos na semana = 1 semana; 1 treino = meia semana"
+              >
+                <div className="text-2xl font-black text-amber-600">
+                  {formatProgressValue(weeksSinceGraduation)}
+                  {weeksRequiredForNextDegree !== null && (
+                    <span className="text-sm font-bold text-gray-400">
+                      /{weeksRequiredForNextDegree}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Semanas no {currentDegreeLabel}
+                </div>
+              </div>
+            )}
             <div>
               <div className="text-2xl font-black text-[#D10A11]">
                 {graduationDates.length}

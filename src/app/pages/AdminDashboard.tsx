@@ -30,8 +30,14 @@ import {
   calculateProgram,
   getDegreeDisplayLabel,
   getNextDegreeDisplayLabel,
+  getGBKDegreeColor,
 } from "../components/BeltDisplay";
-import { getDegreeProgress } from "../utils/degreeCalculator";
+import {
+  formatProgressAmount,
+  formatProgressValue,
+  getDegreeProgress,
+  type ProgressUnit,
+} from "../utils/degreeCalculator";
 import { QRScanner } from "../components/QRScanner";
 
 interface StudentReadyForDegree extends Student {
@@ -39,9 +45,37 @@ interface StudentReadyForDegree extends Student {
   weeksRequired: number;
   nextDegree: number;
   confirmedAttendances: number;
-  progressUnit?: "treinos";
+  progressUnit?: ProgressUnit;
   isPenultimate?: boolean;
 }
+
+/** "4 de 4 semanas completadas" | "8 de 8 treinos completados" */
+const formatDegreeProgressText = (student: StudentReadyForDegree) => {
+  const unit = student.progressUnit || "semanas";
+  return `${formatProgressValue(student.weeksCompleted)} de ${formatProgressAmount(
+    student.weeksRequired,
+    unit,
+  )} ${unit === "semanas" ? "completadas" : "completados"}`;
+};
+
+/** GBK: mostra a cor do grau que o aluno vai receber (branco, vermelho, amarelo...). */
+const GBKNextDegreeColorBadge: React.FC<{ student: Student }> = ({
+  student,
+}) => {
+  if (!String(student.program || "").startsWith("GBK")) return null;
+  const color = getGBKDegreeColor(student.belt, (student.degrees || 0) + 1);
+  if (!color) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-surface px-2 py-0.5 text-[11px] font-bold text-gray-800">
+      <span
+        className="inline-block h-3 w-3 rounded-sm border border-gray-400"
+        style={{ backgroundColor: color.hex }}
+      />
+      Grau {color.name}
+    </span>
+  );
+};
 
 interface AbsentStudent extends Student {
   lastAttendanceDate: string | null;
@@ -150,20 +184,18 @@ export const AdminDashboard: React.FC = () => {
 
       if (!required) return;
 
-      const weeksCompleted = degreeProgress.weeksCompleted;
-      // Aparece no bloco ao completar o penúltimo treino (remaining === 1) OU ao completar todos
-      const remaining = required - weeksCompleted;
-      const isReady = weeksCompleted >= required;
-      const isPenultimate = !isReady && remaining <= 1 && weeksCompleted > 0;
+      // Aparece no bloco quando falta só 1 treino (penúltimo) OU ao completar tudo
+      const isReady = degreeProgress.isReadyForGraduation;
+      const isPenultimate = degreeProgress.isPenultimate;
 
       if (isReady || isPenultimate) {
         readyStudents.push({
           ...student,
-          weeksCompleted: Math.floor(weeksCompleted * 10) / 10,
+          weeksCompleted: degreeProgress.weeksCompleted,
           weeksRequired: required,
           nextDegree: student.degrees + 1,
           confirmedAttendances: studentAttendance.length,
-          progressUnit: "treinos",
+          progressUnit: degreeProgress.progressUnit,
           isPenultimate,
         });
       }
@@ -531,10 +563,7 @@ export const AdminDashboard: React.FC = () => {
           student.program,
           student.birthDate,
         );
-        const isReadyAfterThisScan =
-          degreeProgressAfter.weeksRequired !== null &&
-          degreeProgressAfter.weeksCompleted >=
-            (degreeProgressAfter.weeksRequired || Infinity);
+        const isReadyAfterThisScan = degreeProgressAfter.isReadyForGraduation;
 
         // Show degree confirmation modal only when student is fully done
         const wasAlreadyFullyReady = studentsReadyForDegree.some(
@@ -566,7 +595,7 @@ export const AdminDashboard: React.FC = () => {
                   weeksRequired: degreeProgressAfter.weeksRequired || 0,
                   nextDegree: student.degrees + 1,
                   confirmedAttendances: simulatedAttendance.length,
-                  progressUnit: "treinos",
+                  progressUnit: degreeProgressAfter.progressUnit,
                   isPenultimate: false,
                 } as StudentReadyForDegree),
             );
@@ -1285,14 +1314,6 @@ export const AdminDashboard: React.FC = () => {
                         </span>
                       </div>
                       {(() => {
-                        const progressUnit = student.progressUnit || "treinos";
-                        const completed = Math.round(
-                          student.weeksCompleted,
-                        ).toString();
-                        const required = String(
-                          Math.round(student.weeksRequired),
-                        );
-
                         return (
                           <div className="text-xs text-gray-600">
                             {BELT_NAMES_PT[student.belt]}{" "}
@@ -1307,9 +1328,11 @@ export const AdminDashboard: React.FC = () => {
                               student.belt,
                               student.degrees,
                             )}
+                            <div className="mt-1">
+                              <GBKNextDegreeColorBadge student={student} />
+                            </div>
                             <div className="text-xs text-amber-600 font-medium mt-1">
-                              {completed} de {required} {progressUnit}{" "}
-                              completados
+                              {formatDegreeProgressText(student)}
                             </div>
                           </div>
                         );
@@ -1490,10 +1513,12 @@ export const AdminDashboard: React.FC = () => {
                 </strong>{" "}
                 ({BELT_NAMES_PT[pendingDegreeStudent.belt]}).
               </p>
+              <div className="mb-2">
+                <GBKNextDegreeColorBadge student={pendingDegreeStudent} />
+              </div>
               <p className="text-gray-500 text-xs mb-5">
-                {Math.round(pendingDegreeStudent.weeksCompleted)} de{" "}
-                {Math.round(pendingDegreeStudent.weeksRequired)} treinos
-                completados. Deseja confirmar o grau agora?
+                {formatDegreeProgressText(pendingDegreeStudent)}. Deseja
+                confirmar o grau agora?
               </p>
               <div className="flex gap-3">
                 <button

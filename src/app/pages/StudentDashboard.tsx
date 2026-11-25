@@ -28,6 +28,7 @@ import {
   getDegreeProgress,
   calculateCompletedTrainings,
   getAttendanceDayKey,
+  formatProgressValue,
 } from "../utils/degreeCalculator";
 import { notificationService } from "../services/api";
 import { toast } from "sonner";
@@ -184,10 +185,10 @@ export const StudentDashboard: React.FC = () => {
     student.program,
     student.birthDate,
   );
-  const progressUnit = degreeProgress.progressUnit || "treinos";
-  const progressValue = Math.round(degreeProgress.weeksCompleted).toString();
-  const progressRequiredValue = String(
-    Math.round(degreeProgress.weeksRequired || 0),
+  const progressUnit = degreeProgress.progressUnit || "semanas";
+  const progressValue = formatProgressValue(degreeProgress.weeksCompleted);
+  const progressRequiredValue = formatProgressValue(
+    degreeProgress.weeksRequired || 0,
   );
   const recentWeeklyAverage = degreeProgress.recentWeeklyAverage || 0;
   const recentWeeklyAverageRounded = Math.round(recentWeeklyAverage);
@@ -195,14 +196,14 @@ export const StudentDashboard: React.FC = () => {
     if (degreeProgress.weeksRequired === null) return null;
 
     if (degreeProgress.isReadyForGraduation) {
-      return "Parabéns! Você já atingiu os treinos necessários para o próximo grau, Continue assim! ";
+      return progressUnit === "semanas"
+        ? "Parabéns! Você já completou as semanas de treino necessárias para o próximo grau, Continue assim! "
+        : "Parabéns! Você já atingiu os treinos necessários para o próximo grau, Continue assim! ";
     }
 
     // Show "falta apenas X treinos" only when 5 or less trainings remain
-    const trainingsMissing = Math.ceil(
-      (degreeProgress.weeksRequired || 0) -
-        (degreeProgress.weeksCompleted || 0),
-    );
+    // (em semanas, cada treino vale no máximo meia semana)
+    const trainingsMissing = degreeProgress.trainingsRemaining || 0;
     if (trainingsMissing > 0 && trainingsMissing <= 5) {
       const treinoText = trainingsMissing === 1 ? "treino" : "treinos";
       return `Falta apenas ${trainingsMissing} ${treinoText} para o próximo grau! Vem lá, você consegue! 💪`;
@@ -548,7 +549,8 @@ export const StudentDashboard: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-xs text-gray-600 mt-1">
                     <span className="font-medium">
-                      {progressValue} {progressUnit} completados
+                      {progressValue} {progressUnit}{" "}
+                      {progressUnit === "semanas" ? "completadas" : "completados"}
                     </span>
                     <span className="font-bold text-[#003087]">
                       {degreeProgress.progressPercentage}%

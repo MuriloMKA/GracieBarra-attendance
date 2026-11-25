@@ -54,6 +54,17 @@ const getMaxDegreesForGBK = (belt: BeltColor): number => {
   return 11;
 };
 
+// Tabela oficial GBK: do 9º ao 11º grau a cor muda conforme a faixa.
+const getGBKThirdStageColor = (
+  belt: BeltColor,
+): { name: string; hex: string } => {
+  if (belt.startsWith("Grey")) return { name: "amarelo", hex: "#FACC15" };
+  if (belt.startsWith("Yellow")) return { name: "laranja", hex: "#F97316" };
+  if (belt.startsWith("Orange")) return { name: "verde", hex: "#16A34A" };
+  if (belt.startsWith("Green")) return { name: "azul", hex: "#2563EB" };
+  return { name: "preto", hex: "#111827" };
+};
+
 const isGBKBelt = (belt: BeltColor): boolean => {
   return (
     belt === "White" ||
@@ -116,14 +127,28 @@ const getGBKDegreeStage = (belt: BeltColor, degrees: number) => {
     };
   }
 
+  const thirdStageColor = getGBKThirdStageColor(belt);
   return {
     degreeNumber: normalizedDegrees - 8,
-    colorName: "preto",
-    colorHex: "#111827",
+    colorName: thirdStageColor.name,
+    colorHex: thirdStageColor.hex,
     maxSlots: 3,
     filledInStage: normalizedDegrees - 8,
   };
 };
+
+/**
+ * Cor de um grau GBK (1-4 branco, 5-8 vermelho, 9-11 depende da faixa).
+ * `degree` é o número absoluto do grau (1 a 11).
+ */
+export function getGBKDegreeColor(
+  belt: BeltColor,
+  degree: number,
+): { name: string; hex: string } | null {
+  if (degree <= 0 || degree > getMaxDegreesForGBK(belt)) return null;
+  const stage = getGBKDegreeStage(belt, degree);
+  return { name: stage.colorName, hex: stage.colorHex };
+}
 
 export function getDegreeDisplayLabel(
   program: Program,
@@ -346,10 +371,11 @@ export const BeltDisplay: React.FC<BeltDisplayProps> = ({
   const visibleSlots = isGBK ? 4 : belt === "Black" ? 6 : 4;
 
   // GBK: sobreposição por etapa no mesmo slot.
-  // 1-4 brancos, 5-8 vermelhos sobre os brancos, 9-11 pretos sobre os vermelhos.
+  // 1-4 brancos, 5-8 vermelhos sobre os brancos, 9-11 na cor da faixa
+  // (amarelo/laranja/verde/azul) sobre os vermelhos.
   const getGBKSlotColor = (slotIndex: number) => {
-    const blackFilled = Math.min(Math.max(normalizedDegrees - 8, 0), 3);
-    if (slotIndex < blackFilled) return "#111827";
+    const thirdStageFilled = Math.min(Math.max(normalizedDegrees - 8, 0), 3);
+    if (slotIndex < thirdStageFilled) return getGBKThirdStageColor(belt).hex;
 
     const redFilled = Math.min(Math.max(normalizedDegrees - 4, 0), 4);
     if (slotIndex < redFilled) return "#D10A11";
